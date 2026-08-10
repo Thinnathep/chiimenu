@@ -1,0 +1,70 @@
+// https://nuxt.com/docs/api/configuration/nuxt-config
+export default defineNuxtConfig({
+  compatibilityDate: '2025-07-15',
+  devtools: { enabled: true },
+  css: ['~/assets/css/tailwind.css'],
+
+  modules: [
+    '@nuxtjs/tailwindcss',
+    '@nuxtjs/supabase',
+    '@nuxtjs/i18n',
+    '@nuxtjs/google-fonts'
+  ].concat(process.env.NODE_ENV === 'production' ? ['nuxt-security'] : []),
+
+  runtimeConfig: {
+    cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+    cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
+  },
+
+  i18n: {
+    locales: [
+      { code: 'th', iso: 'th-TH', file: 'th.json', name: 'ไทย' },
+      { code: 'en', iso: 'en-US', file: 'en.json', name: 'English' },
+      { code: 'zh', iso: 'zh-CN', file: 'zh.json', name: '中文' },
+      // { code: 'nod', iso: 'nod-TH', file: 'nod.json', name: 'ล้านนา' }
+    ],
+    defaultLocale: 'th',
+    strategy: 'no_prefix',
+    langDir: 'locales/',
+    detectBrowserLanguage: false
+  },
+
+  googleFonts: {
+    families: {
+      Prompt: [300, 400, 500, 600, 700]
+    },
+    display: 'swap'
+  },
+
+  supabase: {
+    redirectOptions: {
+      login: '/login',
+      callback: '/confirm',
+      exclude: ['/', '/login', '/register', '/m/*', '/menu/*', '/api/*'] // Exclude public tourist routes and auth pages
+    },
+    clientOptions: {
+      auth: {
+        flowType: 'pkce',
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true
+      }
+    }
+  },
+
+  // @ts-ignore - nuxt-security module is only loaded in production, so types are missing in dev
+  security: {
+    headers: {
+      crossOriginEmbedderPolicy: 'unsafe-none',
+      contentSecurityPolicy: process.env.NODE_ENV === 'development' ? false : {
+        'img-src': ["'self'", 'data:', 'https://*.supabase.co'],
+        'script-src': ["'self'", "'unsafe-inline'", "'strict-dynamic'"],
+      }
+    },
+    rateLimiter: {
+      tokensPerInterval: 150,
+      interval: 300000, // 5 minutes
+      throwError: true
+    }
+  }
+})
