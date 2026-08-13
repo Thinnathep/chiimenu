@@ -17,7 +17,9 @@ const form = ref({
   description: '',
   store_type: 'restaurant',
   address: '',
-  default_language: 'th'
+  default_language: 'th',
+  logo_url: '',
+  cover_url: ''
 })
 
 const storeTypes = [
@@ -47,6 +49,8 @@ const submitForm = async () => {
     
     const ownerId = authData.user.id
 
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
     const { data, error } = await client.from('stores').insert({
       owner_id: ownerId,
       name: form.value.name,
@@ -55,9 +59,12 @@ const submitForm = async () => {
       store_type: form.value.store_type,
       address: form.value.address,
       default_language: form.value.default_language,
+      logo_url: form.value.logo_url || null,
+      cover_url: form.value.cover_url || null,
       is_active: true,
-      plan_status: 'trial'
-    }).select().single()
+      plan_status: 'trial',
+      trial_ends_at: trialEndsAt
+    } as any).select().single()
     
     if (error) throw error
     
@@ -86,49 +93,83 @@ const submitForm = async () => {
     </div>
 
     <form @submit.prevent="submitForm" class="bg-card shadow-sm border rounded-lg overflow-hidden">
-      <div class="p-6 space-y-6">
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div class="sm:col-span-2">
-            <label for="name" class="block text-sm font-medium text-foreground">{{ $t('store_name') }} <span class="text-destructive">*</span></label>
-            <input v-model="form.name" type="text" id="name" required class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-          </div>
-
-          <div class="sm:col-span-2">
-            <label for="slug" class="block text-sm font-medium text-foreground">{{ $t('store_slug') }} <span class="text-destructive">*</span></label>
-            <div class="mt-1 flex rounded-md shadow-sm">
-              <span class="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-muted-foreground sm:text-sm">
-                chiimenu.com/
-              </span>
-              <input v-model="form.slug" type="text" id="slug" required pattern="[a-z0-9-]+" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+      <div class="p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          <!-- Left Column: Images -->
+          <div class="lg:col-span-1 space-y-6">
+            <div>
+              <h3 class="text-lg font-medium text-foreground">ภาพลักษณ์ร้านค้า</h3>
+              <p class="text-sm text-muted-foreground mt-1">อัปโหลดโลโก้และรูปปกเพื่อดึงดูดลูกค้า</p>
             </div>
-            <p class="mt-1 text-xs text-muted-foreground">{{ $t('store_slug_hint') }}</p>
+            
+            <ImageUpload 
+              v-if="user"
+              bucket="store_assets" 
+              :path="`${user.id}/logo`" 
+              v-model="form.logo_url" 
+              label="โลโก้ร้าน (1:1)" 
+              aspect-ratio="1/1" 
+            />
+            
+            <ImageUpload 
+              v-if="user"
+              bucket="store_assets" 
+              :path="`${user.id}/cover`" 
+              v-model="form.cover_url" 
+              label="รูปหน้าปก (16:9)" 
+              aspect-ratio="16/9" 
+            />
           </div>
 
-          <div>
-            <label for="store_type" class="block text-sm font-medium text-foreground">{{ $t('store_type_label') }}</label>
-            <select v-model="form.store_type" id="store_type" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-              <option value="restaurant">{{ $t('store_type_restaurant') }}</option>
-              <option value="cafe">{{ $t('store_type_cafe') }}</option>
-              <option value="street_food">{{ $t('store_type_street') }}</option>
-              <option value="drink">{{ $t('store_type_drink') }}</option>
-            </select>
-          </div>
+          <!-- Right Column: Details -->
+          <div class="lg:col-span-2 space-y-6">
+            <div>
+              <h3 class="text-lg font-medium text-foreground">ข้อมูลพื้นฐาน</h3>
+              <p class="text-sm text-muted-foreground mt-1">ชื่อและข้อมูลติดต่อ</p>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div class="sm:col-span-2">
+                <label for="name" class="block text-sm font-medium text-foreground">{{ $t('store_name_label') }} <span class="text-destructive">*</span></label>
+                <input v-model="form.name" type="text" id="name" required class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+              </div>
 
-          <div>
-            <label for="default_language" class="block text-sm font-medium text-foreground">{{ $t('store_lang_label') }}</label>
-            <select v-model="form.default_language" id="default_language" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-              <option value="th">{{ $t('store_lang_th') }}</option>
-              <option value="en">{{ $t('store_lang_en') }}</option>
-            </select>
-          </div>
+              <div class="sm:col-span-2">
+                <label for="slug" class="block text-sm font-medium text-foreground">{{ $t('store_slug_label') }} <span class="text-destructive">*</span></label>
+                <div class="mt-1 flex rounded-md shadow-sm">
+                  <span class="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-muted-foreground sm:text-sm">
+                    chiimenu.com/
+                  </span>
+                  <input v-model="form.slug" type="text" id="slug" required pattern="[a-z0-9-]+" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                </div>
+                <p class="mt-1 text-xs text-muted-foreground">{{ $t('store_slug_hint') }}</p>
+              </div>
 
-          <div class="sm:col-span-2">
-            <label for="description" class="block text-sm font-medium text-foreground">{{ $t('store_desc_label') }}</label>
-            <textarea v-model="form.description" id="description" rows="3" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"></textarea>
+              <div>
+                <label for="store_type" class="block text-sm font-medium text-foreground">{{ $t('store_type_label') }}</label>
+                <select v-model="form.store_type" id="store_type" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                  <option v-for="t in storeTypes" :key="t.value" :value="t.value">{{ typeof t.label === 'string' ? t.label : t.label }}</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="default_language" class="block text-sm font-medium text-foreground">{{ $t('store_lang_label') }}</label>
+                <select v-model="form.default_language" id="default_language" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                  <option value="th">{{ $t('store_lang_th') }}</option>
+                  <option value="en">{{ $t('store_lang_en') }}</option>
+                </select>
+              </div>
+
+              <div class="sm:col-span-2">
+                <label for="description" class="block text-sm font-medium text-foreground">{{ $t('store_desc_label') }}</label>
+                <textarea v-model="form.description" id="description" rows="3" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"></textarea>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div v-if="errorMsg" class="rounded-md bg-destructive/10 p-4 border border-destructive/20">
+        <div v-if="errorMsg" class="mt-6 rounded-md bg-destructive/10 p-4 border border-destructive/20">
           <div class="flex">
             <div class="ml-3">
               <h3 class="text-sm font-medium text-destructive">{{ $t('store_err_title') }}</h3>

@@ -3,7 +3,7 @@ const user = useSupabaseUser()
 const { auth } = useSupabaseClient()
 const router = useRouter()
 
-const email = ref('')
+const loginId = ref('')
 const password = ref('')
 const fullName = ref('')
 const loading = ref(false)
@@ -20,20 +20,35 @@ const handleRegister = async () => {
   loading.value = true
   errorMsg.value = ''
   
+  let actualEmail = loginId.value.trim()
+  if (!actualEmail.includes('@') && /^\d{9,}$/.test(actualEmail)) {
+    actualEmail = `${actualEmail}@phone.chiimenu.com`
+  }
+  
+  const metaData: any = {
+    full_name: fullName.value
+  }
+  
+  if (actualEmail.includes('@phone.chiimenu.com')) {
+    metaData.phone = loginId.value.trim()
+  }
+  
   const { error } = await auth.signUp({
-    email: email.value,
+    email: actualEmail,
     password: password.value,
     options: {
-      data: {
-        full_name: fullName.value
-      }
+      data: metaData
     }
   })
   
   if (error) {
     errorMsg.value = error.message
   } else {
-    successMsg.value = 'สมัครสมาชิกสำเร็จ! (หากตั้งค่า Require Email Verification ไว้ใน Supabase กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ)'
+    if (actualEmail.includes('@phone.chiimenu.com')) {
+      successMsg.value = 'เปิดร้านค้าสำเร็จ! ระบบกำลังพาคุณเข้าสู่แดชบอร์ด...'
+    } else {
+      successMsg.value = 'เปิดร้านค้าสำเร็จ! กรุณาตรวจสอบและกดยืนยันในอีเมลของคุณก่อนเข้าสู่ระบบ'
+    }
     // If auto login is enabled in Supabase, the watcher above will trigger.
   }
   loading.value = false
@@ -65,14 +80,14 @@ const handleRegister = async () => {
           </div>
           
           <div>
-            <label for="email" class="block text-sm font-medium text-foreground">Email address</label>
+            <label for="loginId" class="block text-sm font-medium text-foreground">อีเมล หรือ เบอร์โทรศัพท์</label>
             <div class="mt-1">
-              <input v-model="email" id="email" type="email" autocomplete="email" required class="block w-full appearance-none rounded-md border border-input px-3 py-2 placeholder-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm bg-background text-foreground" />
+              <input v-model="loginId" id="loginId" type="text" autocomplete="username" required class="block w-full appearance-none rounded-md border border-input px-3 py-2 placeholder-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm bg-background text-foreground" placeholder="เช่น my-shop@email.com หรือ 0812345678" />
             </div>
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-foreground">Password</label>
+            <label for="password" class="block text-sm font-medium text-foreground">รหัสผ่าน (อย่างน้อย 6 ตัว)</label>
             <div class="mt-1">
               <input v-model="password" id="password" type="password" autocomplete="new-password" required minlength="6" class="block w-full appearance-none rounded-md border border-input px-3 py-2 placeholder-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm bg-background text-foreground" />
             </div>

@@ -64,7 +64,7 @@ onMounted(async () => {
       .select('*')
       .eq('id', itemId)
       .eq('store_id', store.value.id)
-      .single()
+      .single() as any
       
     if (itemError) {
       errorMsg.value = useNuxtApp().$i18n.t('item_not_found_msg')
@@ -104,10 +104,10 @@ onMounted(async () => {
     
     categories.value = catRes.data || []
     allAllergens.value = allAlgRes.data || []
-    selectedAllergens.value = itemAlgRes.data?.map(a => a.allergen_id) || []
+    selectedAllergens.value = (itemAlgRes.data as any)?.map((a: any) => a.allergen_id) || []
     
     allGroups.value = allGrpRes.data || []
-    selectedGroups.value = itemGrpRes.data?.map(g => g.group_id) || []
+    selectedGroups.value = (itemGrpRes.data as any)?.map((g: any) => g.group_id) || []
   }
   
   loading.value = false
@@ -134,7 +134,7 @@ const handleAutoTranslate = async () => {
   
   isTranslating.value = true
   try {
-    const data = await $fetch('/api/translate', {
+    const data = await $fetch<any>('/api/translate', {
       method: 'POST',
       body: {
         name_th: form.value.name_th,
@@ -202,7 +202,7 @@ const submitForm = async () => {
       spicy_level: form.value.is_spicy ? form.value.spicy_level : 0,
       photo_url: finalPhotoUrl,
       updated_at: new Date().toISOString()
-    }).eq('id', itemId)
+    } as never).eq('id', itemId)
     
     if (updateError) throw updateError
     
@@ -214,7 +214,7 @@ const submitForm = async () => {
         menu_item_id: itemId,
         allergen_id: allergenId
       }))
-      await client.from('menu_item_allergens').insert(allergenInserts)
+      await client.from('menu_item_allergens').insert(allergenInserts as never)
     }
 
     // Update Customization Groups: Delete old, Insert new
@@ -225,7 +225,7 @@ const submitForm = async () => {
         menu_item_id: itemId,
         group_id: groupId
       }))
-      await client.from('menu_item_customizations').insert(groupInserts)
+      await client.from('menu_item_customizations').insert(groupInserts as never)
     }
     
     router.push('/merchant/menu')
@@ -244,7 +244,7 @@ const deleteItem = async () => {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto pb-12">
+  <div class="max-w-5xl mx-auto pb-12">
     <div class="mb-8 flex justify-between items-center">
       <div>
         <NuxtLink to="/merchant/menu" class="text-sm font-medium text-muted-foreground hover:text-foreground mb-4 inline-block">

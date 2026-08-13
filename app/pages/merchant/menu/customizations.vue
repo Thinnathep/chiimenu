@@ -40,9 +40,10 @@ onMounted(async () => {
     .from('stores')
     .select('id')
     .eq('owner_id', authData.user.id)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
     
-  store.value = storeData
+  store.value = storeData?.[0] || null
   
   if (store.value) {
     await fetchGroups()
@@ -64,7 +65,7 @@ const fetchGroups = async () => {
     
   // Sort options by sort_order locally
   if (data) {
-    data.forEach(group => {
+    (data as any[]).forEach(group => {
       if (group.customization_options) {
         group.customization_options.sort((a: any, b: any) => a.sort_order - b.sort_order)
       }
@@ -77,7 +78,7 @@ const fetchGroups = async () => {
 const addGroup = async () => {
   if (!newGroup.value.name_th.trim() || !store.value) return
   
-  await client.from('customization_groups').insert({
+  await (client as any).from('customization_groups').insert({
     store_id: store.value.id,
     name_th: newGroup.value.name_th,
     name_en: newGroup.value.name_en || null,
@@ -103,7 +104,7 @@ const addOption = async (groupId: string) => {
   const group = groups.value.find(g => g.id === groupId)
   const maxSort = group?.customization_options?.length || 0
   
-  await client.from('customization_options').insert({
+  await (client as any).from('customization_options').insert({
     group_id: groupId,
     name_th: newOption.value.name_th,
     name_en: newOption.value.name_en || null,
@@ -181,7 +182,7 @@ const translateOption = async () => {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto pb-12">
+  <div class="w-full pb-12">
     <div class="mb-8">
       <NuxtLink to="/merchant/menu" class="text-sm font-medium text-muted-foreground hover:text-foreground mb-4 inline-block">
         &larr; {{ $t('cat_back') }}

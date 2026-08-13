@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: false }, // ปิด DevTools ไว้เพื่อลดเวลา Startup (เร็วขึ้น ~5 วินาที)
   css: ['~/assets/css/tailwind.css'],
 
   modules: [
@@ -14,6 +14,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
     cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
+    public: {
+      adminEmails: process.env.ADMIN_EMAILS || ''
+    }
   },
 
   i18n: {

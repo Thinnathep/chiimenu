@@ -95,7 +95,7 @@ const handleAutoTranslate = async () => {
   
   isTranslating.value = true
   try {
-    const data = await $fetch('/api/translate', {
+    const data = await $fetch<any>('/api/translate', {
       method: 'POST',
       body: {
         name_th: form.value.name_th,
@@ -164,7 +164,7 @@ const submitForm = async () => {
       is_spicy: form.value.is_spicy,
       spicy_level: form.value.is_spicy ? form.value.spicy_level : 0,
       photo_url: photoUrl
-    }).select().single()
+    } as never).select().single() as any
     
     if (insertError) throw insertError
     
@@ -177,7 +177,7 @@ const submitForm = async () => {
       
       const { error: allergenError } = await client
         .from('menu_item_allergens')
-        .insert(allergenInserts)
+        .insert(allergenInserts as never)
         
       if (allergenError) console.error('Failed to link allergens:', allergenError)
     }
@@ -189,7 +189,7 @@ const submitForm = async () => {
         group_id: groupId
       }))
       
-      await client.from('menu_item_customizations').insert(groupInserts)
+      await client.from('menu_item_customizations').insert(groupInserts as never)
     }
     
     router.push('/merchant/menu')
@@ -201,7 +201,7 @@ const submitForm = async () => {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto pb-12">
+  <div class="max-w-5xl mx-auto pb-12">
     <div class="mb-8">
       <NuxtLink to="/merchant/menu" class="text-sm font-medium text-muted-foreground hover:text-foreground mb-4 inline-block">
         &larr; {{ $t('item_back_btn') }}

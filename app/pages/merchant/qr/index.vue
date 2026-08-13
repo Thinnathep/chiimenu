@@ -46,9 +46,10 @@ onMounted(async () => {
     .from('stores')
     .select('*')
     .eq('owner_id', authData.user.id)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
     
-  store.value = storeData
+  store.value = storeData?.[0] || null
   
   if (store.value) {
     await fetchQrCodes()
@@ -66,8 +67,8 @@ const fetchQrCodes = async () => {
     
   // Generate Data URLs for display
   if (data) {
-    for (const qr of data) {
-      const url = `${baseUrl.value}/m/${qr.short_code}`
+    for (const qr of (data as any[])) {
+      let url = `${baseUrl.value}/m/${qr.short_code}`
       qr.dataUrl = await QRCode.toDataURL(url, {
         width: 300,
         margin: 2,
@@ -99,7 +100,7 @@ const createQrCode = async () => {
   let shortCode = generateRandomString(6)
   
   // Basic collision check (in production, should be handled by DB unique constraint + retry)
-  const { error } = await client.from('qr_codes').insert({
+  const { error } = await (client as any).from('qr_codes').insert({
     store_id: store.value.id,
     label: newQrLabel.value || useNuxtApp().$i18n.t('qr_default_label'),
     short_code: shortCode,
@@ -119,12 +120,12 @@ const createQrCode = async () => {
 const toggleStatus = async (qr: any) => {
   const newStatus = !qr.is_active
   qr.is_active = newStatus
-  await client.from('qr_codes').update({ is_active: newStatus }).eq('id', qr.id)
+  await (client as any).from('qr_codes').update({ is_active: newStatus }).eq('id', qr.id)
 }
 
 const deleteQr = async (id: string) => {
   if (!confirm(useNuxtApp().$i18n.t('qr_delete_confirm'))) return
-  await client.from('qr_codes').delete().eq('id', id)
+  await (client as any).from('qr_codes').delete().eq('id', id)
   await fetchQrCodes()
 }
 
@@ -139,7 +140,7 @@ const downloadQr = (qr: any) => {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto pb-12">
+  <div class="w-full pb-12">
     <div class="mb-8">
       <h1 class="text-2xl font-bold tracking-tight text-foreground">{{ $t('qr_title') }}</h1>
       <p class="text-muted-foreground mt-1">{{ $t('qr_subtitle') }}</p>
@@ -160,7 +161,7 @@ const downloadQr = (qr: any) => {
         <h2 class="text-lg font-medium mb-4">{{ $t('qr_create_title') }}</h2>
         <form @submit.prevent="createQrCode" class="flex flex-col sm:flex-row gap-4 items-end">
           <div class="flex-1">
-            <label class="block text-sm font-medium text-foreground mb-1">{{ $t('qr_label_input') }}</label>
+            <label class="block text-sm font-medium text-foreground mb-1">{{ $t('qr_label_input') }} <span class="text-xs text-muted-foreground">(เช่น โซนแอร์, โต๊ะรวม)</span></label>
             <input v-model="newQrLabel" type="text" :placeholder="$t('qr_label_placeholder')" class="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
           </div>
           <button type="submit" :disabled="generating" class="inline-flex justify-center rounded-md border border-transparent bg-primary py-2 px-6 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 h-[38px]">
@@ -170,7 +171,7 @@ const downloadQr = (qr: any) => {
       </div>
 
       <!-- QR Codes List -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
         <div v-if="qrCodes.length === 0" class="col-span-full p-12 text-center text-muted-foreground bg-card border rounded-lg border-dashed">
           <svg class="mx-auto h-12 w-12 text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
@@ -181,7 +182,9 @@ const downloadQr = (qr: any) => {
         <div v-for="qr in qrCodes" :key="qr.id" class="bg-card shadow-sm border rounded-lg overflow-hidden flex flex-col" :class="!qr.is_active ? 'opacity-75' : ''">
           <div class="p-4 border-b bg-muted/30 flex justify-between items-center">
             <h3 class="font-bold text-foreground truncate" :title="qr.label">{{ qr.label || $t('qr_default_label') }}</h3>
-            <span class="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium font-mono">{{ qr.short_code }}</span>
+            <div class="flex gap-2">
+              <span class="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium font-mono">{{ qr.short_code }}</span>
+            </div>
           </div>
           
           <div class="p-6 flex flex-col items-center flex-1">
@@ -196,7 +199,7 @@ const downloadQr = (qr: any) => {
             </div>
             
             <p class="text-xs text-muted-foreground text-center mb-6 break-all w-full px-2">
-              {{ baseUrl }}/m/{{ qr.short_code }}
+              {{ baseUrl }}/m/{{ qr.short_code }}<span v-if="qr.table_identifier">?t={{ encodeURIComponent(qr.table_identifier) }}</span>
             </p>
             
             <!-- Actions -->

@@ -17,14 +17,49 @@ const { data: store, pending, refresh } = await useAsyncData('store', async () =
     .from('stores')
     .select('*')
     .eq('owner_id', authData.user.id)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
     
   if (error) {
     console.error("Dashboard fetch store error:", error)
     return null
   }
-  return data
+  return data?.[0] || null
 })
+
+// Fetch today's orders stats
+const { data: orderStats } = await useAsyncData('orderStats', async () => {
+  if (!store.value?.id) return { todayCount: 0, pendingOrders: [] }
+  
+  // Get today's start date in ISO format
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString()
+  
+  const { data, error } = await client
+    .from('orders')
+    .select('id, status, table_no, items, created_at')
+    .eq('store_id', store.value.id)
+    .gte('created_at', todayStr)
+    .order('created_at', { ascending: false })
+    
+  if (error || !data) return { todayCount: 0, latestOrders: [] as any[] }
+  
+  return {
+    todayCount: data.length,
+    latestOrders: (data as any[]).slice(0, 3)
+  }
+}, { watch: [store] })
+
+const daysRemaining = computed(() => {
+  if (!store.value?.trial_ends_at) return 0
+  const end = new Date(store.value.trial_ends_at)
+  const now = new Date()
+  const diffTime = end.getTime() - now.getTime()
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+})
+
+const isTrial = computed(() => store.value?.plan_status === 'trial')
 </script>
 
 <template>
@@ -46,61 +81,143 @@ const { data: store, pending, refresh } = await useAsyncData('store', async () =
       </NuxtLink>
     </div>
     
-    <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- Stats Cards (Placeholder for Day 6) -->
-      <div class="bg-card overflow-hidden shadow-sm rounded-lg border">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+    <div v-else>
+      <!-- Trial / Plan Banner -->
+      <div class="mb-6">
+        <div v-if="isTrial && daysRemaining > 7" class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
+          <div class="flex">
+            <div class="ml-3">
+              <p class="text-sm text-blue-700">
+                สถานะ: ทดลองใช้งาน (เหลืออีก {{ daysRemaining }} วัน)
+              </p>
             </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-muted-foreground truncate">{{ $t('dash_qr_scans') }}</dt>
-                <dd class="flex items-baseline">
-                  <div class="text-2xl font-semibold text-foreground">0</div>
-                </dd>
-              </dl>
+          </div>
+        </div>
+        
+        <div v-else-if="isTrial && daysRemaining <= 7 && daysRemaining >= 0" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+          <div class="flex">
+            <div class="ml-3">
+              <p class="text-sm text-yellow-700 font-medium">
+                ⚠️ เหลือเวลาทดลองใช้อีกเพียง {{ daysRemaining }} วัน! กรุณาต่ออายุเพื่อใช้งานอย่างต่อเนื่อง
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div v-else-if="daysRemaining < 0 && isTrial" class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+          <div class="flex">
+            <div class="ml-3">
+              <p class="text-sm text-red-700 font-bold">
+                ❌ หมดเวลาทดลองใช้งานแล้ว (เมนูฝั่งลูกค้าปิดการแสดงผลชั่วคราว) กรุณาต่ออายุ
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div v-else-if="store.plan_status === 'active'" class="bg-green-50 border-l-4 border-green-400 p-4 rounded-md">
+           <div class="flex">
+            <div class="ml-3">
+              <p class="text-sm text-green-700">
+                ✅ สถานะ: Active (ใช้งานได้อีก {{ daysRemaining }} วัน)
+              </p>
             </div>
           </div>
         </div>
       </div>
-      
-      <div class="bg-card overflow-hidden shadow-sm rounded-lg border">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <!-- Order Stats -->
+        <div class="bg-card overflow-hidden shadow-sm rounded-lg border">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <span class="text-3xl">🍽️</span>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-muted-foreground truncate">ออเดอร์วันนี้ (Today's Orders)</dt>
+                  <dd class="flex items-baseline">
+                    <div class="text-2xl font-semibold text-foreground">{{ orderStats?.todayCount || 0 }}</div>
+                  </dd>
+                </dl>
+              </div>
             </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-muted-foreground truncate">{{ $t('dash_active_menus') }}</dt>
-                <dd class="flex items-baseline">
-                  <div class="text-2xl font-semibold text-foreground">0</div>
-                </dd>
-              </dl>
+            
+            <div v-if="orderStats?.latestOrders?.length" class="mt-4 pt-4 border-t border-border/50">
+              <p class="text-xs font-bold text-muted-foreground mb-2">ออเดอร์ล่าสุด:</p>
+              <ul class="space-y-2">
+                <li v-for="order in orderStats.latestOrders" :key="order.id" class="text-sm flex justify-between">
+                  <span>โต๊ะ {{ order.table_no }} ({{ order.items.length }} รายการ)</span>
+                  <span class="text-muted-foreground">{{ new Date(order.created_at).toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'}) }}</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
-      </div>
+
       
       <!-- Store Info Summary -->
-      <div class="bg-card overflow-hidden shadow-sm rounded-lg border sm:col-span-2 lg:col-span-1">
-        <div class="p-5">
-          <h3 class="text-lg leading-6 font-medium text-foreground">{{ $t('dash_store', { name: store.name }) }}</h3>
-          <p class="mt-1 max-w-2xl text-sm text-muted-foreground">{{ store.store_type || $t('dash_store_type') }}</p>
+      <div class="bg-card overflow-hidden shadow-sm rounded-lg border flex flex-col">
+        <div class="relative h-24 bg-primary/20">
+          <img v-if="store.cover_url" :src="store.cover_url" class="w-full h-full object-cover" />
+        </div>
+        <div class="p-5 relative flex-1 flex flex-col">
+          <div class="absolute -top-10 left-5 bg-card p-1 rounded-lg shadow-sm border">
+            <div v-if="store.logo_url" class="w-16 h-16 rounded-md overflow-hidden">
+               <img :src="store.logo_url" class="w-full h-full object-cover" />
+            </div>
+            <div v-else class="w-16 h-16 bg-primary/10 flex items-center justify-center rounded-md text-primary font-bold text-xl">
+               {{ store.name?.charAt(0) || 'S' }}
+            </div>
+          </div>
           
-          <div class="mt-4 pt-4 border-t flex justify-between items-center">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800" v-if="store.is_active">
-              {{ $t('dash_open') }}
-            </span>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" v-else>
-              {{ $t('dash_closed') }}
-            </span>
-            <NuxtLink to="/merchant/qr" class="text-sm font-medium text-primary hover:text-primary/80">{{ $t('dash_create_qr') }}</NuxtLink>
+          <div class="mt-8 flex-1">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h3 class="text-xl font-bold text-foreground line-clamp-1">{{ store.name }}</h3>
+                <p v-if="store.name_en" class="text-xs text-muted-foreground line-clamp-1">{{ store.name_en }}</p>
+              </div>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 flex-shrink-0" v-if="store.is_active">
+                เปิดรับออเดอร์
+              </span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 flex-shrink-0" v-else>
+                ปิดรับออเดอร์
+              </span>
+            </div>
+            
+            <div class="mt-4 space-y-3 text-sm">
+              <div class="flex items-start gap-2">
+                <span class="text-muted-foreground w-16 flex-shrink-0">ประเภท:</span>
+                <span class="font-medium">{{ store.store_type || '-' }}</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="text-muted-foreground w-16 flex-shrink-0">ลิงก์เมนู:</span>
+                <a :href="`/m/${store.slug}`" target="_blank" class="font-medium text-primary hover:underline break-all">/m/{{ store.slug }}</a>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="text-muted-foreground w-16 flex-shrink-0">ที่อยู่:</span>
+                <span class="font-medium line-clamp-2">{{ store.address || '-' }}</span>
+              </div>
+              <div class="flex items-start gap-2 pt-3 mt-1 border-t border-border/50">
+                <span class="text-muted-foreground w-16 flex-shrink-0 mt-0.5">แจ้งเตือน:</span>
+                <span v-if="store.line_user_id" class="font-medium text-green-600 flex items-center gap-1 text-sm">
+                  <span class="text-base leading-none">💬</span> เชื่อมต่อ LINE แล้ว
+                </span>
+                <span v-else class="font-medium text-red-500 flex flex-col gap-1 text-sm">
+                  <div class="flex items-center gap-1"><span class="text-base leading-none">❌</span> ยังไม่เชื่อมต่อ</div>
+                  <NuxtLink to="/merchant/store/settings" class="text-xs underline hover:text-red-700">คลิกเพื่อตั้งค่ารับออเดอร์</NuxtLink>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-6 pt-4 border-t flex gap-2">
+            <NuxtLink to="/merchant/store/settings" class="flex-1 text-center bg-muted hover:bg-muted/80 text-foreground py-2 rounded-md text-sm font-medium transition-colors">ตั้งค่าร้าน</NuxtLink>
+            <NuxtLink to="/merchant/qr" class="flex-1 text-center bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-md text-sm font-medium transition-colors">สร้าง QR Code</NuxtLink>
           </div>
         </div>
       </div>
     </div>
   </div>
+</div>
 </template>

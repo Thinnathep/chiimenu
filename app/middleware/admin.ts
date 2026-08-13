@@ -1,25 +1,22 @@
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const user = useSupabaseUser()
+  const client = useSupabaseClient()
   
-  if (!user.value) {
+  const { data: authData } = await client.auth.getUser()
+  const userId = authData?.user?.id
+
+  if (!userId) {
     return navigateTo('/login')
   }
 
-  // Basic check for admin path - the real security is RLS and PIN verification
-  // But this prevents regular merchants from accidentally navigating to /admin
-  const client = useSupabaseClient()
-  
-  try {
-    const { data: profile } = await client
-      .from('profiles')
-      .select('role')
-      .eq('id', user.value.id)
-      .single()
-      
-    if (!profile || profile.role !== 'super_admin') {
-      return navigateTo('/')
-    }
-  } catch (e) {
+  // Check admin status from database
+  const { data: adminData } = await client
+    .from('admins')
+    .select('id')
+    .eq('id', userId)
+    .single()
+
+  if (!adminData) {
     return navigateTo('/')
   }
 })

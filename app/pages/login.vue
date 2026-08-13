@@ -3,7 +3,7 @@ const user = useSupabaseUser()
 const { auth } = useSupabaseClient()
 const router = useRouter()
 
-const email = ref('')
+const loginId = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
@@ -19,8 +19,14 @@ const handleLogin = async () => {
   loading.value = true
   errorMsg.value = ''
   
+  let actualEmail = loginId.value.trim()
+  // If it doesn't have @ and contains only numbers (at least 9 digits), treat as phone
+  if (!actualEmail.includes('@') && /^\d{9,}$/.test(actualEmail)) {
+    actualEmail = `${actualEmail}@phone.chiimenu.com`
+  }
+  
   const { error } = await auth.signInWithPassword({
-    email: email.value,
+    email: actualEmail,
     password: password.value,
   })
   
@@ -51,14 +57,19 @@ const handleLogin = async () => {
       <div class="bg-card px-4 py-8 shadow sm:rounded-lg sm:px-10 border">
         <form class="space-y-6" @submit.prevent="handleLogin">
           <div>
-            <label for="email" class="block text-sm font-medium text-foreground">Email address</label>
+            <label for="loginId" class="block text-sm font-medium text-foreground">อีเมล หรือ เบอร์โทรศัพท์</label>
             <div class="mt-1">
-              <input v-model="email" id="email" name="email" type="email" autocomplete="email" required class="block w-full appearance-none rounded-md border border-input px-3 py-2 placeholder-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm bg-background text-foreground" />
+              <input v-model="loginId" id="loginId" name="loginId" type="text" autocomplete="username" required class="block w-full appearance-none rounded-md border border-input px-3 py-2 placeholder-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm bg-background text-foreground" placeholder="เช่น my-shop@email.com หรือ 0812345678" />
             </div>
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-foreground">Password</label>
+            <div class="flex items-center justify-between">
+              <label for="password" class="block text-sm font-medium text-foreground">รหัสผ่าน</label>
+              <div class="text-sm">
+                <NuxtLink to="/forgot-password" class="font-medium text-primary hover:text-primary/80">ลืมรหัสผ่าน?</NuxtLink>
+              </div>
+            </div>
             <div class="mt-1">
               <input v-model="password" id="password" name="password" type="password" autocomplete="current-password" required class="block w-full appearance-none rounded-md border border-input px-3 py-2 placeholder-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm bg-background text-foreground" />
             </div>

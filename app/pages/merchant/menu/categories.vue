@@ -26,9 +26,10 @@ onMounted(async () => {
     .from('stores')
     .select('id')
     .eq('owner_id', authData.user.id)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
     
-  store.value = storeData
+  store.value = storeData?.[0] || null
   
   if (store.value) {
     // 2. Get Categories
@@ -58,9 +59,8 @@ const addCategory = async () => {
     name_th: newCategoryNameTh.value,
     name_en: newCategoryNameEn.value || null,
     name_zh: newCategoryNameZh.value || null,
-    // name_nod: newCategoryNameNod.value || null,
     sort_order: categories.value.length
-  })
+  } as any)
   
   addingCategory.value = false
   
@@ -110,7 +110,7 @@ const deleteCategory = async (id: string) => {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto">
+  <div class="w-full">
     <div class="mb-8 flex justify-between items-center">
       <div>
         <NuxtLink to="/merchant/menu" class="text-sm font-medium text-muted-foreground hover:text-foreground mb-4 inline-block">

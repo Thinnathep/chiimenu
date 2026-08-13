@@ -19,11 +19,12 @@ onMounted(async () => {
   // 1. Get Store
   const { data: storeData } = await client
     .from('stores')
-    .select('id, name')
+    .select('*')
     .eq('owner_id', authData.user.id)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
     
-  store.value = storeData
+  store.value = storeData?.[0] || null
   
   if (store.value) {
     // 2. Get Categories
@@ -56,7 +57,7 @@ const toggleAvailability = async (item: any) => {
   // Optimistic update
   item.is_available = newStatus
   
-  await client
+  await (client as any)
     .from('menu_items')
     .update({ is_available: newStatus })
     .eq('id', item.id)
