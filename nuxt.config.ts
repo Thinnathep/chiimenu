@@ -59,10 +59,7 @@ export default defineNuxtConfig({
   security: {
     headers: {
       crossOriginEmbedderPolicy: 'unsafe-none',
-      contentSecurityPolicy: process.env.NODE_ENV === 'development' ? false : {
-        'img-src': ["'self'", 'data:', 'https://*.supabase.co'],
-        'script-src': ["'self'", "'unsafe-inline'", "'strict-dynamic'"],
-      }
+      contentSecurityPolicy: false
     },
     rateLimiter: {
       tokensPerInterval: 150,
