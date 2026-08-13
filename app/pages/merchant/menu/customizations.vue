@@ -78,21 +78,60 @@ const fetchGroups = async () => {
 const addGroup = async () => {
   if (!newGroup.value.name_th.trim() || !store.value) return
   
-  await (client as any).from('customization_groups').insert({
+  if (!newGroup.value.name_en || !newGroup.value.name_zh) {
+    await translateGroup();
+  }
+  
+  // Check duplicate group name
+  const { count: dupCount } = await client
+    .from('customization_groups')
+    .select('*', { count: 'exact', head: true })
+    .eq('store_id', store.value.id)
+    .eq('name_th', newGroup.value.name_th.trim())
+    
+  if (dupCount && dupCount > 0) {
+    const swal = useAlert()
+    swal.fire('ชื่อกลุ่มซ้ำ', `คุณมีกลุ่มชื่อ "${newGroup.value.name_th}" อยู่แล้ว กรุณาตั้งชื่ออื่น`, 'error')
+    return
+  }
+  
+  const { error } = await (client as any).from('customization_groups').insert({
     store_id: store.value.id,
     name_th: newGroup.value.name_th,
     name_en: newGroup.value.name_en || null,
     name_zh: newGroup.value.name_zh || null,
-    // name_nod: newGroup.value.name_nod || null,
     is_required: newGroup.value.is_required
   })
   
-  newGroup.value = { name_th: '', name_en: '', name_zh: '', /* name_nod: '', */ is_required: false }
-  await fetchGroups()
+  const swal = useAlert()
+  if (!error) {
+    swal.fire({
+      title: 'สำเร็จ!',
+      text: 'เพิ่มกลุ่มตัวเลือกเรียบร้อยแล้ว',
+      icon: 'success',
+      timer: 1500,
+      showConfirmButton: false
+    })
+    newGroup.value = { name_th: '', name_en: '', name_zh: '', is_required: false }
+    await fetchGroups()
+  } else {
+    swal.fire('Error', 'ไม่สามารถเพิ่มข้อมูลได้', 'error')
+  }
 }
 
 const deleteGroup = async (id: string) => {
-  if (!confirm(useNuxtApp().$i18n.t('cust_del_group_confirm'))) return
+  const swal = useAlert()
+  const result = await swal.fire({
+    title: 'ยืนยันการลบ?',
+    text: "คุณจะไม่สามารถกู้คืนกลุ่มตัวเลือกนี้ได้",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'ใช่, ลบเลย!',
+    cancelButtonText: 'ยกเลิก'
+  })
+  if (!result.isConfirmed) return
   await client.from('customization_groups').delete().eq('id', id)
   await fetchGroups()
 }
@@ -100,26 +139,62 @@ const deleteGroup = async (id: string) => {
 const addOption = async (groupId: string) => {
   if (!newOption.value.name_th.trim() || newOption.value.group_id !== groupId) return
   
-  // Find current max sort_order
+  if (!newOption.value.name_en || !newOption.value.name_zh) {
+    await translateOption();
+  }
+  
   const group = groups.value.find(g => g.id === groupId)
+  
+  // Check duplicate option name in this group
+  if (group && group.customization_options) {
+    const exists = group.customization_options.some((opt: any) => opt.name_th.trim() === newOption.value.name_th.trim())
+    if (exists) {
+      const swal = useAlert()
+      swal.fire('ชื่อตัวเลือกซ้ำ', `คุณมีตัวเลือกชื่อ "${newOption.value.name_th}" ในกลุ่มนี้อยู่แล้ว`, 'error')
+      return
+    }
+  }
+  
   const maxSort = group?.customization_options?.length || 0
   
-  await (client as any).from('customization_options').insert({
+  const { error } = await (client as any).from('customization_options').insert({
     group_id: groupId,
     name_th: newOption.value.name_th,
     name_en: newOption.value.name_en || null,
     name_zh: newOption.value.name_zh || null,
-    // name_nod: newOption.value.name_nod || null,
     extra_price: newOption.value.extra_price || 0,
     sort_order: maxSort
   })
   
-  newOption.value = { group_id: '', name_th: '', name_en: '', name_zh: '', /* name_nod: '', */ extra_price: 0 }
-  await fetchGroups()
+  const swal = useAlert()
+  if (!error) {
+    swal.fire({
+      title: 'สำเร็จ!',
+      text: 'เพิ่มตัวเลือกเรียบร้อยแล้ว',
+      icon: 'success',
+      timer: 1500,
+      showConfirmButton: false
+    })
+    newOption.value = { group_id: '', name_th: '', name_en: '', name_zh: '', extra_price: 0 }
+    await fetchGroups()
+  } else {
+    swal.fire('Error', 'ไม่สามารถเพิ่มข้อมูลได้', 'error')
+  }
 }
 
 const deleteOption = async (id: string) => {
-  if (!confirm(useNuxtApp().$i18n.t('cust_del_opt_confirm'))) return
+  const swal = useAlert()
+  const result = await swal.fire({
+    title: 'ยืนยันการลบ?',
+    text: "คุณจะไม่สามารถกู้คืนตัวเลือกนี้ได้",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'ใช่, ลบเลย!',
+    cancelButtonText: 'ยกเลิก'
+  })
+  if (!result.isConfirmed) return
   await client.from('customization_options').delete().eq('id', id)
   await fetchGroups()
 }
@@ -142,11 +217,18 @@ const translateGroup = async () => {
     if (data.error) throw new Error(data.message)
     
     if (data) {
-      if (data.name_en) newGroup.value.name_en = data.name_en
-      if (data.name_zh) newGroup.value.name_zh = data.name_zh
+      if (data.name_en && !newGroup.value.name_en) newGroup.value.name_en = data.name_en
+      if (data.name_zh && !newGroup.value.name_zh) newGroup.value.name_zh = data.name_zh
     }
   } catch (error: any) {
-    alert(error.message || 'การแปลล้มเหลว กรุณาลองใหม่')
+    const swal = useAlert()
+    swal.fire({
+      title: 'เตือน',
+      text: 'การแปลอัตโนมัติล้มเหลว กรุณากรอกด้วยตนเอง',
+      icon: 'warning',
+      timer: 2000,
+      showConfirmButton: false
+    })
   } finally {
     isTranslatingGroup.value = false
   }
@@ -170,11 +252,18 @@ const translateOption = async () => {
     if (data.error) throw new Error(data.message)
     
     if (data) {
-      if (data.name_en) newOption.value.name_en = data.name_en
-      if (data.name_zh) newOption.value.name_zh = data.name_zh
+      if (data.name_en && !newOption.value.name_en) newOption.value.name_en = data.name_en
+      if (data.name_zh && !newOption.value.name_zh) newOption.value.name_zh = data.name_zh
     }
   } catch (error: any) {
-    alert(error.message || 'การแปลล้มเหลว กรุณาลองใหม่')
+    const swal = useAlert()
+    swal.fire({
+      title: 'เตือน',
+      text: 'การแปลอัตโนมัติล้มเหลว กรุณากรอกด้วยตนเอง',
+      icon: 'warning',
+      timer: 2000,
+      showConfirmButton: false
+    })
   } finally {
     isTranslatingOption.value = false
   }

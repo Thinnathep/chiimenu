@@ -54,6 +54,29 @@ const addCategory = async () => {
   
   addingCategory.value = true
   
+  // Auto translate if missing
+  if (!newCategoryNameEn.value || !newCategoryNameZh.value) {
+    await translateCategory();
+  }
+  
+  // Duplicate check
+  const { count: dupCount } = await client
+    .from('menu_categories')
+    .select('*', { count: 'exact', head: true })
+    .eq('store_id', store.value.id)
+    .eq('name_th', newCategoryNameTh.value.trim())
+    
+  if (dupCount && dupCount > 0) {
+    addingCategory.value = false
+    const swal = useAlert()
+    swal.fire({
+      title: 'หมวดหมู่ซ้ำ',
+      text: `คุณมีหมวดหมู่ชื่อ "${newCategoryNameTh.value}" ในร้านแล้ว กรุณาตั้งชื่ออื่น`,
+      icon: 'error'
+    })
+    return
+  }
+  
   const { error } = await client.from('menu_categories').insert({
     store_id: store.value.id,
     name_th: newCategoryNameTh.value,
@@ -63,13 +86,23 @@ const addCategory = async () => {
   } as any)
   
   addingCategory.value = false
+  const swal = useAlert()
   
   if (!error) {
+    swal.fire({
+      title: 'สำเร็จ!',
+      text: 'เพิ่มหมวดหมู่เรียบร้อยแล้ว',
+      icon: 'success',
+      timer: 1500,
+      showConfirmButton: false
+    })
     newCategoryNameTh.value = ''
     newCategoryNameEn.value = ''
     newCategoryNameZh.value = ''
     // newCategoryNameNod.value = ''
     await fetchCategories()
+  } else {
+    swal.fire('Error', 'ไม่สามารถเพิ่มหมวดหมู่ได้', 'error')
   }
 }
 
@@ -91,18 +124,37 @@ const translateCategory = async () => {
     if (data.error) throw new Error(data.message)
     
     if (data) {
-      if (data.name_en) newCategoryNameEn.value = data.name_en
-      if (data.name_zh) newCategoryNameZh.value = data.name_zh
+      if (data.name_en && !newCategoryNameEn.value) newCategoryNameEn.value = data.name_en
+      if (data.name_zh && !newCategoryNameZh.value) newCategoryNameZh.value = data.name_zh
     }
   } catch (error: any) {
-    alert(error.message || 'การแปลล้มเหลว กรุณาลองใหม่')
+    const swal = useAlert()
+    swal.fire({
+      title: 'เตือน',
+      text: 'การแปลอัตโนมัติล้มเหลว กรุณากรอกด้วยตนเอง',
+      icon: 'warning',
+      timer: 2000,
+      showConfirmButton: false
+    })
   } finally {
     isTranslating.value = false
   }
 }
 
 const deleteCategory = async (id: string) => {
-  if (!confirm(useNuxtApp().$i18n.t('cat_del_confirm'))) return
+  const swal = useAlert()
+  const result = await swal.fire({
+    title: 'ยืนยันการลบ?',
+    text: "คุณจะไม่สามารถกู้คืนข้อมูลนี้ได้",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'ใช่, ลบเลย!',
+    cancelButtonText: 'ยกเลิก'
+  })
+  
+  if (!result.isConfirmed) return
   
   await client.from('menu_categories').delete().eq('id', id)
   await fetchCategories()

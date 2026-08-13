@@ -8,6 +8,7 @@ const client = useSupabaseClient()
 const loading = ref(true)
 const store = ref<any>(null)
 const orders = ref<any[]>([])
+let realtimeChannel: any = null
 
 onMounted(async () => {
   const { data: authData } = await client.auth.getUser()
@@ -24,8 +25,26 @@ onMounted(async () => {
   if (storeData?.[0]) {
     store.value = storeData[0]
     await fetchOrders()
+    
+    // Subscribe to realtime updates
+    realtimeChannel = client.channel('custom-all-channel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders', filter: `store_id=eq.${store.value.id}` },
+        (payload) => {
+          // Add new order to the top of the list
+          orders.value.unshift(payload.new)
+        }
+      )
+      .subscribe()
   }
   loading.value = false
+})
+
+onUnmounted(() => {
+  if (realtimeChannel) {
+    client.removeChannel(realtimeChannel)
+  }
 })
 
 const fetchOrders = async () => {
@@ -85,7 +104,7 @@ const formatDate = (dateStr: string) => {
       </div>
 
       <!-- Order Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <div v-for="order in orders" :key="order.id" class="bg-card shadow-sm border rounded-2xl overflow-hidden flex flex-col border-primary/30">
           
           <!-- Header -->

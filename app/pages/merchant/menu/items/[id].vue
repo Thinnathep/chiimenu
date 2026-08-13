@@ -162,6 +162,34 @@ const submitForm = async () => {
   if (!store.value) return
   saving.value = true
   errorMsg.value = ''
+  // Auto translate if fields are empty
+  if (!form.value.name_en || !form.value.name_zh || !form.value.explanation_en) {
+    await handleAutoTranslate()
+  }
+  
+  // Duplicate Name Warning Check (Exclude current item)
+  const { count: dupCount } = await client
+    .from('menu_items')
+    .select('*', { count: 'exact', head: true })
+    .eq('store_id', store.value.id)
+    .eq('name_th', form.value.name_th.trim())
+    .neq('id', itemId)
+    
+  if (dupCount && dupCount > 0) {
+    const swal = useAlert()
+    const result = await swal.fire({
+      title: 'พบเมนูชื่อซ้ำ',
+      text: `คุณมีเมนูชื่อ "${form.value.name_th}" ในร้านอยู่แล้ว ต้องการใช้ชื่อนี้ซ้ำใช่หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, ใช้ชื่อนี้',
+      cancelButtonText: 'กลับไปแก้ไข'
+    })
+    if (!result.isConfirmed) {
+      saving.value = false
+      return
+    }
+  }
   
   try {
     let finalPhotoUrl = form.value.photo_url

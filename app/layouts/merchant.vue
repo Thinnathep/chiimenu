@@ -48,7 +48,8 @@ const daysRemaining = computed(() => {
 })
 
 const isTrialExpired = computed(() => {
-  return store.value?.plan_status === 'trial' && daysRemaining.value < 0
+  if (!store.value?.trial_ends_at) return false
+  return new Date(store.value.trial_ends_at).getTime() < Date.now()
 })
 
 
@@ -154,28 +155,42 @@ const handleLocaleChange = (e: Event) => {
           <!-- Trial Expired Lock Screen -->
           <div v-else-if="isTrialExpired" class="max-w-2xl mx-auto bg-card rounded-2xl shadow-lg border-2 border-red-200 overflow-hidden text-center mt-10">
             <div class="bg-red-500 text-white p-6">
-              <h2 class="text-3xl font-black">หมดเวลาทดลองใช้งาน 7 วันแล้ว!</h2>
-              <p class="mt-2 text-red-100">ระบบหลังบ้านและหน้าเมนูฝั่งลูกค้าถูกระงับการใช้งานชั่วคราว</p>
+              <h2 class="text-3xl font-black">สิทธิ์ใช้งานระบบของคุณหมดแล้ว</h2>
+              <p class="mt-2 text-red-100">กรุณาต่ออายุแพ็กเกจเพื่อกลับมาใช้งานระบบจัดการและเมนูร้านค้าอีกครั้ง</p>
             </div>
             
             <div class="p-8">
-              <div class="flex justify-center mb-6">
-                <div class="bg-muted p-4 rounded-xl border">
-                  <!-- Placeholder for LINE QR Code -->
-                  <div class="w-48 h-48 bg-white border-2 border-dashed border-muted-foreground flex flex-col items-center justify-center rounded-lg">
-                    <QrCode class="w-12 h-12 text-muted-foreground mb-2" />
-                    <span class="text-sm text-muted-foreground font-medium">สแกน LINE เพื่อชำระเงิน</span>
+              <div class="flex justify-center mb-8">
+                <a href="https://line.me/R/ti/p/@819wgrsj" target="_blank" rel="noopener noreferrer" class="bg-[#00B900] hover:bg-[#009900] text-white px-8 py-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 text-lg font-bold w-full max-w-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 0c4.411 0 8 2.912 8 6.492 0 3.146-2.618 5.86-6.326 6.39-.304.043-.63.14-.725.437-.083.257-.023.75-.023.75s.033.4.156.966c.094.432-.423.633-.787.41-1.636-.994-5.69-3.414-7.258-5.328C.612 8.441 0 7.502 0 6.492 0 2.912 3.589 0 8 0z" />
+                  </svg>
+                  ติดต่อแอดมินผ่าน LINE
+                </a>
+              </div>
+              
+              <h3 class="text-xl font-bold text-foreground mb-4">ขั้นตอนการต่ออายุ:</h3>
+              <div class="text-left bg-muted/30 p-6 rounded-xl text-foreground space-y-4 mb-4 mx-auto max-w-md font-medium border border-border">
+                <div class="flex items-start gap-3">
+                  <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
+                  <div>
+                    กดปุ่มด้านบน หรือแอด LINE ID: <strong class="text-primary">@819wgrsj</strong>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
+                  <div>
+                    ส่งข้อความหาแอดมินว่า: <br>
+                    <span class="text-primary font-bold bg-primary/10 px-3 py-1.5 rounded-lg inline-block mt-2 border border-primary/20">"ต่ออายุร้าน: {{ store?.name || 'ชื่อร้านของคุณ' }}"</span>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">3</div>
+                  <div>
+                    แอดมินจะปลดล็อกระบบให้ร้านของคุณกลับมาออนไลน์ทันที
                   </div>
                 </div>
               </div>
-              
-              <h3 class="text-xl font-bold text-foreground mb-2">วิธีเปิดใช้งานระบบต่อ:</h3>
-              <ol class="text-left bg-muted/50 p-6 rounded-xl text-muted-foreground space-y-3 mb-8 mx-auto max-w-md list-decimal list-inside font-medium">
-                <li>สแกน QR Code ด้านบนเพื่อเพิ่มเพื่อน LINE OA</li>
-                <li>ส่งข้อความแจ้งแอดมินว่า: <br><span class="text-primary font-bold bg-primary/10 px-2 py-1 rounded inline-block mt-1">"ต่ออายุร้าน: {{ store?.name || 'ชื่อร้านของคุณ' }}"</span></li>
-                <li>ชำระเงินตามแพ็กเกจที่เลือก</li>
-                <li>แอดมินเปิดระบบให้ใช้งานได้ทันที!</li>
-              </ol>
             </div>
           </div>
           

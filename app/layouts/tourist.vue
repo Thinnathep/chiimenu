@@ -28,7 +28,7 @@ onMounted(() => {
         <div class="flex items-center gap-2">
           <select 
             v-model="locale" 
-            @change="setLocale($event.target.value)"
+            @change="setLocale(($event.target as HTMLSelectElement).value as any)"
             class="bg-transparent border border-border rounded-md text-sm px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground"
           >
             <option v-for="l in locales" :key="l.code" :value="l.code">

@@ -8,7 +8,7 @@ const user = useSupabaseUser()
 const client = useSupabaseClient()
 
 // Fetch store info
-const { data: store, pending, refresh } = await useAsyncData('store', async () => {
+const { data: store, pending, refresh } = await useAsyncData<any>('store', async () => {
   // ใช้ client.auth.getUser() เพื่อความชัวร์ (แก้ปัญหา Vue reactivity ดึงค่าไม่ทัน)
   const { data: authData } = await client.auth.getUser()
   if (!authData?.user?.id) return null
@@ -217,6 +217,40 @@ const isTrial = computed(() => store.value?.plan_status === 'trial')
           </div>
         </div>
       </div>
+
+      <!-- Upcoming Features (Coming Soon) -->
+      <div class="bg-card overflow-hidden shadow-sm rounded-lg border mt-6 md:col-span-2 relative">
+        <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 pointer-events-none"></div>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold flex items-center gap-2">
+              <span>🚀</span> ฟีเจอร์ใหม่ที่กำลังจะมา (Coming Soon)
+            </h3>
+            <span class="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">Roadmap</span>
+          </div>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="p-4 bg-background border rounded-xl shadow-sm hover:border-primary/30 transition-colors opacity-80">
+              <div class="text-2xl mb-2">📦</div>
+              <h4 class="font-bold mb-1">ระบบตัดสต็อก</h4>
+              <p class="text-xs text-muted-foreground">จัดการวัตถุดิบและสต็อกสินค้าแบบเรียลไทม์ พร้อมแจ้งเตือนเมื่อของใกล้หมด</p>
+            </div>
+            
+            <div class="p-4 bg-background border rounded-xl shadow-sm hover:border-primary/30 transition-colors opacity-80">
+              <div class="text-2xl mb-2">💻</div>
+              <h4 class="font-bold mb-1">POS & ระบบขายหน้าร้าน</h4>
+              <p class="text-xs text-muted-foreground">บันทึกยอดขายหน้าร้าน และพิมพ์ใบเสร็จ ครบจบในหน้าเดียว</p>
+            </div>
+            
+            <div class="p-4 bg-background border rounded-xl shadow-sm hover:border-primary/30 transition-colors opacity-80">
+              <div class="text-2xl mb-2">🍳</div>
+              <h4 class="font-bold mb-1">จอในครัว (KDS)</h4>
+              <p class="text-xs text-muted-foreground">ลดความผิดพลาดด้วยระบบแสดงออเดอร์ในครัว จัดการคิวได้อย่างมีประสิทธิภาพ</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>

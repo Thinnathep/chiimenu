@@ -10,6 +10,8 @@ const router = useRouter()
 
 const loading = ref(false)
 const errorMsg = ref('')
+const slugStatus = ref<'idle' | 'checking' | 'available' | 'taken'>('idle')
+let slugCheckTimeout: any = null
 
 const form = ref({
   name: '',
@@ -36,6 +38,29 @@ watch(() => form.value.name, (newName) => {
   }
 })
 
+// Real-time slug check
+watch(() => form.value.slug, (newSlug) => {
+  if (!newSlug) {
+    slugStatus.value = 'idle'
+    return
+  }
+  slugStatus.value = 'checking'
+  clearTimeout(slugCheckTimeout)
+  
+  slugCheckTimeout = setTimeout(async () => {
+    const { count } = await client
+      .from('stores')
+      .select('*', { count: 'exact', head: true })
+      .eq('slug', newSlug)
+      
+    if (count && count > 0) {
+      slugStatus.value = 'taken'
+    } else {
+      slugStatus.value = 'available'
+    }
+  }, 500)
+})
+
 const submitForm = async () => {
   loading.value = true
   errorMsg.value = ''
@@ -48,6 +73,28 @@ const submitForm = async () => {
     }
     
     const ownerId = authData.user.id
+
+    // Duplicate name warning
+    const { count: nameCount } = await client
+      .from('stores')
+      .select('*', { count: 'exact', head: true })
+      .eq('name', form.value.name.trim())
+      
+    if (nameCount && nameCount > 0) {
+      const swal = useAlert()
+      const result = await swal.fire({
+        title: 'พบชื่อร้านซ้ำ',
+        text: `มีชื่อร้าน "${form.value.name}" ในระบบแล้ว คุณแน่ใจหรือไม่ว่าต้องการใช้ชื่อนี้?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ใช่, ฉันต้องการใช้ชื่อนี้',
+        cancelButtonText: 'กลับไปแก้ไข'
+      })
+      if (!result.isConfirmed) {
+        loading.value = false
+        return
+      }
+    }
 
     const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
@@ -143,7 +190,12 @@ const submitForm = async () => {
                   </span>
                   <input v-model="form.slug" type="text" id="slug" required pattern="[a-z0-9-]+" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
                 </div>
-                <p class="mt-1 text-xs text-muted-foreground">{{ $t('store_slug_hint') }}</p>
+                <div class="mt-1 flex items-center justify-between">
+                  <p class="text-xs text-muted-foreground">{{ $t('store_slug_hint') }}</p>
+                  <p v-if="slugStatus === 'checking'" class="text-xs text-yellow-600 animate-pulse">กำลังตรวจสอบ...</p>
+                  <p v-else-if="slugStatus === 'taken'" class="text-xs text-destructive font-bold">❌ ลิงก์นี้มีคนใช้แล้ว กรุณาเปลี่ยนใหม่</p>
+                  <p v-else-if="slugStatus === 'available'" class="text-xs text-green-600 font-bold">✅ ลิงก์นี้สามารถใช้งานได้</p>
+                </div>
               </div>
 
               <div>
@@ -182,7 +234,7 @@ const submitForm = async () => {
       </div>
       
       <div class="bg-muted/50 px-6 py-4 flex justify-end">
-        <button type="submit" :disabled="loading" class="inline-flex justify-center rounded-md border border-transparent bg-primary py-2 px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50">
+        <button type="submit" :disabled="loading || slugStatus === 'taken' || slugStatus === 'checking'" class="inline-flex justify-center rounded-md border border-transparent bg-primary py-2 px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50">
           {{ loading ? $t('btn_saving') : $t('btn_save_create') }}
         </button>
       </div>

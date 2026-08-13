@@ -188,3 +188,32 @@ CREATE TABLE public.admins (
   CONSTRAINT admins_pkey PRIMARY KEY (id),
   CONSTRAINT admins_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.billing_records (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  store_id uuid NOT NULL,
+  receipt_number text NOT NULL UNIQUE,
+  package_name text NOT NULL,
+  package_days integer NOT NULL,
+  amount numeric NOT NULL,
+  payment_method text NOT NULL DEFAULT 'bank_transfer'::text,
+  paid_at timestamp with time zone NOT NULL DEFAULT now(),
+  plan_start_at timestamp with time zone NOT NULL,
+  plan_end_at timestamp with time zone NOT NULL,
+  note text,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  company_name text,
+  company_address text,
+  tax_id text,
+  net_amount numeric,
+  vat_amount numeric,
+  CONSTRAINT billing_records_pkey PRIMARY KEY (id),
+  CONSTRAINT billing_records_store_id_fkey FOREIGN KEY (store_id) REFERENCES public.stores(id),
+  CONSTRAINT billing_records_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.rate_limits (
+  ip text NOT NULL,
+  request_count integer NOT NULL DEFAULT 1,
+  reset_at bigint NOT NULL,
+  CONSTRAINT rate_limits_pkey PRIMARY KEY (ip)
+);

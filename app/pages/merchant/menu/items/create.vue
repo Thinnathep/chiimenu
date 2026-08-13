@@ -79,7 +79,8 @@ const handlePhotoUpload = (e: Event) => {
     const file = target.files[0]
     // Basic validation
     if (file.size > 5 * 1024 * 1024) {
-      alert('รูปภาพต้องขนาดไม่เกิน 5MB')
+      const swal = useAlert()
+      swal.fire('ขนาดไฟล์เกิน', 'รูปภาพต้องขนาดไม่เกิน 5MB', 'warning')
       return
     }
     photoFile.value = file
@@ -88,8 +89,9 @@ const handlePhotoUpload = (e: Event) => {
 }
 
 const handleAutoTranslate = async () => {
+  const swal = useAlert()
   if (!form.value.name_th) {
-    alert('กรุณากรอกชื่อเมนูภาษาไทยก่อนครับ')
+    swal.fire('คำเตือน', 'กรุณากรอกชื่อเมนูภาษาไทยก่อนครับ', 'warning')
     return
   }
   
@@ -104,16 +106,14 @@ const handleAutoTranslate = async () => {
     })
     
     if (data) {
-      if (data.name_en) form.value.name_en = data.name_en
-      if (data.name_zh) form.value.name_zh = data.name_zh
-      // if (data.name_nod) form.value.name_nod = data.name_nod
+      if (data.name_en && !form.value.name_en) form.value.name_en = data.name_en
+      if (data.name_zh && !form.value.name_zh) form.value.name_zh = data.name_zh
       
-      if (data.description_en) form.value.explanation_en = data.description_en
-      if (data.description_zh) form.value.description_zh = data.description_zh
-      // if (data.description_nod) form.value.description_nod = data.description_nod
+      if (data.description_en && !form.value.explanation_en) form.value.explanation_en = data.description_en
+      if (data.description_zh && !form.value.description_zh) form.value.description_zh = data.description_zh
     }
   } catch (error: any) {
-    alert(error.message || 'การแปลล้มเหลว กรุณาลองใหม่')
+    swal.fire('ข้อผิดพลาด', error.message || 'การแปลล้มเหลว กรุณาลองใหม่', 'error')
   } finally {
     isTranslating.value = false
   }
@@ -123,6 +123,34 @@ const submitForm = async () => {
   if (!store.value) return
   saving.value = true
   errorMsg.value = ''
+  
+  // Auto translate if fields are empty
+  if (!form.value.name_en || !form.value.name_zh || !form.value.explanation_en) {
+    await handleAutoTranslate()
+  }
+  
+  // Duplicate Name Warning Check
+  const { count: dupCount } = await client
+    .from('menu_items')
+    .select('*', { count: 'exact', head: true })
+    .eq('store_id', store.value.id)
+    .eq('name_th', form.value.name_th.trim())
+    
+  if (dupCount && dupCount > 0) {
+    const swal = useAlert()
+    const result = await swal.fire({
+      title: 'พบเมนูชื่อซ้ำ',
+      text: `คุณมีเมนูชื่อ "${form.value.name_th}" ในร้านอยู่แล้ว ต้องการสร้างเมนูชื่อนี้ซ้ำใช่หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, สร้างเมนู',
+      cancelButtonText: 'กลับไปแก้ไข'
+    })
+    if (!result.isConfirmed) {
+      saving.value = false
+      return
+    }
+  }
   
   try {
     let photoUrl = null
@@ -153,11 +181,9 @@ const submitForm = async () => {
       name_th: form.value.name_th,
       name_en: form.value.name_en || null,
       name_zh: form.value.name_zh || null,
-      // name_nod: form.value.name_nod || null,
       description_th: form.value.description_th || null,
       description_en: form.value.description_en || null,
       description_zh: form.value.description_zh || null,
-      // description_nod: form.value.description_nod || null,
       explanation_en: form.value.explanation_en || null,
       price: parseFloat(form.value.price),
       is_available: form.value.is_available,
@@ -191,6 +217,15 @@ const submitForm = async () => {
       
       await client.from('menu_item_customizations').insert(groupInserts as never)
     }
+    
+    const swal = useAlert()
+    swal.fire({
+      title: 'สำเร็จ!',
+      text: 'เพิ่มเมนูเรียบร้อยแล้ว',
+      icon: 'success',
+      timer: 1500,
+      showConfirmButton: false
+    })
     
     router.push('/merchant/menu')
   } catch (e: any) {

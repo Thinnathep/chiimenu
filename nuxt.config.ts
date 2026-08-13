@@ -3,6 +3,10 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false }, // ปิด DevTools ไว้เพื่อลดเวลา Startup (เร็วขึ้น ~5 วินาที)
   css: ['~/assets/css/tailwind.css'],
+  app: {
+    pageTransition: { name: 'page', mode: 'out-in' },
+    layoutTransition: { name: 'layout', mode: 'out-in' }
+  },
 
   modules: [
     '@nuxtjs/tailwindcss',
@@ -43,7 +47,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/login',
       callback: '/confirm',
-      exclude: ['/', '/login', '/register', '/m/*', '/menu/*', '/api/*'] // Exclude public tourist routes and auth pages
+      exclude: ['/', '/login', '/register', '/privacy', '/m/*', '/menu/*', '/api/*'] // Exclude public tourist routes and auth pages
     },
     clientOptions: {
       auth: {

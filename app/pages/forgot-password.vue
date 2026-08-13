@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { auth } = useSupabaseClient()
 const router = useRouter()
+import { isValidEmail, isValidPhone } from '~/utils/validation'
 
 const loginId = ref('')
 const loading = ref(false)
@@ -16,9 +17,21 @@ const handleReset = async () => {
   
   const inputStr = loginId.value.trim()
   
-  if (!inputStr.includes('@') && /^\d{9,}$/.test(inputStr)) {
-    // It's a phone number
-    isPhoneMode.value = true
+  if (!inputStr.includes('@')) {
+    if (isValidPhone(inputStr)) {
+      // It's a valid phone number
+      isPhoneMode.value = true
+      loading.value = false
+      return
+    } else {
+      errorMsg.value = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง'
+      loading.value = false
+      return
+    }
+  }
+  
+  if (!isValidEmail(inputStr)) {
+    errorMsg.value = 'รูปแบบอีเมลไม่ถูกต้อง'
     loading.value = false
     return
   }
@@ -63,7 +76,7 @@ const handleReset = async () => {
           <h3 class="text-lg font-medium text-foreground">คุณใช้งานด้วยเบอร์โทรศัพท์</h3>
           <p class="mt-2 text-sm text-muted-foreground">
             เนื่องจากเหตุผลด้านความปลอดภัย ระบบจะไม่ส่งรหัสผ่านใหม่ทาง SMS<br><br>
-            กรุณาติดต่อแอดมินผ่าน LINE OA: <strong class="text-foreground">@chiimenu</strong><br>
+            กรุณาติดต่อแอดมินผ่าน LINE OA: <strong class="text-foreground">@819wgrsj</strong><br>
             เพื่อขอรหัสผ่านใหม่สำหรับเบอร์ <strong>{{ loginId }}</strong> ครับ
           </p>
           <div class="mt-6">

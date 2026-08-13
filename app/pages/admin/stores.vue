@@ -15,6 +15,11 @@ const loading = ref(true)
 const processingId = ref(null)
 const selectedActions = ref({})
 const searchQuery = ref('')
+const showPaymentModal = ref(false)
+const showDeductModal = ref(false)
+const activeStore = ref(null)
+const paymentForm = ref({ amount: 0, note: '' })
+const deductForm = ref({ days: 1, note: '' })
 
 const fetchStores = async () => {
   loading.value = true
@@ -110,18 +115,78 @@ const formatActionName = (action) => {
   return map[action] || action
 }
 
+const packagePrices = {
+  trial_7: { name: '+7 วัน (ทดลอง)', days: 7, price: null },
+  trial_14: { name: '+14 วัน (ทดลอง)', days: 14, price: null },
+  paid_30: { name: 'แพ็กเกจ 1 เดือน', days: 30, price: 259 },
+  paid_365: { name: 'แพ็กเกจ 1 ปี', days: 365, price: 1990 },
+  deduct_custom: { name: 'ลดวัน (ระบุจำนวน)', days: null, price: null },
+  revoke: { name: 'ตัดการเข้าถึง', days: 0, price: null }
+}
+
 const applyAction = async (store) => {
   const action = selectedActions.value[store.id]
   if (!action) return
   
-  const actionName = formatActionName(action)
-  // Simple replacement since we don't have a robust format string helper readily available
-  const confirmMsg = t('admin_confirm_action')
-    .replace('{action}', actionName)
-    .replace('{store}', store.name)
-
-  if (!confirm(confirmMsg)) return
+  const pkgInfo = packagePrices[action]
+  activeStore.value = store
   
+  if (action === 'deduct_custom') {
+    deductForm.value.days = 1
+    deductForm.value.note = ''
+    showDeductModal.value = true
+  } else if (pkgInfo && pkgInfo.price !== null) {
+    // Is a paid package, show modal
+    paymentForm.value.amount = pkgInfo.price
+    paymentForm.value.note = ''
+    showPaymentModal.value = true
+  } else {
+    // Is a free/revoke action, use simple confirm
+    const actionName = formatActionName(action)
+    const confirmMsg = t('admin_confirm_action')
+      .replace('{action}', actionName)
+      .replace('{store}', store.name)
+
+    if (!confirm(confirmMsg)) return
+    
+    await executeAction(store, action, null, null, null, null)
+  }
+}
+
+const submitPayment = async () => {
+  const store = activeStore.value
+  const action = selectedActions.value[store.id]
+  const pkgInfo = packagePrices[action]
+  
+  await executeAction(
+    store, 
+    action, 
+    paymentForm.value.amount, 
+    pkgInfo.name, 
+    pkgInfo.days, 
+    paymentForm.value.note
+  )
+  showPaymentModal.value = false
+}
+
+const submitDeduct = async () => {
+  if (deductForm.value.days <= 0) {
+    alert('กรุณาระบุจำนวนวันที่ต้องการลดให้ถูกต้อง');
+    return;
+  }
+  const store = activeStore.value
+  await executeAction(
+    store, 
+    'deduct_custom', 
+    null, 
+    'ลดวัน (ระบุจำนวน)', 
+    -Math.abs(deductForm.value.days), 
+    deductForm.value.note
+  )
+  showDeductModal.value = false
+}
+
+const executeAction = async (store, action, amount, pkgName, pkgDays, note) => {
   processingId.value = store.id
   try {
     const now = new Date()
@@ -146,7 +211,14 @@ const applyAction = async (store) => {
       newPlanStatus = 'active'
     } else if (action === 'revoke') {
       newEnd = new Date(now)
-      newEnd.setDate(now.getDate() - 1) // Set to yesterday
+      newEnd.setDate(now.getDate() - 1)
+    } else if (action === 'deduct_custom' && pkgDays) {
+      if (!note || note.trim() === '') {
+        alert('กรุณาระบุหมายเหตุ (Note) ทุกครั้งที่มีการลดวันใช้งาน')
+        processingId.value = null
+        return
+      }
+      newEnd.setDate(newEnd.getDate() + pkgDays)
     }
     
     // Update store and log atomically using RPC
@@ -160,7 +232,11 @@ const applyAction = async (store) => {
         new_end: newEnd.toISOString(),
         previous_status: store.plan_status,
         new_status: newPlanStatus
-      }
+      },
+      p_amount: amount,
+      p_package_name: pkgName,
+      p_package_days: pkgDays,
+      p_note: note
     })
       
     if (updateError) throw updateError
@@ -326,6 +402,7 @@ const applyAction = async (store) => {
                         <option value="trial_14">{{ $t('admin_act_14d') }}</option>
                         <option value="paid_30">{{ $t('admin_act_30d') }}</option>
                         <option value="paid_365">{{ $t('admin_act_365d') }}</option>
+                        <option value="deduct_custom">ลดวัน (ระบุจำนวน)</option>
                         <option value="revoke">{{ $t('admin_act_revoke') }}</option>
                       </select>
                       <button 
@@ -380,5 +457,96 @@ const applyAction = async (store) => {
       </section>
 
     </main>
+
+    <!-- Payment Modal -->
+    <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-6 border-b border-slate-100">
+          <h3 class="text-xl font-bold text-slate-900">{{ $t('admin_payment_modal_title') }}</h3>
+          <p class="text-sm text-slate-500 mt-1">Store: <span class="font-semibold text-slate-700">{{ activeStore?.name }}</span></p>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">{{ $t('billing_col_package') }}</label>
+            <div class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-600 font-medium">
+              {{ packagePrices[selectedActions[activeStore?.id]]?.name }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">{{ $t('admin_payment_amount') }}</label>
+            <div class="relative">
+              <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">฿</span>
+              <input type="number" v-model="paymentForm.amount" class="w-full border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none text-slate-900" />
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">{{ $t('admin_payment_note') }}</label>
+            <textarea v-model="paymentForm.note" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none text-slate-900 placeholder:text-slate-400" placeholder="e.g., KBank, Transfer at 14:30"></textarea>
+          </div>
+        </div>
+        
+        <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+          <button @click="showPaymentModal = false" class="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-200 rounded-xl transition-colors">
+            {{ $t('admin_payment_cancel') }}
+          </button>
+          <button @click="submitPayment" :disabled="processingId === activeStore?.id" class="px-5 py-2.5 bg-indigo-600 text-white font-medium hover:bg-indigo-700 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2">
+            <span v-if="processingId === activeStore?.id" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+            {{ $t('admin_payment_confirm') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deduct Modal -->
+    <div v-if="showDeductModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-6 border-b border-slate-100">
+          <h3 class="text-lg font-bold text-slate-900">ระบุจำนวนวันที่ต้องการลด</h3>
+          <p class="text-sm text-slate-500 mt-1">ร้าน: {{ activeStore?.name }}</p>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">จำนวนวัน <span class="text-rose-500">*</span></label>
+            <div class="relative">
+              <input 
+                v-model.number="deductForm.days" 
+                type="number" 
+                min="1"
+                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                placeholder="เช่น 5 หรือ 10"
+              >
+            </div>
+            <p class="text-xs text-slate-500 mt-2">* ระบบจะนำจำนวนวันนี้ไปลบออกจากวันหมดอายุเดิมของร้าน</p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">หมายเหตุ (ถ้ามี)</label>
+            <textarea 
+              v-model="deductForm.note" 
+              rows="2"
+              class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+              placeholder="ระบุเหตุผลการลดวัน..."
+            ></textarea>
+          </div>
+        </div>
+        
+        <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+          <button @click="showDeductModal = false" class="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-200 rounded-xl transition-colors">
+            ยกเลิก
+          </button>
+          <button 
+            @click="submitDeduct" 
+            :disabled="!deductForm.days || deductForm.days <= 0"
+            class="px-5 py-2.5 bg-rose-600 text-white font-medium hover:bg-rose-700 rounded-xl shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            ยืนยันการลดวัน
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

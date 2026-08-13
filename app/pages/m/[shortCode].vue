@@ -36,6 +36,7 @@ const orderSuccess = ref(false)
 const selectedItem = ref<any>(null)
 const itemSpiceLevel = ref<number>(1)
 const itemAddons = ref<Record<string, string>>({})
+const itemQuantity = ref<number>(1)
 
 onMounted(async () => {
   try {
@@ -66,11 +67,11 @@ onMounted(async () => {
         locale.value = storeData.default_language
       }
       
-      // Check trial expiration
-      if (storeData.plan_status === 'trial' && storeData.trial_ends_at) {
-        const trialEnd = new Date(storeData.trial_ends_at).getTime()
+      // Check plan expiration — lock if trial_ends_at is in the past (regardless of plan_status)
+      if (storeData.trial_ends_at) {
+        const planEnd = new Date(storeData.trial_ends_at).getTime()
         const now = new Date().getTime()
-        if (trialEnd < now) {
+        if (planEnd < now) {
           isStoreLocked.value = true
           loading.value = false
           return // Stop fetching menu items
@@ -143,7 +144,8 @@ const initSpeechRecognition = () => {
 
 const toggleVoiceSearch = () => {
   if (!recognition) {
-    alert(t('not_available'))
+    const swal = useNuxtApp().$swal as any
+    swal.fire('Not Supported', t('not_available'), 'info')
     return
   }
   if (isListening.value) {
@@ -170,6 +172,7 @@ const openItemModal = (item: any) => {
   selectedItem.value = item
   itemSpiceLevel.value = item.spicy_level || 1
   itemAddons.value = {}
+  itemQuantity.value = 1
 }
 
 const closeItemModal = () => {
@@ -184,7 +187,8 @@ const addToCart = () => {
     menuItem: selectedItem.value,
     spiceLevel: selectedItem.value.is_spicy ? itemSpiceLevel.value : null,
     selectedAddons: { ...itemAddons.value },
-    price: selectedItem.value.price // MVP: simplified price, not calculating addon prices yet
+    price: selectedItem.value.price, // MVP: simplified price, not calculating addon prices yet
+    quantity: itemQuantity.value
   })
   
   closeItemModal()
@@ -195,12 +199,13 @@ const removeFromCart = (index: number) => {
 }
 
 const cartTotal = computed(() => {
-  return cart.value.reduce((total, item) => total + item.price, 0)
+  return cart.value.reduce((total, item) => total + (item.price * (item.quantity || 1)), 0)
 })
 
 const submitOrder = () => {
   if (!tableNo.value.trim()) {
-    alert('Please enter your table number.')
+    const swal = useNuxtApp().$swal as any
+    swal.fire('Table Required', 'Please enter your table number.', 'warning')
     return
   }
   if (cart.value.length === 0) return
@@ -285,10 +290,10 @@ const getStoreName = () => {
       <div class="w-full max-w-sm bg-card border shadow-sm rounded-xl p-4 mb-8 text-left overflow-y-auto max-h-[50vh]">
         <div v-for="(item, idx) in cart" :key="idx" class="flex justify-between border-b last:border-0 py-3">
           <div>
-            <div class="font-bold text-lg leading-tight">{{ getItemName(item) }}</div>
+            <div class="font-bold text-lg leading-tight">{{ item.quantity }}x {{ getItemName(item.menuItem) }}</div>
             <div v-if="item.customizations" class="text-sm text-muted-foreground mt-1">{{ item.customizations }}</div>
           </div>
-          <div class="font-bold shrink-0 ml-4">{{ formatPrice(item.price) }}</div>
+          <div class="font-bold shrink-0 ml-4">{{ formatPrice(item.price * item.quantity) }}</div>
         </div>
         <div class="mt-2 pt-4 border-t flex justify-between font-black text-xl text-primary">
           <span>Total:</span>
@@ -364,9 +369,9 @@ const getStoreName = () => {
       </div>
 
       <!-- Menu Items -->
-      <div class="mt-6 space-y-4">
-        <div v-for="(item, index) in filteredItems" :key="item.id" @click="openItemModal(item)" class="group bg-card shadow-sm hover:shadow-md border border-border/40 rounded-3xl overflow-hidden cursor-pointer transition-all">
-          <div class="flex p-4 gap-4 h-full">
+      <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div v-for="(item, index) in filteredItems" :key="item.id" @click="openItemModal(item)" class="group bg-card shadow-sm hover:shadow-md border border-border/40 rounded-3xl overflow-hidden cursor-pointer transition-all h-full flex flex-col">
+          <div class="flex p-4 gap-4 h-full w-full">
             <!-- Image -->
             <div class="w-28 h-28 shrink-0 rounded-2xl overflow-hidden bg-muted relative">
               <img v-if="item.photo_url" :src="item.photo_url" class="w-full h-full object-cover" />
@@ -434,10 +439,22 @@ const getStoreName = () => {
           </div>
         </div>
 
+        <!-- Quantity Selector -->
+        <div class="px-6 pb-2">
+          <div class="flex items-center justify-between border border-border/50 rounded-2xl p-2 bg-card">
+            <span class="font-medium text-foreground ml-2">จำนวน (Quantity)</span>
+            <div class="flex items-center gap-4 bg-muted/50 rounded-xl p-1">
+              <button @click="itemQuantity = Math.max(1, itemQuantity - 1)" class="w-8 h-8 flex items-center justify-center bg-background rounded-lg shadow-sm font-bold text-foreground hover:bg-muted transition-colors">-</button>
+              <span class="font-bold w-4 text-center">{{ itemQuantity }}</span>
+              <button @click="itemQuantity = Math.min(10, itemQuantity + 1)" class="w-8 h-8 flex items-center justify-center bg-background rounded-lg shadow-sm font-bold text-foreground hover:bg-muted transition-colors">+</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Add Button -->
         <div class="p-4 bg-background border-t border-border/50 shrink-0">
           <button @click="addToCart" class="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-lg hover:bg-primary/90 transition-colors">
-            Add to Order
+            Add {{ itemQuantity }} to Order - {{ formatPrice(selectedItem.price * itemQuantity) }}
           </button>
         </div>
       </div>
@@ -471,12 +488,12 @@ const getStoreName = () => {
             <img v-if="item.menuItem.photo_url" :src="item.menuItem.photo_url" class="w-full h-full object-cover">
           </div>
           <div class="flex-1 min-w-0">
-            <h4 class="font-bold text-sm truncate">{{ getItemName(item.menuItem) }}</h4>
+            <h4 class="font-bold text-sm truncate">{{ item.quantity }}x {{ getItemName(item.menuItem) }}</h4>
             <div class="text-xs text-muted-foreground mt-1 space-y-0.5">
               <p v-if="item.spiceLevel">🌶️ Spice: {{ item.spiceLevel }}/4</p>
               <p v-for="(val, key) in item.selectedAddons" :key="key">➕ {{ val }}</p>
             </div>
-            <p class="font-bold text-primary mt-2">{{ formatPrice(item.price) }}</p>
+            <p class="font-bold text-primary mt-2">{{ formatPrice(item.price * item.quantity) }}</p>
           </div>
         </div>
       </div>

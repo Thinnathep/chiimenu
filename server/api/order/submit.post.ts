@@ -1,36 +1,45 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
 
-// Simple in-memory rate limit map (IP -> count & reset time)
-// In a real production environment, use Redis or Supabase for rate limiting.
-const rateLimitMap = new Map<string, { count: number, resetAt: number }>();
 const MAX_REQUESTS = 5;
 const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 export default defineEventHandler(async (event) => {
+    // We need service role for rate limits as it bypasses RLS
+    const supabase = await serverSupabaseServiceRole(event)
+
     // 1. Rate Limiting Check
     const ip = getRequestIP(event) || 'unknown';
     const now = Date.now();
     
     if (ip !== 'unknown') {
-        const rateRecord = rateLimitMap.get(ip);
+        const { data } = await (supabase as any)
+            .from('rate_limits')
+            .select('*')
+            .eq('ip', ip)
+            .single();
+        
+        const rateRecord = data as any;
+
         if (rateRecord) {
-            if (now > rateRecord.resetAt) {
+            if (now > rateRecord.reset_at) {
                 // Reset window
-                rateLimitMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+                await (supabase as any).from('rate_limits').update({ request_count: 1, reset_at: now + WINDOW_MS }).eq('ip', ip);
             } else {
-                if (rateRecord.count >= MAX_REQUESTS) {
+                if (rateRecord.request_count >= MAX_REQUESTS) {
                     throw createError({
                         statusCode: 429,
                         statusMessage: 'Too Many Requests',
                         message: 'You have sent too many orders. Please try again later.'
-                    });
+                    })
                 }
-                rateRecord.count++;
+                // Increment count
+                await (supabase as any).from('rate_limits').update({ request_count: rateRecord.request_count + 1 }).eq('ip', ip);
             }
         } else {
-            rateLimitMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+            // First request from this IP
+            await (supabase as any).from('rate_limits').insert({ ip, request_count: 1, reset_at: now + WINDOW_MS });
         }
-    }
+    };
 
     // 2. Parse Body
     const body = await readBody(event);
@@ -47,10 +56,10 @@ export default defineEventHandler(async (event) => {
     try {
         const supabase = await serverSupabaseServiceRole(event);
 
-        // 3. Get Store Info (to check line_user_id)
+        // 3. Get Store Info (to check line_user_id and plan status)
         const { data: store, error: storeError } = await supabase
             .from('stores')
-            .select('name_en, line_user_id')
+            .select('name_en, line_user_id, plan_status, trial_ends_at')
             .eq('id', storeId)
             .single() as any;
 
@@ -60,6 +69,18 @@ export default defineEventHandler(async (event) => {
                 statusMessage: 'Not Found',
                 message: 'Store not found.'
             });
+        }
+
+        // 3b. Check plan expiration server-side (defence-in-depth — do NOT rely on UI alone)
+        if (store.trial_ends_at) {
+            const planEnd = new Date(store.trial_ends_at).getTime();
+            if (planEnd < Date.now()) {
+                throw createError({
+                    statusCode: 403,
+                    statusMessage: 'Forbidden',
+                    message: 'This store\'s plan has expired. Please contact the store owner.'
+                });
+            }
         }
 
         // 4. Save to Database (Table `orders`)
@@ -90,8 +111,13 @@ export default defineEventHandler(async (event) => {
                 // Generate Message Text
                 let messageText = `🔔 ออเดอร์ใหม่เข้า!\nโต๊ะ: ${tableNo}\n\n`;
                 
+                let grandTotal = 0;
                 cart.forEach((item: any, index: number) => {
-                    messageText += `${index + 1}. ${item.menuItem.name_th} (${item.menuItem.name_en})\n`;
+                    const quantity = item.quantity || 1;
+                    const itemTotal = item.price * quantity;
+                    grandTotal += itemTotal;
+                    
+                    messageText += `${index + 1}. ${quantity}x ${item.menuItem.name_th} (${item.menuItem.name_en})\n`;
                     if (item.spiceLevel !== null) {
                         messageText += `   🌶️ ระดับความเผ็ด: ${item.spiceLevel}/4\n`;
                     }
@@ -102,8 +128,10 @@ export default defineEventHandler(async (event) => {
                             messageText += `      - ${addonValue}\n`;
                         }
                     }
-                    messageText += '\n';
+                    messageText += `   💰 ราคา: ฿${itemTotal}\n\n`;
                 });
+                
+                messageText += `💵 ยอดรวมทั้งหมด: ฿${grandTotal}\n`;
 
                 // Call LINE Messaging API
                 const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN || (event.context.cloudflare?.env?.LINE_CHANNEL_ACCESS_TOKEN);
