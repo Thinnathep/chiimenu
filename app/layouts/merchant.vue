@@ -79,6 +79,15 @@ const handleLocaleChange = (e: Event) => {
           ⭐ Admin
         </NuxtLink>
       </nav>
+
+      <!-- Version & Platform Badge -->
+      <div class="p-4 border-t border-border bg-muted/10 shrink-0">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="font-bold text-foreground">ChiiMenu Platform</span>
+          <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.0</span>
+        </div>
+        <p class="text-[10px] text-muted-foreground mt-0.5">Official Production Release</p>
+      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -276,10 +285,14 @@ const handleLocaleChange = (e: Event) => {
           </NuxtLink>
         </div>
         
-        <div class="p-5 border-t border-border bg-muted/10">
+        <div class="p-5 border-t border-border bg-muted/10 space-y-3">
            <button @click="logout" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-muted text-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors border shadow-sm">
              {{ $t('nav_logout') }}
            </button>
+           <div class="flex items-center justify-between text-[11px] pt-1">
+             <span class="font-bold text-foreground">ChiiMenu Platform</span>
+             <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.0</span>
+           </div>
         </div>
       </div>
     </Transition>
