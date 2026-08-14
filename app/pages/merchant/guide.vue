@@ -178,30 +178,57 @@ const activeTab = ref<'menu' | 'line' | 'qr' | 'order' | 'billing'>('menu')
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200 p-5 rounded-2xl space-y-3">
+        <!-- Method 1: Auto Link via Chat Command -->
+        <div class="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 p-5 rounded-2xl space-y-3">
           <h3 class="font-bold text-sm text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
-            <CheckCircle2 class="w-4 h-4 text-emerald-600" />
-            <span>วิธีเปิดใช้งานในคลิกเดียว (Frictionless Setup)</span>
+            <Sparkles class="w-4 h-4 text-emerald-600" />
+            <span>วิธีที่ 1: พิมพ์คำสั่งในแชท LINE (เร็วสุด 5 วินาที)</span>
           </h3>
           <ol class="list-decimal pl-5 text-xs text-muted-foreground space-y-2 leading-relaxed">
-            <li>ไปที่หน้า <strong>"ตั้งค่าร้านค้า"</strong> (`/merchant/store/settings`)</li>
-            <li>เลื่อนลงไปที่การ์ด <strong>"การแจ้งเตือนออเดอร์ผ่าน LINE OA"</strong></li>
-            <li>กดปุ่มสีเขียว <strong>"🟢 เปิดใช้งานการแจ้งเตือน & ไปที่แชท LINE"</strong></li>
-            <li>ระบบจะเชื่อมต่ออัตโนมัติและเปิดหน้าแชท LINE OA ของร้าน (@946vhuev) ทันที</li>
+            <li>แอดเพื่อนกับ LINE OA บอทแจ้งเตือน: <strong>@946vhuev</strong> (ChiiMenu Alerts)</li>
+            <li>เปิดแชทแล้วพิมพ์คำสั่ง: <code class="font-mono bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 px-2 py-0.5 rounded font-bold">link &lt;ชื่อลิงก์ร้าน&gt;</code> (เช่น <code class="font-mono text-emerald-700">link bunny</code> หรือ <code class="font-mono text-emerald-700">link verdant-test</code>)</li>
+            <li>บอทจะตอบกลับยืนยันการผูกร้านค้าทันที และพร้อมรับออเดอร์ทันที 24 ชม. 🔔</li>
           </ol>
         </div>
 
+        <!-- Method 2: Manual Setup via Settings Page -->
         <div class="bg-muted/30 p-5 rounded-2xl border space-y-3">
           <h3 class="font-bold text-sm text-foreground flex items-center gap-2">
-            <BellRing class="w-4 h-4 text-primary" />
-            <span>ออเดอร์แจ้งเตือนอะไรบ้าง?</span>
+            <CheckCircle2 class="w-4 h-4 text-primary" />
+            <span>วิธีที่ 2: กรอกรหัสในหน้าตั้งค่าร้านค้า</span>
           </h3>
-          <ul class="list-disc pl-5 text-xs text-muted-foreground space-y-2 leading-relaxed">
-            <li>หมายเลขโต๊ะที่สั่ง (เช่น โต๊ะ 1, โต๊ะ 5)</li>
-            <li>รายการอาหารและจำนวนจาน</li>
-            <li>ตัวเลือกพิเศษ (Add-ons) เช่น พิเศษ, ไม่ใส่ผักชี, ความเผ็ดระดับ 2</li>
-            <li>ยอดรวมค่าอาหารทั้งหมด พร้อมเวลาที่สั่ง</li>
-          </ul>
+          <ol class="list-decimal pl-5 text-xs text-muted-foreground space-y-2 leading-relaxed">
+            <li>ทักหาบอท <strong>@946vhuev</strong> ในแชท บอทจะตอบกลับ <strong>รหัส LINE User ID (ขึ้นต้นด้วย U...)</strong></li>
+            <li>ไปที่หน้า <strong>"ตั้งค่าร้านค้า"</strong> (`/merchant/store/settings`)</li>
+            <li>เลื่อนลงไปที่การ์ด <strong>"การแจ้งเตือนออเดอร์ผ่าน LINE OA"</strong></li>
+            <li>นำรหัส <code class="font-mono text-primary font-bold">U...</code> มากดปุ่ม <strong>"🟢 บันทึกเชื่อมต่อ"</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- What is included in Order Notification -->
+      <div class="bg-muted/20 p-5 rounded-2xl border space-y-3">
+        <h3 class="font-bold text-sm text-foreground flex items-center gap-2">
+          <BellRing class="w-4 h-4 text-primary" />
+          <span>การแจ้งเตือนออเดอร์ในแชท LINE มีข้อมูลอะไรบ้าง?</span>
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs text-muted-foreground">
+          <div class="p-3 bg-card rounded-xl border">
+            <span class="font-bold text-foreground block mb-1">📍 หมายเลขโต๊ะ</span>
+            เช่น โต๊ะ 1, โต๊ะ VIP, โต๊ะ 5
+          </div>
+          <div class="p-3 bg-card rounded-xl border">
+            <span class="font-bold text-foreground block mb-1">🍲 รายการ & จำนวน</span>
+            เช่น 2x ข้าวกะเพราหมูกรอบ
+          </div>
+          <div class="p-3 bg-card rounded-xl border">
+            <span class="font-bold text-foreground block mb-1">🌶️ ตัวเลือกเสริม & โน้ต</span>
+            เช่น เผ็ดน้อย, ไข่ดาวไม่สุก
+          </div>
+          <div class="p-3 bg-card rounded-xl border">
+            <span class="font-bold text-foreground block mb-1">💵 ยอดรวม & เวลา</span>
+            คำนวณยอดเงินรวมและเวลาที่สั่งทันที
+          </div>
         </div>
       </div>
     </div>
