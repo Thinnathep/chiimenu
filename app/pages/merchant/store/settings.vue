@@ -131,28 +131,43 @@ const translateStoreName = async () => {
 }
 
 const showManualLineId = ref(false)
+const isSavingLine = ref(false)
 
-// Quick activate LINE ID, auto-save to DB, and open LINE OA chat
-const activateLineAndOpenChat = async () => {
-  const targetLineId = 'U3cfe1457fc5f6d1c6939e4147cb8ba75'
-  form.value.line_user_id = targetLineId
+// Save specific LINE User ID to DB
+const saveLineId = async () => {
+  const targetId = form.value.line_user_id?.trim()
+  if (!targetId) {
+    useToast().error('กรุณากรอกรหัส LINE User ID ของคุณ (ขึ้นต้นด้วยตัว U)')
+    return
+  }
+  if (!targetId.startsWith('U')) {
+    useToast().error('รูปแบบ LINE User ID ไม่ถูกต้อง (ต้องขึ้นต้นด้วยตัว U เช่น U3cfe...)')
+    return
+  }
   
+  isSavingLine.value = true
   if (form.value.id) {
     try {
       await (client as any)
         .from('stores')
-        .update({ line_user_id: targetLineId, updated_at: new Date().toISOString() })
+        .update({ line_user_id: targetId, updated_at: new Date().toISOString() })
         .eq('id', form.value.id)
         
       if (store.value) {
-        setStore({ ...store.value, line_user_id: targetLineId })
+        setStore({ ...store.value, line_user_id: targetId })
       }
-      useToast().success('เชื่อมต่อ LINE สำเร็จ! ระบบจะส่งแจ้งเตือนออเดอร์เข้า LINE ของคุณทันที')
+      useToast().success('เชื่อมต่อ LINE สำเร็จ! ระบบจะส่งแจ้งเตือนออเดอร์เข้า LINE ของร้านคุณทันที')
     } catch (err) {
-      console.error('Auto-save line id error:', err)
+      console.error('Save line id error:', err)
+      useToast().error('เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      isSavingLine.value = false
     }
   }
-  
+}
+
+// Open LINE OA Chat
+const openLineBotChat = () => {
   window.open('https://line.me/R/ti/p/@946vhuev', '_blank')
 }
 
@@ -582,7 +597,10 @@ const submitForm = async () => {
                 <span>ระบบพร้อมส่งออเดอร์เข้า LINE ของคุณแล้ว</span>
               </div>
               <p class="text-[11px] text-muted-foreground">
-                LINE Official Account: <strong>@946vhuev (ChiiMenu)</strong>
+                LINE Official Account: <strong>@946vhuev (ChiiMenu Alert)</strong>
+              </p>
+              <p class="text-[11px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md inline-block">
+                User ID: {{ form.line_user_id }}
               </p>
             </div>
 
@@ -591,11 +609,19 @@ const submitForm = async () => {
                 href="https://line.me/R/ti/p/@946vhuev" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all inline-flex items-center gap-1.5"
+                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all inline-flex items-center gap-1.5"
               >
                 <MessageCircle class="w-3.5 h-3.5" />
                 <span>เปิดดูแชท LINE OA</span>
               </a>
+
+              <button 
+                type="button" 
+                @click="showManualLineId = !showManualLineId"
+                class="px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl transition-colors"
+              >
+                {{ showManualLineId ? 'ซ่อนการแก้ไข' : 'แก้ไขรหัส' }}
+              </button>
 
               <button 
                 type="button" 
@@ -608,45 +634,84 @@ const submitForm = async () => {
             </div>
           </div>
 
-          <!-- Advanced Toggle (Hidden by default) -->
-          <div class="pt-3 border-t border-emerald-100 flex items-center justify-between text-[11px]">
-            <button 
-              type="button" 
-              @click="showManualLineId = !showManualLineId" 
-              class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
-            >
-              <span>{{ showManualLineId ? 'ซ่อนการตั้งค่ารหัส' : '⚙️ จัดการรหัส LINE ID ด้วยตนเอง (ขั้นสูง)' }}</span>
-            </button>
-            <span class="text-emerald-700 font-mono">Status: Connected</span>
-          </div>
-
-          <div v-if="showManualLineId" class="pt-2">
+          <!-- Edit Line ID input -->
+          <div v-if="showManualLineId" class="pt-3 border-t border-emerald-100 flex flex-col sm:flex-row items-center gap-2">
             <input 
               v-model="form.line_user_id" 
               type="text" 
-              placeholder="U3cfe1457fc5f6d1c6939e4147cb8ba75"
-              class="w-full px-3 py-2 bg-background border rounded-xl font-mono text-xs text-foreground focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-hidden"
+              placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              class="flex-1 w-full px-3 py-2 bg-background border rounded-xl font-mono text-xs text-foreground focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-hidden"
             />
+            <button 
+              type="button"
+              @click="saveLineId"
+              :disabled="isSavingLine"
+              class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shrink-0"
+            >
+              {{ isSavingLine ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข' }}
+            </button>
           </div>
         </div>
 
-        <!-- Disconnected State -->
-        <div v-else class="p-6 rounded-2xl bg-white/90 dark:bg-card/90 border border-slate-200 text-center space-y-4">
-          <div class="max-w-md mx-auto space-y-2">
-            <p class="text-xs font-bold text-foreground">ยังไม่ได้เปิดการแจ้งเตือนออเดอร์ผ่าน LINE</p>
+        <!-- Disconnected State (Step-by-Step Guide) -->
+        <div v-else class="p-6 rounded-2xl bg-white/90 dark:bg-card/90 border border-slate-200 space-y-5">
+          <div class="space-y-1">
+            <h3 class="text-sm font-bold text-foreground flex items-center gap-2">
+              <MessageCircle class="w-4 h-4 text-emerald-600" />
+              <span>วิธีเชื่อมต่อรับแจ้งเตือนออเดอร์ผ่าน LINE (@946vhuev)</span>
+            </h3>
             <p class="text-xs text-muted-foreground">
-              กดปุ่มด้านล่างเพื่อเปิดใช้งานระบบแจ้งเตือนและเปิดหน้าแชท LINE OA ของร้านทันที
+              ทำตาม 2 ขั้นตอนง่ายๆ ด้านล่าง เพื่อให้ระบบส่งออเดอร์เข้าแชท LINE ของคุณโดยตรง:
             </p>
           </div>
 
-          <button 
-            type="button" 
-            @click="activateLineAndOpenChat"
-            class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-md shadow-emerald-200 transition-all inline-flex items-center gap-2"
-          >
-            <MessageCircle class="w-4 h-4" />
-            <span>🟢 เปิดใช้งานการแจ้งเตือน & ไปที่แชท LINE</span>
-          </button>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Option 1: Auto Link via Chat -->
+            <div class="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 rounded-2xl space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                <h4 class="text-xs font-bold text-emerald-950 dark:text-emerald-300">แอดเพื่อน & รับรหัสประจำตัว</h4>
+              </div>
+              <p class="text-xs text-muted-foreground leading-relaxed">
+                กดปุ่มด้านล่างเพื่อแอด LINE OA: <strong>@946vhuev</strong> แล้วทักแชท บอทจะตอบกลับ <strong>รหัส LINE User ID</strong> ของคุณทันที
+              </p>
+              <button 
+                type="button" 
+                @click="openLineBotChat"
+                class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2"
+              >
+                <MessageCircle class="w-4 h-4" />
+                <span>แอดไลน์ & เปิดแชท @946vhuev</span>
+              </button>
+            </div>
+
+            <!-- Option 2: Enter User ID & Save -->
+            <div class="p-4 bg-muted/30 border rounded-2xl space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</span>
+                <h4 class="text-xs font-bold text-foreground">กรอกรหัส LINE User ID ของคุณ</h4>
+              </div>
+              <p class="text-xs text-muted-foreground leading-relaxed">
+                นำรหัส <code class="font-mono text-primary font-bold">U...</code> ที่ได้จากบอทมากรอกลงในช่องนี้ แล้วกดบันทึก:
+              </p>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input 
+                  v-model="form.line_user_id" 
+                  type="text" 
+                  placeholder="เช่น U3cfe1457fc5f6d1c6939e..."
+                  class="flex-1 px-3 py-2 bg-background border rounded-xl font-mono text-xs text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden"
+                />
+                <button 
+                  type="button"
+                  @click="saveLineId"
+                  :disabled="isSavingLine"
+                  class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl text-xs transition-all shrink-0 shadow-xs"
+                >
+                  {{ isSavingLine ? 'กำลังบันทึก...' : '🟢 บันทึกเชื่อมต่อ' }}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
