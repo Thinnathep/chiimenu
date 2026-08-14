@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
         // 3. Get Store Info (to check line_user_id and plan status)
         const { data: store, error: storeError } = await supabase
             .from('stores')
-            .select('name_en, line_user_id, plan_status, trial_ends_at')
+            .select('name, name_en, slug, line_user_id, plan_status, trial_ends_at')
             .eq('id', storeId)
             .single() as any;
 
@@ -73,6 +73,8 @@ export default defineEventHandler(async (event) => {
                 message: 'Store not found.'
             });
         }
+
+        console.log(`[ORDER SUBMIT] Store: "${store.name}" (/m/${store.slug}) | Target LINE ID in DB: "${store.line_user_id}"`);
 
         // 3b. Check plan expiration server-side (defence-in-depth — do NOT rely on UI alone)
         if (store.trial_ends_at) {
