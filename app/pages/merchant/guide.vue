@@ -187,7 +187,7 @@ const activeTab = ref<'menu' | 'line' | 'qr' | 'order' | 'billing'>('menu')
             <li>ไปที่หน้า <strong>"ตั้งค่าร้านค้า"</strong> (`/merchant/store/settings`)</li>
             <li>เลื่อนลงไปที่การ์ด <strong>"การแจ้งเตือนออเดอร์ผ่าน LINE OA"</strong></li>
             <li>กดปุ่มสีเขียว <strong>"🟢 เปิดใช้งานการแจ้งเตือน & ไปที่แชท LINE"</strong></li>
-            <li>ระบบจะเชื่อมต่ออัตโนมัติและเปิดหน้าแชท LINE OA ของร้าน (@819wgrsj) ทันที</li>
+            <li>ระบบจะเชื่อมต่ออัตโนมัติและเปิดหน้าแชท LINE OA ของร้าน (@946vhuev) ทันที</li>
           </ol>
         </div>
 

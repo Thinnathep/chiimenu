@@ -153,7 +153,7 @@ const activateLineAndOpenChat = async () => {
     }
   }
   
-  window.open('https://line.me/R/ti/p/@819wgrsj', '_blank')
+  window.open('https://line.me/R/ti/p/@946vhuev', '_blank')
 }
 
 // Disconnect LINE (Auto-save null to Supabase)
@@ -582,13 +582,13 @@ const submitForm = async () => {
                 <span>ระบบพร้อมส่งออเดอร์เข้า LINE ของคุณแล้ว</span>
               </div>
               <p class="text-[11px] text-muted-foreground">
-                LINE Official Account: <strong>@819wgrsj (ChiiMenu)</strong>
+                LINE Official Account: <strong>@946vhuev (ChiiMenu)</strong>
               </p>
             </div>
 
             <div class="flex items-center gap-2">
               <a 
-                href="https://line.me/R/ti/p/@819wgrsj" 
+                href="https://line.me/R/ti/p/@946vhuev" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all inline-flex items-center gap-1.5"
