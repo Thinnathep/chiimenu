@@ -67,7 +67,7 @@ const handleUpload = async (event: any) => {
     <label class="block text-sm font-medium text-foreground mb-1">{{ label }}</label>
     
     <div 
-      class="relative flex flex-col items-center justify-center border-2 border-dashed rounded-lg overflow-hidden transition-colors hover:bg-muted/50"
+      class="relative flex flex-col items-center justify-center border-2 border-dashed rounded-xl overflow-hidden transition-colors hover:bg-muted/50 max-h-72"
       :class="[
         errorMsg ? 'border-destructive/50 bg-destructive/5' : 'border-input bg-muted/20',
         !modelValue ? 'py-8' : ''
@@ -87,7 +87,7 @@ const handleUpload = async (event: any) => {
         v-if="modelValue && !uploading" 
         :src="modelValue" 
         alt="Preview" 
-        class="w-full h-full object-cover"
+        class="w-full h-full max-h-72 object-cover"
       >
       
       <!-- Loading State -->

@@ -501,7 +501,7 @@ const formatPrice = (price: any) => {
             <!-- Food Info Row -->
             <div class="flex gap-3 items-start">
               <!-- Thumbnail -->
-              <div class="w-18 h-18 rounded-2xl bg-muted overflow-hidden shrink-0 relative border border-border/40">
+              <div class="w-20 h-20 min-w-20 min-h-20 max-w-20 max-h-20 aspect-square rounded-2xl bg-muted overflow-hidden shrink-0 relative border border-border/40">
                 <img 
                   v-if="item.photo_url || item.image_url" 
                   :src="item.photo_url || item.image_url" 
