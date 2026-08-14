@@ -77,7 +77,7 @@ const handleReset = async () => {
           <p class="mt-2 text-sm text-muted-foreground">
             เนื่องจากเหตุผลด้านความปลอดภัย ระบบจะไม่ส่งรหัสผ่านใหม่ทาง SMS<br><br>
             กรุณาติดต่อแอดมินผ่าน LINE OA: <strong class="text-foreground">@819wgrsj</strong><br>
-            เพื่อขอรหัสผ่านใหม่สำหรับเบอร์ <strong>{{ loginId }}</strong> ครับ
+            เพื่อขอรหัสผ่านใหม่สำหรับเบอร์ <strong>{{ loginId }}</strong> ค่ะ
           </p>
           <div class="mt-6">
             <NuxtLink to="/login" class="inline-flex w-full justify-center rounded-md border border-input bg-background py-2 px-4 text-sm font-medium text-foreground shadow-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">

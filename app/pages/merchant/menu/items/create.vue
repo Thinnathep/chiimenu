@@ -88,7 +88,7 @@ const handlePhotoUpload = (e: Event) => {
 const handleAutoTranslate = async () => {
   const swal = useAlert()
   if (!form.value.name_th) {
-    swal.fire('คำเตือน', 'กรุณากรอกชื่อเมนูภาษาไทยก่อนครับ', 'warning')
+    swal.fire('คำเตือน', 'กรุณากรอกชื่อเมนูภาษาไทยก่อนค่ะ', 'warning')
     return
   }
   

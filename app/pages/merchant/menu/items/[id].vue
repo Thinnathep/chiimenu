@@ -124,7 +124,7 @@ const handlePhotoUpload = (e: Event) => {
 
 const handleAutoTranslate = async () => {
   if (!form.value.name_th) {
-    alert('กรุณากรอกชื่อเมนูภาษาไทยก่อนครับ')
+    alert('กรุณากรอกชื่อเมนูภาษาไทยก่อนค่ะ')
     return
   }
   

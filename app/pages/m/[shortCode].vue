@@ -952,7 +952,7 @@ const getSpiceLabel = (lvl: number) => {
           {{ locale === 'zh' ? '下单成功！' : (locale === 'en' ? 'Order Placed Successfully!' : 'สั่งอาหารเรียบร้อยแล้ว!') }}
         </h2>
         <p class="text-xs text-muted-foreground mt-1">
-          {{ locale === 'zh' ? '厨房正在为您准备美食，请在座位或取餐处稍候' : (locale === 'en' ? 'Your order is sent to the kitchen. Please relax or wait at the counter.' : 'ระบบส่งรายการไปยังห้องครัวเรียบร้อยแล้ว กรุณารอสักครู่ครับ') }}
+          {{ locale === 'zh' ? '厨房正在为您准备美食，请在座位或取餐处稍候' : (locale === 'en' ? 'Your order is sent to the kitchen. Please relax or wait at the counter.' : 'ระบบส่งรายการไปยังห้องครัวเรียบร้อยแล้ว กรุณารอสักครู่ค่ะ') }}
         </p>
 
         <div class="mt-4 px-4 py-2 bg-muted rounded-2xl font-black text-sm text-foreground">

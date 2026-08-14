@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
                         await replyLineMessage(replyToken, lineToken, [
                             {
                                 type: 'text',
-                                text: `🎉 เชื่อมต่อสำเร็จ!\n\nร้าน: ${storeData.name} (/m/${storeData.slug})\n\nระบบได้ผูกการแจ้งเตือนกับบัญชี LINE นี้เรียบร้อยแล้ว เมื่อลูกค้าสแกนสั่งอาหาร ออเดอร์จะเด้งเข้าแชทนี้ทันทีครับ 🔔`
+                                text: `🎉 เชื่อมต่อสำเร็จ!\n\nร้าน: ${storeData.name} (/m/${storeData.slug})\n\nระบบได้ผูกการแจ้งเตือนกับบัญชี LINE นี้เรียบร้อยแล้ว เมื่อลูกค้าสแกนสั่งอาหาร ออเดอร์จะเด้งเข้าแชทนี้ทันทีค่ะ 🔔`
                             }
                         ]);
                         continue;
@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
                         await replyLineMessage(replyToken, lineToken, [
                             {
                                 type: 'text',
-                                text: `⚠️ ไม่พบร้านค้าที่มีลิงก์ "${targetSlug}" ในระบบ ChiiMenu\n\nกรุณาตรวจสอบชื่อลิงก์ร้านของคุณในเมนู "ตั้งค่าร้านค้า" อีกครั้งครับ`
+                                text: `⚠️ ไม่พบร้านค้าที่มีลิงก์ "${targetSlug}" ในระบบ ChiiMenu\n\nกรุณาตรวจสอบชื่อลิงก์ร้านของคุณในเมนู "ตั้งค่าร้านค้า" อีกครั้งค่ะ`
                             }
                         ]);
                         continue;
@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
                 await replyLineMessage(replyToken, lineToken, [
                     {
                         type: 'text',
-                        text: `👋 สวัสดีครับ! ยินดีต้อนรับสู่ ChiiMenu Alerts 🔔\n\n🆔 LINE User ID ของคุณคือ:\n${userId}\n\n💡 วิธีผูกร้านค้ารับออเดอร์ทันที:\nพิมพ์:\nlink <ลิงก์ร้านของคุณ>\n(เช่น link ${targetSlug || 'pataew-padthai'})\n\nหรือนำรหัส User ID ด้านบนไปกรอกในหน้า "ตั้งค่าร้านค้า" ในระบบ ChiiMenu ได้เลยครับ!`
+                        text: `👋 สวัสดีค่ะ! ยินดีต้อนรับสู่ ChiiMenu Alerts 🔔\n\n🆔 LINE User ID ของคุณคือ:\n${userId}\n\n💡 วิธีผูกร้านค้ารับออเดอร์ทันที:\nพิมพ์:\nlink <ลิงก์ร้านของคุณ>\n(เช่น link ${targetSlug || 'pataew-padthai'})\n\nหรือนำรหัส User ID ด้านบนไปกรอกในหน้า "ตั้งค่าร้านค้า" ในระบบ ChiiMenu ได้เลยค่ะ!`
                     }
                 ]);
             } else if (ev.type === 'follow') {
@@ -78,7 +78,7 @@ export default defineEventHandler(async (event) => {
                 await replyLineMessage(replyToken, lineToken, [
                     {
                         type: 'text',
-                        text: `👋 ยินดีต้อนรับสู่ ChiiMenu Alerts 🔔\n\n🆔 LINE User ID ของคุณคือ:\n${userId}\n\n👉 วิธีผูกร้านค้ารับออเดอร์:\nพิมพ์:\nlink <ชื่อลิงก์ร้าน>\n(เช่น link pataew-padthai)\nเพื่อผูกร้านค้าอัตโนมัติได้ทันทีครับ!`
+                        text: `👋 ยินดีต้อนรับสู่ ChiiMenu Alerts 🔔\n\n🆔 LINE User ID ของคุณคือ:\n${userId}\n\n👉 วิธีผูกร้านค้ารับออเดอร์:\nพิมพ์:\nlink <ชื่อลิงก์ร้าน>\n(เช่น link pataew-padthai)\nเพื่อผูกร้านค้าอัตโนมัติได้ทันทีค่ะ!`
                     }
                 ]);
             }

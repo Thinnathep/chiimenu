@@ -186,7 +186,7 @@ const activeTab = ref<'menu' | 'line' | 'qr' | 'order' | 'billing'>('menu')
           </h3>
           <ol class="list-decimal pl-5 text-xs text-muted-foreground space-y-2 leading-relaxed">
             <li>แอดเพื่อนกับ LINE OA บอทแจ้งเตือน: <strong>@946vhuev</strong> (ChiiMenu Alerts)</li>
-            <li>เปิดแชทแล้วพิมพ์คำสั่ง: <code class="font-mono bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 px-2 py-0.5 rounded font-bold">link &lt;ชื่อลิงก์ร้าน&gt;</code> (เช่น <code class="font-mono text-emerald-700">link bunny</code> หรือ <code class="font-mono text-emerald-700">link verdant-test</code>)</li>
+            <li>เปิดแชทแล้วพิมพ์คำสั่ง: <code class="font-mono bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 px-2 py-0.5 rounded font-bold">link &lt;ชื่อลิงก์ร้าน&gt;</code> (เช่น <code class="font-mono text-emerald-700">link Paa Tao</code>)</li>
             <li>บอทจะตอบกลับยืนยันการผูกร้านค้าทันที และพร้อมรับออเดอร์ทันที 24 ชม. 🔔</li>
           </ol>
         </div>
