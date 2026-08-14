@@ -38,6 +38,15 @@ watch(() => form.value.name, (newName) => {
   }
 })
 
+const onSlugInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  form.value.slug = (target.value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+}
+
 // Real-time slug check
 watch(() => form.value.slug, (newSlug) => {
   if (!newSlug) {
@@ -188,10 +197,19 @@ const submitForm = async () => {
                   <span class="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-muted-foreground sm:text-sm">
                     chiimenu.com/
                   </span>
-                  <input v-model="form.slug" type="text" id="slug" required pattern="^[a-z0-9\-]+$" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                  <input 
+                    :value="form.slug"
+                    @input="onSlugInput"
+                    type="text" 
+                    id="slug" 
+                    required 
+                    pattern="^[a-z0-9\-]+$" 
+                    placeholder="my-restaurant-name"
+                    class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
                 </div>
                 <div class="mt-1 flex items-center justify-between">
-                  <p class="text-xs text-muted-foreground">{{ $t('store_slug_hint') }}</p>
+                  <p class="text-xs text-muted-foreground">ระบบปรับเป็นตัวพิมพ์เล็ก (a-z) ตัวเลข และ - อัตโนมัติ</p>
                   <p v-if="slugStatus === 'checking'" class="text-xs text-yellow-600 animate-pulse">กำลังตรวจสอบ...</p>
                   <p v-else-if="slugStatus === 'taken'" class="text-xs text-destructive font-bold">❌ ลิงก์นี้มีคนใช้แล้ว กรุณาเปลี่ยนใหม่</p>
                   <p v-else-if="slugStatus === 'available'" class="text-xs text-green-600 font-bold">✅ ลิงก์นี้สามารถใช้งานได้</p>

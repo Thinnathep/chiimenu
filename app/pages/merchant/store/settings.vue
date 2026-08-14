@@ -84,6 +84,34 @@ onMounted(async () => {
   }
 })
 
+// Auto format & sanitize slug
+const sanitizeSlug = (val: string) => {
+  return (val || '')
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+}
+
+const onSlugInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  form.value.slug = sanitizeSlug(target.value)
+}
+
+const copyStoreLink = async () => {
+  if (!form.value.slug) return
+  const url = `${window.location.origin}/m/${form.value.slug}`
+  await navigator.clipboard.writeText(url)
+  useToast().success(`คัดลอกลิงก์ร้านเรียบร้อยแล้ว: ${url}`)
+}
+
+const copyLineLinkCommand = async () => {
+  if (!form.value.slug) return
+  const cmd = `link ${form.value.slug}`
+  await navigator.clipboard.writeText(cmd)
+  useToast().success(`คัดลอกคำสั่ง "${cmd}" แล้ว! นำไปวางในแชท @946vhuev ได้ทันที`)
+}
+
 // Real-time slug validation
 watch(() => form.value.slug, (newSlug) => {
   if (!newSlug || !form.value.id) {
@@ -508,16 +536,18 @@ const submitForm = async () => {
         </div>
 
         <!-- Slug URL -->
-        <div>
-          <label class="block text-xs font-bold text-foreground mb-1.5">
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-foreground">
             ลิงก์เมนูร้านค้า (Custom URL Slug) <span class="text-rose-500">*</span>
           </label>
+          
           <div class="flex rounded-xl border overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-            <span class="inline-flex items-center bg-muted px-3.5 text-xs text-muted-foreground font-mono font-medium border-r">
+            <span class="inline-flex items-center bg-muted px-3.5 text-xs text-muted-foreground font-mono font-medium border-r shrink-0">
               chiimenu.com/m/
             </span>
             <input 
-              v-model="form.slug" 
+              :value="form.slug"
+              @input="onSlugInput"
               type="text" 
               required 
               pattern="^[a-z0-9\-]+$" 
@@ -526,13 +556,37 @@ const submitForm = async () => {
             />
           </div>
 
-          <div class="mt-1.5 flex items-center justify-between text-xs">
-            <span class="text-[11px] text-muted-foreground">ใช้ตัวพิมพ์เล็ก a-z ตัวเลข และเครื่องหมาย - เท่านั้น</span>
+          <div class="flex items-center justify-between text-xs pt-0.5">
+            <span class="text-[11px] text-muted-foreground">
+              🔤 ระบบปรับเป็น <strong>ตัวพิมพ์เล็ก (a-z)</strong> ตัวเลข และ <strong>-</strong> อัตโนมัติ
+            </span>
             <div>
               <span v-if="slugStatus === 'checking'" class="text-amber-600 animate-pulse text-[11px] font-bold">กำลังตรวจสอบ...</span>
-              <span v-else-if="slugStatus === 'taken'" class="text-rose-600 text-[11px] font-bold">❌ ลิงก์นี้มีร้านอื่นใช้แล้ว</span>
-              <span v-else-if="slugStatus === 'available'" class="text-emerald-600 text-[11px] font-bold">✅ ลิงก์นี้ใช้งานได้</span>
+              <span v-else-if="slugStatus === 'taken'" class="text-rose-600 text-[11px] font-bold">❌ ลิงก์นี้มีร้านอื่นใช้งานแล้ว</span>
+              <span v-else-if="slugStatus === 'available'" class="text-emerald-600 text-[11px] font-bold">✅ ลิงก์นี้สามารถใช้งานได้</span>
             </div>
+          </div>
+
+          <!-- Quick Copy & Action Buttons -->
+          <div v-if="form.slug" class="pt-2 flex flex-wrap gap-2">
+            <button 
+              type="button" 
+              @click="copyLineLinkCommand"
+              class="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold text-xs rounded-xl border border-emerald-200 transition-all inline-flex items-center gap-1.5 shadow-2xs"
+              title="คัดลอกคำสั่งไปวางใน LINE"
+            >
+              <MessageCircle class="w-3.5 h-3.5 text-emerald-600" />
+              <span>📋 คัดลอกคำสั่งผูก LINE: <code class="font-mono bg-emerald-200/50 dark:bg-emerald-900/50 px-1 rounded">link {{ form.slug }}</code></span>
+            </button>
+
+            <button 
+              type="button" 
+              @click="copyStoreLink"
+              class="px-3.5 py-1.5 bg-muted hover:bg-muted/80 text-foreground font-semibold text-xs rounded-xl border transition-all inline-flex items-center gap-1.5"
+            >
+              <Copy class="w-3.5 h-3.5 text-muted-foreground" />
+              <span>คัดลอกลิงก์ร้าน (/m/{{ form.slug }})</span>
+            </button>
           </div>
         </div>
 

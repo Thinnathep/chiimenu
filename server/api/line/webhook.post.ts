@@ -21,13 +21,18 @@ export default defineEventHandler(async (event) => {
             if (!userId || !replyToken || !lineToken) continue;
 
             if (ev.type === 'message' && ev.message?.type === 'text') {
-                const text = (ev.message.text || '').trim();
+                const rawText = (ev.message.text || '').trim();
 
-                // 1. Check if user is trying to link a store via "link <slug>" or "ผูก <slug>"
-                const linkMatch = text.match(/^(?:link|ผูก|ผูกร้าน|connect)\s+([a-zA-Z0-9_-]+)$/i);
-                if (linkMatch && linkMatch[1] && supabase) {
-                    const targetSlug = linkMatch[1].toLowerCase().trim();
+                // Extract slug flexibly:
+                // Supports: "link bunny", "link /m/bunny", "ผูกร้าน bunny", "https://chiimenu.pages.dev/m/bunny", "bunny"
+                let targetSlug = rawText
+                    .replace(/^(?:link|ผูก|ผูกร้าน|connect)\s*/i, '')
+                    .replace(/^(?:https?:\/\/[^\/]+)?\/?m\//i, '')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-]/g, '');
 
+                if (targetSlug && supabase) {
                     const { data: storeData, error: findError } = await supabase
                         .from('stores')
                         .select('id, name, slug')
@@ -49,23 +54,23 @@ export default defineEventHandler(async (event) => {
                             }
                         ]);
                         continue;
-                    } else {
-                        // Store not found
+                    } else if (rawText.toLowerCase().startsWith('link') || rawText.startsWith('ผูก')) {
+                        // User explicitly typed "link <slug>" but store was not found
                         await replyLineMessage(replyToken, lineToken, [
                             {
                                 type: 'text',
-                                text: `⚠️ ไม่พบร้านค้าที่มีลิงก์ "${targetSlug}" ในระบบ\n\nกรุณาตรวจสอบชื่อลิงก์ร้านของคุณในหน้า "ตั้งค่าร้านค้า" อีกครั้ง หรือนำรหัสนี้ไปใส่ในเว็บ:\n\n🆔 LINE User ID ของคุณ:\n${userId}`
+                                text: `⚠️ ไม่พบร้านค้าที่มีลิงก์ "${targetSlug}" ในระบบ ChiiMenu\n\nกรุณาตรวจสอบชื่อลิงก์ร้านของคุณในเมนู "ตั้งค่าร้านค้า" อีกครั้งครับ`
                             }
                         ]);
                         continue;
                     }
                 }
 
-                // 2. Default reply: Give them their real LINE User ID and instructions
+                // Default reply: Give them their real LINE User ID and clear instructions
                 await replyLineMessage(replyToken, lineToken, [
                     {
                         type: 'text',
-                        text: `👋 สวัสดีครับ! ยินดีต้อนรับสู่ ChiiMenu Order Alert 🔔\n\n🆔 รหัส LINE User ID ของคุณคือ:\n${userId}\n\n💡 วิธีเชื่อมต่อรับออเดอร์ร้านของคุณ:\n1. คัดลอกรหัส User ID ด้านบนไปวางในหน้า "ตั้งค่าร้านค้า" ในระบบ ChiiMenu\n\nหรือพิมพ์:\nlink <ลิงก์ร้านของคุณ>\n(เช่น link pataew-padthai)\nเพื่อผูกร้านค้าอัตโนมัติได้ทันทีครับ!`
+                        text: `👋 สวัสดีครับ! ยินดีต้อนรับสู่ ChiiMenu Alerts 🔔\n\n🆔 LINE User ID ของคุณคือ:\n${userId}\n\n💡 วิธีผูกร้านค้ารับออเดอร์ทันที:\nพิมพ์:\nlink <ลิงก์ร้านของคุณ>\n(เช่น link ${targetSlug || 'pataew-padthai'})\n\nหรือนำรหัส User ID ด้านบนไปกรอกในหน้า "ตั้งค่าร้านค้า" ในระบบ ChiiMenu ได้เลยครับ!`
                     }
                 ]);
             } else if (ev.type === 'follow') {
@@ -73,7 +78,7 @@ export default defineEventHandler(async (event) => {
                 await replyLineMessage(replyToken, lineToken, [
                     {
                         type: 'text',
-                        text: `👋 ยินดีต้อนรับสู่ ChiiMenu Order Alert 🔔\n\n🆔 รหัส LINE User ID สำหรับรับแจ้งเตือนออเดอร์ของคุณคือ:\n${userId}\n\n👉 นำรหัสด้านบนไปกรอกในหน้า "ตั้งค่าร้านค้า" ของคุณ หรือพิมพ์:\nlink <ชื่อลิงก์ร้าน>\nเพื่อผูกร้านค้าได้ทันทีครับ!`
+                        text: `👋 ยินดีต้อนรับสู่ ChiiMenu Alerts 🔔\n\n🆔 LINE User ID ของคุณคือ:\n${userId}\n\n👉 วิธีผูกร้านค้ารับออเดอร์:\nพิมพ์:\nlink <ชื่อลิงก์ร้าน>\n(เช่น link pataew-padthai)\nเพื่อผูกร้านค้าอัตโนมัติได้ทันทีครับ!`
                     }
                 ]);
             }
