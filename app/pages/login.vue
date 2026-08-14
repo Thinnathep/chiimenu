@@ -163,6 +163,16 @@ const handleLogin = async () => {
               </button>
             </div>
           </form>
+
+          <!-- Auth Footer Links -->
+          <div class="mt-10 pt-6 border-t border-border/50 text-center text-xs text-muted-foreground space-y-2">
+            <div class="flex justify-center items-center gap-3">
+              <NuxtLink to="/privacy" class="hover:text-primary transition-colors font-medium">นโยบายความเป็นส่วนตัว</NuxtLink>
+              <span>•</span>
+              <a href="https://line.me/R/ti/p/@819wgrsj" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-700 font-bold text-emerald-700">ช่วยเหลือ / ติดต่อ LINE</a>
+            </div>
+            <p>&copy; {{ new Date().getFullYear() }} ChiiMenu. All rights reserved.</p>
+          </div>
         </div>
       </div>
     </div>

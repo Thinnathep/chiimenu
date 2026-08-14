@@ -1,45 +1,50 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { serverSupabaseServiceRole, serverSupabaseClient } from '#supabase/server'
 
 const MAX_REQUESTS = 5;
 const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 export default defineEventHandler(async (event) => {
-    // We need service role for rate limits as it bypasses RLS
-    const supabase = await serverSupabaseServiceRole(event)
+    let supabase: any;
+    try {
+        supabase = await serverSupabaseServiceRole(event);
+    } catch {
+        supabase = await serverSupabaseClient(event);
+    }
 
-    // 1. Rate Limiting Check
-    const ip = getRequestIP(event) || 'unknown';
-    const now = Date.now();
-    
-    if (ip !== 'unknown') {
-        const { data } = await (supabase as any)
-            .from('rate_limits')
-            .select('*')
-            .eq('ip', ip)
-            .single();
+    // 1. Rate Limiting Check (Safe & Non-blocking)
+    try {
+        const ip = getRequestIP(event) || 'unknown';
+        const now = Date.now();
         
-        const rateRecord = data as any;
+        if (ip !== 'unknown' && supabase) {
+            const { data } = await (supabase as any)
+                .from('rate_limits')
+                .select('*')
+                .eq('ip', ip)
+                .single();
+            
+            const rateRecord = data as any;
 
-        if (rateRecord) {
-            if (now > rateRecord.reset_at) {
-                // Reset window
-                await (supabase as any).from('rate_limits').update({ request_count: 1, reset_at: now + WINDOW_MS }).eq('ip', ip);
-            } else {
-                if (rateRecord.request_count >= MAX_REQUESTS) {
-                    throw createError({
-                        statusCode: 429,
-                        statusMessage: 'Too Many Requests',
-                        message: 'You have sent too many orders. Please try again later.'
-                    })
+            if (rateRecord) {
+                if (now > rateRecord.reset_at) {
+                    await (supabase as any).from('rate_limits').update({ request_count: 1, reset_at: now + WINDOW_MS }).eq('ip', ip);
+                } else {
+                    if (rateRecord.request_count >= MAX_REQUESTS) {
+                        throw createError({
+                            statusCode: 429,
+                            statusMessage: 'Too Many Requests',
+                            message: 'You have sent too many orders. Please try again later.'
+                        });
+                    }
+                    await (supabase as any).from('rate_limits').update({ request_count: rateRecord.request_count + 1 }).eq('ip', ip);
                 }
-                // Increment count
-                await (supabase as any).from('rate_limits').update({ request_count: rateRecord.request_count + 1 }).eq('ip', ip);
+            } else {
+                await (supabase as any).from('rate_limits').insert({ ip, request_count: 1, reset_at: now + WINDOW_MS });
             }
-        } else {
-            // First request from this IP
-            await (supabase as any).from('rate_limits').insert({ ip, request_count: 1, reset_at: now + WINDOW_MS });
         }
-    };
+    } catch (rateErr: any) {
+        if (rateErr?.statusCode === 429) throw rateErr;
+    }
 
     // 2. Parse Body
     const body = await readBody(event);
@@ -54,8 +59,6 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const supabase = await serverSupabaseServiceRole(event);
-
         // 3. Get Store Info (to check line_user_id and plan status)
         const { data: store, error: storeError } = await supabase
             .from('stores')
@@ -105,36 +108,67 @@ export default defineEventHandler(async (event) => {
             });
         }
 
-        // 5. Send to LINE OA (Mock for now until we have real credentials)
-        if (store.line_user_id) {
+        // 5. Send to LINE OA
+        if (store.line_user_id && store.line_user_id.trim()) {
             try {
-                // Generate Message Text
-                let messageText = `🔔 ออเดอร์ใหม่เข้า!\nโต๊ะ: ${tableNo}\n\n`;
+                // Format Time in Thai format
+                const nowThai = new Date().toLocaleString('th-TH', { 
+                    timeZone: 'Asia/Bangkok',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                let messageText = `🔔 มีออเดอร์ใหม่เข้า!\n`;
+                messageText += `📍 โต๊ะ: ${tableNo}\n`;
+                messageText += `⏰ เวลา: ${nowThai} น.\n`;
+                messageText += `--------------------------------\n`;
                 
                 let grandTotal = 0;
                 cart.forEach((item: any, index: number) => {
-                    const quantity = item.quantity || 1;
-                    const itemTotal = item.price * quantity;
+                    const quantity = Number(item.quantity) || 1;
+                    const unitPrice = Number(item.unitPrice !== undefined ? item.unitPrice : (item.price !== undefined ? item.price : (item.menuItem?.price || 0)));
+                    const itemTotal = unitPrice * quantity;
                     grandTotal += itemTotal;
                     
-                    messageText += `${index + 1}. ${quantity}x ${item.menuItem.name_th} (${item.menuItem.name_en})\n`;
-                    if (item.spiceLevel !== null) {
-                        messageText += `   🌶️ ระดับความเผ็ด: ${item.spiceLevel}/4\n`;
+                    const nameTh = item.menuItem?.name_th || item.name_th || 'เมนูอาหาร';
+                    const nameEn = item.menuItem?.name_en || item.name_en || '';
+                    
+                    messageText += `${index + 1}. ${quantity}x ${nameTh}${nameEn ? ` (${nameEn})` : ''}\n`;
+                    
+                    if (item.spiceLevel !== undefined && item.spiceLevel !== null && item.spiceLevel !== 0) {
+                        const spiceMap: Record<number, string> = {
+                            1: 'ไม่เผ็ด (Mild)',
+                            2: 'เผ็ดน้อย (Low)',
+                            3: 'เผ็ดกลาง (Medium)',
+                            4: 'เผ็ดมาก (Hot)'
+                        };
+                        messageText += `   🌶️ ความเผ็ด: ${spiceMap[Number(item.spiceLevel)] || `ระดับ ${item.spiceLevel}`}\n`;
                     }
-                    if (item.selectedAddons && Object.keys(item.selectedAddons).length > 0) {
-                        messageText += `   ➕ ตัวเลือกเสริม:\n`;
-                        for (const addonId in item.selectedAddons) {
-                            const addonValue = item.selectedAddons[addonId];
-                            messageText += `      - ${addonValue}\n`;
-                        }
+                    
+                    if (item.addonNames && Array.isArray(item.addonNames) && item.addonNames.length > 0) {
+                        messageText += `   ➕ ตัวเลือกเสริม: ${item.addonNames.join(', ')}\n`;
+                    } else if (item.selectedAddons && Object.keys(item.selectedAddons).length > 0) {
+                        const addonList = Object.values(item.selectedAddons).join(', ');
+                        messageText += `   ➕ ตัวเลือกเสริม: ${addonList}\n`;
                     }
-                    messageText += `   💰 ราคา: ฿${itemTotal}\n\n`;
+                    
+                    if (item.note && item.note.trim()) {
+                        messageText += `   💬 โน้ต: ${item.note.trim()}\n`;
+                    }
+                    
+                    messageText += `   💰 ฿${itemTotal.toLocaleString('th-TH')}\n\n`;
                 });
                 
-                messageText += `💵 ยอดรวมทั้งหมด: ฿${grandTotal}\n`;
+                messageText += `--------------------------------\n`;
+                messageText += `💵 ยอดรวมทั้งหมด: ฿${grandTotal.toLocaleString('th-TH')}`;
 
                 // Call LINE Messaging API
-                const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN || (event.context.cloudflare?.env?.LINE_CHANNEL_ACCESS_TOKEN);
+                const config = useRuntimeConfig(event);
+                const lineToken = config.lineChannelAccessToken || process.env.LINE_CHANNEL_ACCESS_TOKEN;
+                
                 if (lineToken) {
                     await $fetch('https://api.line.me/v2/bot/message/push', {
                         method: 'POST',
@@ -143,7 +177,7 @@ export default defineEventHandler(async (event) => {
                             'Authorization': `Bearer ${lineToken}`
                         },
                         body: {
-                            to: store.line_user_id,
+                            to: store.line_user_id.trim(),
                             messages: [
                                 {
                                     type: 'text',
@@ -152,9 +186,9 @@ export default defineEventHandler(async (event) => {
                             ]
                         }
                     });
-                    console.log(`LINE Notification sent to ${store.line_user_id}`);
+                    console.log(`[LINE NOTIFICATION SUCCESS] Sent to ${store.line_user_id}`);
                 } else {
-                    console.log('--- MOCK LINE PUSH MESSAGE (No Token) ---');
+                    console.warn('[LINE NOTIFICATION WARN] LINE_CHANNEL_ACCESS_TOKEN is missing');
                 }
 
                 // Update line_notified status
@@ -164,20 +198,11 @@ export default defineEventHandler(async (event) => {
                     .eq('id', order.id);
 
             } catch (lineError: any) {
-                console.error(`[CRITICAL] LINE API failed for store ${storeId}. The order is saved in DB but notification failed. Error:`, lineError?.message || lineError);
-                
-                // Insert into error_logs so we can track this down later
-                await (supabase as any).from('error_logs').insert({
-                    store_id: storeId,
-                    error_message: lineError?.message || String(lineError),
-                    context: {
-                        order_id: order.id,
-                        line_user_id: store.line_user_id,
-                        raw_error: lineError
-                    }
-                });
-                // We don't throw an error here because the tourist UI is fire-and-forget.
+                console.warn(`[LINE NOTIFICATION] Could not deliver LINE push message for store ${storeId} (User ID: ${store.line_user_id}). Error:`, lineError?.data?.message || lineError?.message || lineError);
+                // Order is already saved successfully in database.
             }
+        } else {
+            console.log(`[LINE NOTIFICATION INFO] Store ${storeId} has not configured line_user_id.`);
         }
 
         return {

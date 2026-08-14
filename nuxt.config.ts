@@ -18,6 +18,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
     cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
+    lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
     public: {
       adminEmails: process.env.ADMIN_EMAILS || ''
     }
@@ -38,9 +39,13 @@ export default defineNuxtConfig({
 
   googleFonts: {
     families: {
-      Prompt: [300, 400, 500, 600, 700]
+      Prompt: [300, 400, 500, 600, 700],
+      'Noto Sans Thai': [300, 400, 500, 600, 700],
+      Inter: [400, 500, 600, 700]
     },
-    display: 'swap'
+    display: 'swap',
+    download: true,
+    inject: true
   },
 
   supabase: {

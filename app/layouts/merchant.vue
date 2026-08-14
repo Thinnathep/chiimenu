@@ -10,34 +10,10 @@ const { locale, locales, setLocale } = useI18n()
 const mobileMenuOpen = ref(false)
 const isUserDropdownOpen = ref(false)
 
-const store = ref<any>(null)
-const loading = ref(true)
-const isAdmin = ref(false)
+const { store, isAdmin, loading, fetchStore, clearStore } = useCurrentStore()
 
 onMounted(async () => {
-  const { data: authData } = await client.auth.getUser()
-  
-  if (authData?.user?.id) {
-    const { data } = await client
-      .from('stores')
-      .select('*')
-      .eq('owner_id', authData.user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      
-    store.value = data?.[0] || null
-
-    // Check admin status
-    const { data: adminData } = await client
-      .from('admins')
-      .select('id')
-      .eq('id', authData.user.id)
-      .single()
-    if (adminData) {
-      isAdmin.value = true
-    }
-  }
-  loading.value = false
+  await fetchStore()
 })
 
 const daysRemaining = computed(() => {
@@ -52,12 +28,14 @@ const isTrialExpired = computed(() => {
   return new Date(store.value.trial_ends_at).getTime() < Date.now()
 })
 
-
-
 const logout = async () => {
+  clearStore()
   await client.auth.signOut()
   router.push('/login')
 }
+
+const route = useRoute()
+const isBillingPage = computed(() => route.path.includes('/merchant/billing'))
 
 const handleLocaleChange = (e: Event) => {
   const target = e.target as HTMLSelectElement
@@ -94,6 +72,9 @@ const handleLocaleChange = (e: Event) => {
         <NuxtLink to="/merchant/billing" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
           แพ็กเกจ/ต่ออายุ
         </NuxtLink>
+        <NuxtLink to="/merchant/guide" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
+          📚 คู่มือการใช้งาน
+        </NuxtLink>
         <NuxtLink v-if="isAdmin" to="/admin/stores" class="block px-6 py-3 border-l-4 border-transparent text-sm font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-colors" active-class="bg-orange-100 border-orange-600 text-orange-700">
           ⭐ Admin
         </NuxtLink>
@@ -112,21 +93,21 @@ const handleLocaleChange = (e: Event) => {
           <NuxtLink to="/merchant/dashboard" class="md:hidden text-xl font-bold text-primary">🥢 ChiiMenu</NuxtLink>
         </div>
         
-        <div class="flex items-center gap-4 ml-auto">
+        <div class="flex items-center gap-3 ml-auto">
           <select 
             v-model="locale" 
             @change="handleLocaleChange"
-            class="bg-transparent border border-border rounded-md text-sm px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground"
+            class="bg-transparent border border-border rounded-xl text-xs font-semibold px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary text-foreground"
           >
             <option v-for="l in locales" :key="l.code" :value="l.code">
               {{ l.name }}
             </option>
           </select>
-          <div class="relative ml-3">
-            <button @click="isUserDropdownOpen = !isUserDropdownOpen" class="flex items-center max-w-xs text-sm bg-muted/50 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary px-3 py-1.5 transition-colors hover:bg-muted">
+          <div class="relative ml-1">
+            <button @click="isUserDropdownOpen = !isUserDropdownOpen" class="flex items-center max-w-xs text-xs font-semibold bg-muted/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary px-3 py-1.5 transition-colors hover:bg-muted border">
               <span class="sr-only">Open user menu</span>
-              <span class="text-sm font-medium text-foreground mr-1">จัดการบัญชี</span>
-              <ChevronDown class="w-4 h-4 text-muted-foreground" />
+              <span class="text-xs font-semibold text-foreground mr-1">จัดการบัญชี</span>
+              <ChevronDown class="w-3.5 h-3.5 text-muted-foreground" />
             </button>
             
             <div v-if="isUserDropdownOpen" @click="isUserDropdownOpen = false" class="fixed inset-0 z-40"></div>
@@ -153,15 +134,27 @@ const handleLocaleChange = (e: Event) => {
           </div>
           
           <!-- Trial Expired Lock Screen -->
-          <div v-else-if="isTrialExpired" class="max-w-2xl mx-auto bg-card rounded-2xl shadow-lg border-2 border-red-200 overflow-hidden text-center mt-10">
-            <div class="bg-red-500 text-white p-6">
-              <h2 class="text-3xl font-black">สิทธิ์ใช้งานระบบของคุณหมดแล้ว</h2>
-              <p class="mt-2 text-red-100">กรุณาต่ออายุแพ็กเกจเพื่อกลับมาใช้งานระบบจัดการและเมนูร้านค้าอีกครั้ง</p>
+          <div v-else-if="isTrialExpired && !isBillingPage" class="max-w-2xl mx-auto bg-card rounded-2xl shadow-lg border-2 overflow-hidden text-center mt-10" :class="!store?.has_used_first_time_promo ? 'border-rose-300' : 'border-red-200'">
+            <div :class="!store?.has_used_first_time_promo ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white p-8' : 'bg-red-500 text-white p-6'">
+              <div v-if="!store?.has_used_first_time_promo" class="inline-block bg-white text-rose-600 font-bold px-3 py-1 rounded-full text-sm mb-4 shadow-sm">🔥 สิทธิพิเศษเฉพาะคุณ</div>
+              <h2 class="font-black" :class="!store?.has_used_first_time_promo ? 'text-4xl mb-2' : 'text-3xl'">
+                {{ !store?.has_used_first_time_promo ? 'สิทธิ์ทดลองใช้งานหมดแล้ว' : 'สิทธิ์ใช้งานระบบของคุณหมดแล้ว' }}
+              </h2>
+              <p class="mt-2 text-white/90 text-lg" v-if="!store?.has_used_first_time_promo">
+                ต่ออายุวันนี้ <span class="font-bold underline decoration-2 underline-offset-4">รับส่วนลดทันที 50%</span> 
+                <br>เพื่อใช้งานระบบจัดการและรับออเดอร์ได้อย่างต่อเนื่อง
+              </p>
+              <p class="mt-2 text-red-100" v-else>
+                กรุณาต่ออายุแพ็กเกจเพื่อกลับมาใช้งานระบบจัดการและเมนูร้านค้าอีกครั้ง
+              </p>
             </div>
             
             <div class="p-8">
               <div class="flex justify-center mb-8">
-                <a href="https://line.me/R/ti/p/@819wgrsj" target="_blank" rel="noopener noreferrer" class="bg-[#00B900] hover:bg-[#009900] text-white px-8 py-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 text-lg font-bold w-full max-w-sm">
+                <NuxtLink v-if="!store?.has_used_first_time_promo" to="/merchant/billing" class="bg-rose-500 hover:bg-rose-600 text-white px-8 py-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 text-lg font-bold w-full max-w-sm">
+                  ดูราคาแพ็กเกจโปรโมชั่น 50%
+                </NuxtLink>
+                <a v-else href="https://line.me/R/ti/p/@819wgrsj" target="_blank" rel="noopener noreferrer" class="bg-[#00B900] hover:bg-[#009900] text-white px-8 py-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 text-lg font-bold w-full max-w-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M8 0c4.411 0 8 2.912 8 6.492 0 3.146-2.618 5.86-6.326 6.39-.304.043-.63.14-.725.437-.083.257-.023.75-.023.75s.033.4.156.966c.094.432-.423.633-.787.41-1.636-.994-5.69-3.414-7.258-5.328C.612 8.441 0 7.502 0 6.492 0 2.912 3.589 0 8 0z" />
                   </svg>
@@ -195,9 +188,33 @@ const handleLocaleChange = (e: Event) => {
           </div>
           
           <!-- Normal Content -->
-          <div v-show="!loading && !isTrialExpired">
+          <div v-show="!loading && (!isTrialExpired || isBillingPage)">
             <slot />
           </div>
+
+          <!-- App System Footer (Clean, Responsive, Support & Privacy Links) -->
+          <footer class="mt-20 pt-6 pb-6 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-foreground">🥢 ChiiMenu</span>
+              <span>•</span>
+              <span>&copy; {{ new Date().getFullYear() }} All rights reserved.</span>
+            </div>
+
+            <div class="flex items-center gap-4 flex-wrap justify-center font-medium">
+              <NuxtLink to="/merchant/billing" class="hover:text-primary transition-colors">แพ็กเกจและการต่ออายุ</NuxtLink>
+              <span>•</span>
+              <NuxtLink to="/privacy" class="hover:text-primary transition-colors">นโยบายความเป็นส่วนตัว</NuxtLink>
+              <span>•</span>
+              <a 
+                href="https://line.me/R/ti/p/@819wgrsj" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="hover:text-emerald-700 font-bold transition-colors inline-flex items-center gap-1 text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200"
+              >
+                <span>💬 ติดต่อช่วยเหลือ LINE: @819wgrsj</span>
+              </a>
+            </div>
+          </footer>
 
         </div>
       </main>
@@ -250,6 +267,9 @@ const handleLocaleChange = (e: Event) => {
           </NuxtLink>
           <NuxtLink to="/merchant/billing" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
             แพ็กเกจ/ต่ออายุ
+          </NuxtLink>
+          <NuxtLink to="/merchant/guide" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
+            📚 คู่มือการใช้งาน
           </NuxtLink>
           <NuxtLink v-if="isAdmin" to="/admin/stores" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-colors" active-class="bg-orange-100 border-orange-600 text-orange-700">
             ⭐ Admin

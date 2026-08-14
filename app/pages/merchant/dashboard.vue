@@ -4,34 +4,15 @@ definePageMeta({
   middleware: ['auth']
 })
 
-const user = useSupabaseUser()
 const client = useSupabaseClient()
-
-// Fetch store info
-const { data: store, pending, refresh } = await useAsyncData<any>('store', async () => {
-  // ใช้ client.auth.getUser() เพื่อความชัวร์ (แก้ปัญหา Vue reactivity ดึงค่าไม่ทัน)
-  const { data: authData } = await client.auth.getUser()
-  if (!authData?.user?.id) return null
-  
-  const { data, error } = await client
-    .from('stores')
-    .select('*')
-    .eq('owner_id', authData.user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    
-  if (error) {
-    console.error("Dashboard fetch store error:", error)
-    return null
-  }
-  return data?.[0] || null
-})
+const { store, loading: pending, fetchStore } = useCurrentStore()
 
 // Fetch today's orders stats
-const { data: orderStats } = await useAsyncData('orderStats', async () => {
-  if (!store.value?.id) return { todayCount: 0, pendingOrders: [] }
+const orderStats = ref({ todayCount: 0, latestOrders: [] as any[] })
+
+const fetchOrderStats = async () => {
+  if (!store.value?.id) return
   
-  // Get today's start date in ISO format
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString()
@@ -43,13 +24,26 @@ const { data: orderStats } = await useAsyncData('orderStats', async () => {
     .gte('created_at', todayStr)
     .order('created_at', { ascending: false })
     
-  if (error || !data) return { todayCount: 0, latestOrders: [] as any[] }
-  
-  return {
-    todayCount: data.length,
-    latestOrders: (data as any[]).slice(0, 3)
+  if (!error && data) {
+    orderStats.value = {
+      todayCount: data.length,
+      latestOrders: (data as any[]).slice(0, 3)
+    }
   }
-}, { watch: [store] })
+}
+
+onMounted(async () => {
+  if (!store.value) {
+    await fetchStore()
+  }
+  await fetchOrderStats()
+})
+
+watch(() => store.value?.id, async (newId) => {
+  if (newId) {
+    await fetchOrderStats()
+  }
+})
 
 const daysRemaining = computed(() => {
   if (!store.value?.trial_ends_at) return 0
@@ -117,12 +111,33 @@ const isTrial = computed(() => store.value?.plan_status === 'trial')
         <div v-else-if="store.plan_status === 'active'" class="bg-green-50 border-l-4 border-green-400 p-4 rounded-md">
            <div class="flex">
             <div class="ml-3">
-              <p class="text-sm text-green-700">
+              <p class="text-sm text-green-700 font-medium">
                 ✅ สถานะ: Active (ใช้งานได้อีก {{ daysRemaining }} วัน)
               </p>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Quick Start / User Guide Banner -->
+      <div class="mb-6 bg-gradient-to-r from-primary/10 via-card to-primary/5 border rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold shrink-0">
+            📚
+          </div>
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-foreground">คู่มือเริ่มต้นใช้งานระบบ (Merchant Guide)</h2>
+            <p class="text-xs text-muted-foreground mt-0.5">เรียนรู้วิธีเพิ่มเมนู 3 ภาษา เชื่อมต่อแจ้งเตือน LINE และพิมพ์ QR Code ประจำโต๊ะ</p>
+          </div>
+        </div>
+
+        <NuxtLink 
+          to="/merchant/guide" 
+          class="px-5 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-2xl shadow-xs hover:bg-primary/90 transition-all inline-flex items-center justify-center gap-1.5 shrink-0"
+        >
+          <span>เปิดดูคู่มือแบบจับมือทำ</span>
+          <span>→</span>
+        </NuxtLink>
       </div>
 
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">

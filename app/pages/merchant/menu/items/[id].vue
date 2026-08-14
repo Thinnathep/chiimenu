@@ -15,7 +15,7 @@ const loading = ref(true)
 const saving = ref(false)
 const isTranslating = ref(false)
 const errorMsg = ref('')
-const store = ref<any>(null)
+const { store, fetchStore } = useCurrentStore()
 const categories = ref<any[]>([])
 const allAllergens = ref<any[]>([])
 const allGroups = ref<any[]>([])
@@ -45,17 +45,13 @@ const photoFile = ref<File | null>(null)
 const photoPreview = ref('')
 
 onMounted(async () => {
-  const { data: authData } = await client.auth.getUser()
-  if (!authData?.user?.id || !itemId) return
-  
-  // Get Store
-  const { data: storeData } = await client
-    .from('stores')
-    .select('id')
-    .eq('owner_id', authData.user.id)
-    .single()
-    
-  store.value = storeData
+  if (!store.value) {
+    await fetchStore()
+  }
+  if (!store.value?.id || !itemId) {
+    loading.value = false
+    return
+  }
   
   if (store.value) {
     // 2. Load Item Data
@@ -256,9 +252,11 @@ const submitForm = async () => {
       await client.from('menu_item_customizations').insert(groupInserts as never)
     }
     
+    useToast().success('บันทึกการแก้ไขเมนูอาหารเรียบร้อยแล้ว!')
     router.push('/merchant/menu')
   } catch (e: any) {
     errorMsg.value = e.message || useNuxtApp().$i18n.t('store_err_create')
+    useToast().error(errorMsg.value)
     saving.value = false
   }
 }

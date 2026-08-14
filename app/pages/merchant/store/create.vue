@@ -188,7 +188,7 @@ const submitForm = async () => {
                   <span class="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-muted-foreground sm:text-sm">
                     chiimenu.com/
                   </span>
-                  <input v-model="form.slug" type="text" id="slug" required pattern="[a-z0-9-]+" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                  <input v-model="form.slug" type="text" id="slug" required pattern="^[a-z0-9\-]+$" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
                 </div>
                 <div class="mt-1 flex items-center justify-between">
                   <p class="text-xs text-muted-foreground">{{ $t('store_slug_hint') }}</p>

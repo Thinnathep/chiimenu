@@ -1,16 +1,40 @@
 <script setup lang="ts">
+import { 
+  Store, 
+  Sparkles, 
+  Globe, 
+  MessageCircle, 
+  CheckCircle2, 
+  ExternalLink, 
+  MapPin, 
+  FileText, 
+  Image as ImageIcon, 
+  AlertCircle,
+  Copy,
+  Check,
+  Power,
+  Layers,
+  Phone,
+  Type,
+  RotateCcw
+} from 'lucide-vue-next'
+
 definePageMeta({
   layout: 'merchant',
   middleware: ['auth']
 })
 
+const { levels: fontLevels, currentLevel: currentFontLevel, setLevel: setFontLevel, reset: resetFontSize } = useFontSize()
+
 const user = useSupabaseUser()
 const client = useSupabaseClient()
+const { store, fetchStore, setStore } = useCurrentStore()
 
 const loading = ref(true)
 const saving = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
+const isTranslating = ref(false)
 const slugStatus = ref<'idle' | 'checking' | 'available' | 'taken'>('idle')
 let slugCheckTimeout: any = null
 
@@ -23,6 +47,7 @@ const form = ref({
   description: '',
   store_type: 'restaurant',
   address: '',
+  phone: '',
   default_language: 'th',
   line_user_id: '',
   is_active: true,
@@ -31,41 +56,35 @@ const form = ref({
   updated_at: ''
 })
 
-const isTranslating = ref(false)
-
 const storeTypes = [
-  { value: 'restaurant', label: computed(() => useNuxtApp().$i18n.t('store_type_restaurant')) },
-  { value: 'cafe', label: computed(() => useNuxtApp().$i18n.t('store_type_cafe')) },
-  { value: 'street_food', label: computed(() => useNuxtApp().$i18n.t('store_type_street')) },
-  { value: 'drink', label: computed(() => useNuxtApp().$i18n.t('store_type_drink')) }
+  { value: 'restaurant', label: '🍽️ ร้านอาหารทั่วไป (Restaurant)' },
+  { value: 'cafe', label: '☕ คาเฟ่ & เบเกอรี่ (Cafe & Bakery)' },
+  { value: 'street_food', label: '🍢 สตรีทฟู้ด & อาหารจานด่วน (Street Food)' },
+  { value: 'drink', label: '🧋 เครื่องดื่ม & ชานม (Drink & Dessert)' }
 ]
 
 onMounted(async () => {
-  const { data: authData } = await client.auth.getUser()
-  if (!authData?.user?.id) return
-  
   try {
-    const { data: storeData, error } = await client
-      .from('stores')
-      .select('*')
-      .eq('owner_id', authData.user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      
-    if (error) throw error
-    if (storeData?.[0]) {
-      form.value = { ...(storeData[0] as any) }
+    if (!store.value) {
+      await fetchStore()
+    }
+    
+    if (store.value) {
+      form.value = { 
+        ...store.value,
+        line_user_id: store.value.line_user_id || ''
+      }
     }
   } catch (e: any) {
-    if (e.code !== 'PGRST116') { // Ignore "No rows found"
-      errorMsg.value = useNuxtApp().$i18n.t('store_err_load')
+    if (e.code !== 'PGRST116') {
+      errorMsg.value = 'ไม่สามารถโหลดข้อมูลร้านค้าได้'
     }
   } finally {
     loading.value = false
   }
 })
 
-// Real-time slug check
+// Real-time slug validation
 watch(() => form.value.slug, (newSlug) => {
   if (!newSlug || !form.value.id) {
     slugStatus.value = 'idle'
@@ -75,7 +94,7 @@ watch(() => form.value.slug, (newSlug) => {
   clearTimeout(slugCheckTimeout)
   
   slugCheckTimeout = setTimeout(async () => {
-    const { count } = await client
+    const { count } = await (client as any)
       .from('stores')
       .select('*', { count: 'exact', head: true })
       .eq('slug', newSlug)
@@ -86,9 +105,81 @@ watch(() => form.value.slug, (newSlug) => {
     } else {
       slugStatus.value = 'available'
     }
-  }, 500)
+  }, 400)
 })
 
+// AI Translation for Store Name
+const translateStoreName = async () => {
+  if (!form.value.name.trim()) return
+  
+  isTranslating.value = true
+  try {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name_th: form.value.name, description_th: form.value.description })
+    })
+    const data = await response.json()
+    if (data.error) throw new Error(data.message)
+    if (data.name_en) form.value.name_en = data.name_en
+    if (data.name_zh) form.value.name_zh = data.name_zh
+  } catch (error: any) {
+    alert(error.message || 'การแปลล้มเหลว กรุณาลองใหม่อีกครั้ง')
+  } finally {
+    isTranslating.value = false
+  }
+}
+
+const showManualLineId = ref(false)
+
+// Quick activate LINE ID, auto-save to DB, and open LINE OA chat
+const activateLineAndOpenChat = async () => {
+  const targetLineId = 'U3cfe1457fc5f6d1c6939e4147cb8ba75'
+  form.value.line_user_id = targetLineId
+  
+  if (form.value.id) {
+    try {
+      await (client as any)
+        .from('stores')
+        .update({ line_user_id: targetLineId, updated_at: new Date().toISOString() })
+        .eq('id', form.value.id)
+        
+      if (store.value) {
+        setStore({ ...store.value, line_user_id: targetLineId })
+      }
+      useToast().success('เชื่อมต่อ LINE สำเร็จ! ระบบจะส่งแจ้งเตือนออเดอร์เข้า LINE ของคุณทันที')
+    } catch (err) {
+      console.error('Auto-save line id error:', err)
+    }
+  }
+  
+  window.open('https://line.me/R/ti/p/@819wgrsj', '_blank')
+}
+
+// Disconnect LINE (Auto-save null to Supabase)
+const disconnectLine = async () => {
+  if (confirm('คุณต้องการปิดการแจ้งเตือนออเดอร์ผ่าน LINE ใช่หรือไม่?')) {
+    form.value.line_user_id = ''
+    
+    if (form.value.id) {
+      try {
+        await (client as any)
+          .from('stores')
+          .update({ line_user_id: null, updated_at: new Date().toISOString() })
+          .eq('id', form.value.id)
+          
+        if (store.value) {
+          setStore({ ...store.value, line_user_id: null })
+        }
+        useToast().success('ปิดการเชื่อมต่อ LINE เรียบร้อยแล้ว')
+      } catch (err) {
+        console.error('Disconnect LINE error:', err)
+      }
+    }
+  }
+}
+
+// Save Changes
 const submitForm = async () => {
   saving.value = true
   errorMsg.value = ''
@@ -96,7 +187,7 @@ const submitForm = async () => {
   
   try {
     // Duplicate name warning
-    const { count: nameCount } = await client
+    const { count: nameCount } = await (client as any)
       .from('stores')
       .select('*', { count: 'exact', head: true })
       .eq('name', form.value.name.trim())
@@ -105,12 +196,12 @@ const submitForm = async () => {
     if (nameCount && nameCount > 0) {
       const swal = useAlert()
       const result = await swal.fire({
-        title: 'พบชื่อร้านซ้ำ',
-        text: `มีชื่อร้าน "${form.value.name}" ในระบบแล้ว คุณแน่ใจหรือไม่ว่าต้องการใช้ชื่อนี้?`,
+        title: 'พบชื่อร้านซ้ำในระบบ',
+        text: `มีชื่อร้าน "${form.value.name}" อยู่แล้ว คุณต้องการใช้ชื่อนี้ใช่หรือไม่?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'ใช่, ฉันต้องการใช้ชื่อนี้',
-        cancelButtonText: 'กลับไปแก้ไข'
+        confirmButtonText: 'ยืนยันใช้ชื่อนี้',
+        cancelButtonText: 'แก้ไขชื่อ'
       })
       if (!result.isConfirmed) {
         saving.value = false
@@ -128,8 +219,9 @@ const submitForm = async () => {
         description: form.value.description,
         store_type: form.value.store_type,
         address: form.value.address,
+        phone: form.value.phone || null,
         default_language: form.value.default_language,
-        line_user_id: form.value.line_user_id || null,
+        line_user_id: form.value.line_user_id ? form.value.line_user_id.trim() : null,
         is_active: form.value.is_active,
         logo_url: form.value.logo_url || null,
         cover_url: form.value.cover_url || null,
@@ -139,201 +231,494 @@ const submitForm = async () => {
       
     if (error) throw error
     
-    successMsg.value = useNuxtApp().$i18n.t('store_save_success')
-    setTimeout(() => { successMsg.value = '' }, 3000)
+    setStore({ ...store.value, ...form.value })
+    useToast().success('บันทึกข้อมูลร้านค้าและการตั้งค่าเรียบร้อยแล้ว!')
+    successMsg.value = '✅ บันทึกข้อมูลร้านค้าและการตั้งค่าเรียบร้อยแล้ว!'
+    setTimeout(() => { successMsg.value = '' }, 4000)
   } catch (e: any) {
     if (e.code === '23505') {
-      errorMsg.value = useNuxtApp().$i18n.t('store_err_slug')
+      errorMsg.value = '❌ ลิงก์ร้านค้านี้ถูกใช้งานแล้ว กรุณาเปลี่ยนใหม่อีกครั้ง'
+      useToast().error('ลิงก์ร้านค้านี้ถูกใช้งานแล้ว กรุณาเปลี่ยนใหม่อีกครั้ง')
     } else {
-      errorMsg.value = e.message || useNuxtApp().$i18n.t('store_err_load')
+      errorMsg.value = e.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+      useToast().error(errorMsg.value)
     }
   } finally {
     saving.value = false
   }
 }
-
-const translateStoreName = async () => {
-  if (!form.value.name.trim()) return
-  
-  isTranslating.value = true
-  try {
-    const response = await fetch('/api/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name_th: form.value.name, description_th: '' })
-    })
-    const data = await response.json()
-    if (data.error) throw new Error(data.message)
-    if (data.name_en) form.value.name_en = data.name_en
-    if (data.name_zh) form.value.name_zh = data.name_zh
-  } catch (error: any) {
-    alert(error.message || 'การแปลล้มเหลว กรุณาลองใหม่')
-  } finally {
-    isTranslating.value = false
-  }
-}
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto">
-    <div class="mb-8">
-      <h1 class="text-2xl font-bold tracking-tight text-foreground">{{ $t('store_settings_title') }}</h1>
-      <p class="text-muted-foreground mt-1">{{ $t('store_settings_subtitle') }}</p>
-    </div>
-
-    <div v-if="loading" class="p-8 text-center text-muted-foreground bg-card rounded-lg border">
-      {{ $t('store_loading') }}
-    </div>
-
-    <div v-else-if="!form.id" class="p-8 text-center bg-card rounded-lg border">
-      <p class="text-muted-foreground mb-4">{{ $t('store_no_profile') }}</p>
-      <NuxtLink to="/merchant/store/create" class="text-primary font-medium hover:underline">{{ $t('store_create_new') }}</NuxtLink>
-    </div>
-
-    <form v-else @submit.prevent="submitForm" class="bg-card shadow-sm border rounded-lg overflow-hidden">
-      <!-- Toggle Status (Top Bar) -->
-      <div class="flex items-center justify-between p-4 bg-muted/20 border-b">
-        <div>
-          <h3 class="text-sm font-medium text-foreground">{{ $t('store_status_title') }}</h3>
-          <p class="text-sm text-muted-foreground">{{ $t('store_status_desc') }}</p>
+  <div class="w-full max-w-5xl mx-auto pb-20 space-y-8">
+    
+    <!-- Page Header & Action Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-6">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+            <Store class="w-5 h-5" />
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-foreground">ตั้งค่าและปรับแต่งร้านค้า</h1>
         </div>
-        <button type="button" @click="form.is_active = !form.is_active" 
-          :class="[form.is_active ? 'bg-green-600' : 'bg-gray-200', 'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2']" role="switch" :aria-checked="form.is_active">
-          <span class="sr-only">Toggle Store Status</span>
-          <span aria-hidden="true" :class="[form.is_active ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out']"></span>
+        <p class="text-xs sm:text-sm text-muted-foreground mt-1">
+          จัดการข้อมูลพื้นฐาน ภาพลักษณ์ร้าน ลิงก์เมนู และการเชื่อมต่อ LINE แจ้งเตือนออเดอร์
+        </p>
+      </div>
+
+      <!-- Preview Live Store Link -->
+      <a 
+        v-if="form.slug"
+        :href="`/m/${form.slug}`" 
+        target="_blank" 
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground font-semibold text-xs transition-all border shrink-0"
+      >
+        <span>เปิดดูหน้าร้านจริง</span>
+        <ExternalLink class="w-3.5 h-3.5 opacity-60" />
+      </a>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="p-16 text-center bg-card rounded-3xl border shadow-xs">
+      <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+      <p class="text-xs text-muted-foreground">กำลังโหลดข้อมูลร้านค้า...</p>
+    </div>
+
+    <!-- No Store Created -->
+    <div v-else-if="!form.id" class="p-12 text-center bg-card rounded-3xl border shadow-xs">
+      <div class="text-4xl mb-3">🏪</div>
+      <h2 class="text-lg font-bold text-foreground mb-1">ยังไม่พบข้อมูลร้านค้า</h2>
+      <p class="text-xs text-muted-foreground mb-6">คุณยังไม่ได้สร้างร้านค้าในระบบ</p>
+      <NuxtLink to="/merchant/store/create" class="px-6 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-xs">
+        สร้างร้านค้าทันที
+      </NuxtLink>
+    </div>
+
+    <!-- Main Settings Form -->
+    <form v-else @submit.prevent="submitForm" class="space-y-8">
+      
+      <!-- 1. Store Open/Closed Status Card -->
+      <div 
+        class="rounded-3xl p-6 border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all"
+        :class="form.is_active ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'"
+      >
+        <div class="flex items-center gap-3.5">
+          <div 
+            class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 shadow-xs"
+            :class="form.is_active ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-rose-500 text-white shadow-rose-200'"
+          >
+            <Power class="w-6 h-6" />
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-black text-foreground">
+                สถานะร้าน: {{ form.is_active ? 'เปิดให้บริการ (Open)' : 'ปิดร้านชั่วคราว (Closed)' }}
+              </h3>
+              <span 
+                class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
+                :class="form.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
+              >
+                {{ form.is_active ? 'Active' : 'Offline' }}
+              </span>
+            </div>
+            <p class="text-xs text-muted-foreground mt-0.5">
+              {{ form.is_active ? 'ลูกค้าสามารถสแกน QR Code และกดสั่งอาหารได้ตามปกติ' : 'หน้าร้านจะแสดงป้ายแจ้งว่าปิดให้บริการชั่วคราว' }}
+            </p>
+          </div>
+        </div>
+
+        <button 
+          type="button" 
+          @click="form.is_active = !form.is_active" 
+          class="relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
+          :class="form.is_active ? 'bg-emerald-600' : 'bg-slate-300'"
+        >
+          <span 
+            class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out"
+            :class="form.is_active ? 'translate-x-7' : 'translate-x-0'"
+          ></span>
         </button>
       </div>
 
-      <div class="p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          <!-- Left Column: Images -->
-          <div class="lg:col-span-1 space-y-6">
-            <div>
-              <h3 class="text-lg font-medium text-foreground">ภาพลักษณ์ร้านค้า</h3>
-              <p class="text-sm text-muted-foreground mt-1">อัปโหลดโลโก้และรูปปกเพื่อดึงดูดลูกค้า</p>
-            </div>
-            
+      <!-- 2. Visual Branding Grid (Images) -->
+      <div class="bg-card border rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div class="border-b pb-4">
+          <h2 class="text-base font-black text-foreground flex items-center gap-2">
+            <ImageIcon class="w-4 h-4 text-primary" />
+            ภาพลักษณ์และแบรนด์ร้านค้า (Branding)
+          </h2>
+          <p class="text-xs text-muted-foreground mt-0.5">อัปโหลดโลโก้และภาพปกเพื่อสร้างความน่าเชื่อถือให้นักท่องเที่ยว</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          <div class="md:col-span-1">
+            <label class="block text-xs font-bold text-foreground mb-2">โลโก้ร้าน (สัดส่วน 1:1)</label>
             <ImageUpload 
               v-if="user"
               bucket="store_assets" 
               :path="`${user.id}/logo`" 
               v-model="form.logo_url" 
-              label="โลโก้ร้าน (1:1)" 
+              label="อัปโหลดโลโก้" 
               aspect-ratio="1/1" 
             />
-            
+            <p class="text-[11px] text-muted-foreground mt-2">แสดงบนหัวเมนูและตรงกลาง QR Code</p>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-foreground mb-2">ภาพหน้าปกร้าน (สัดส่วน 16:9)</label>
             <ImageUpload 
               v-if="user"
               bucket="store_assets" 
               :path="`${user.id}/cover`" 
               v-model="form.cover_url" 
-              label="รูปหน้าปก (16:9)" 
+              label="อัปโหลดภาพปกหน้าร้าน" 
               aspect-ratio="16/9" 
+            />
+            <p class="text-[11px] text-muted-foreground mt-2">แสดงเป็นแบนเนอร์ด้านบนสุดเมื่อลูกค้าเปิดดูเมนู</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Store Identity & Multi-Language Names -->
+      <div class="bg-card border rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+          <div>
+            <h2 class="text-base font-black text-foreground flex items-center gap-2">
+              <Globe class="w-4 h-4 text-primary" />
+              ชื่อร้านค้าและ 3 ภาษา (Multi-Language)
+            </h2>
+            <p class="text-xs text-muted-foreground mt-0.5">แปลชื่อร้านเป็นภาษาอังกฤษและภาษาจีนเพื่อต้อนรับชาวต่างชาติ</p>
+          </div>
+
+          <button 
+            type="button"
+            @click="translateStoreName"
+            :disabled="isTranslating || !form.name"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-100 text-purple-700 hover:bg-purple-200 font-bold text-xs disabled:opacity-50 transition-colors shadow-2xs self-start sm:self-auto"
+          >
+            <span v-if="isTranslating" class="w-3.5 h-3.5 border-2 border-purple-700 border-t-transparent rounded-full animate-spin"></span>
+            <Sparkles v-else class="w-3.5 h-3.5" />
+            <span>✨ แปลชื่อร้านอัตโนมัติ (AI)</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+          
+          <!-- Thai Name -->
+          <div>
+            <label class="block text-xs font-bold text-foreground mb-1.5">
+              ชื่อร้านภาษาไทย <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              v-model="form.name" 
+              type="text" 
+              required 
+              placeholder="เช่น กะเพราตาเลือก" 
+              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs font-semibold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
             />
           </div>
 
-          <!-- Right Column: Details -->
-          <div class="lg:col-span-2 space-y-6">
+          <!-- English Name -->
+          <div>
+            <label class="block text-xs font-bold text-foreground mb-1.5">
+              ชื่อร้านภาษาอังกฤษ (English)
+            </label>
+            <input 
+              v-model="form.name_en" 
+              type="text" 
+              placeholder="e.g. Kaprao Ta Lueak" 
+              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+            />
+          </div>
+
+          <!-- Chinese Name -->
+          <div>
+            <label class="block text-xs font-bold text-foreground mb-1.5">
+              ชื่อร้านภาษาจีน (中文)
+            </label>
+            <input 
+              v-model="form.name_zh" 
+              type="text" 
+              placeholder="例如 泰式打抛猪肉饭" 
+              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+            />
+          </div>
+
+        </div>
+
+        <!-- Store Type & Default Lang -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
+          <div>
+            <label class="block text-xs font-bold text-foreground mb-1.5">ประเภทธุรกิจ / ร้านอาหาร</label>
+            <select 
+              v-model="form.store_type" 
+              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+            >
+              <option v-for="t in storeTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-foreground mb-1.5">ภาษาเริ่มต้นของเมนู</label>
+            <select 
+              v-model="form.default_language" 
+              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+            >
+              <option value="th">🇹🇭 ภาษาไทย (เริ่มต้น)</option>
+              <option value="en">🇬🇧 English (Default for Tourists)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Description & Story -->
+        <div class="pt-2">
+          <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายหรือเรื่องราวของร้าน (Description)</label>
+          <textarea 
+            v-model="form.description" 
+            rows="2" 
+            placeholder="เช่น ร้านอาหารพื้นเมืองเชียงราย รสชาติต้นตำรับ เปิดบริการมากว่า 20 ปี..."
+            class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- 4. Store Link & Location (Slug & Address) -->
+      <div class="bg-card border rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div class="border-b pb-4">
+          <h2 class="text-base font-black text-foreground flex items-center gap-2">
+            <MapPin class="w-4 h-4 text-primary" />
+            ลิงก์ร้านค้าและที่ตั้ง (URL & Address)
+          </h2>
+          <p class="text-xs text-muted-foreground mt-0.5">กำหนด URL เฉพาะของร้านคุณ และที่ตั้งสำหรับแนะนำนักท่องเที่ยว</p>
+        </div>
+
+        <!-- Slug URL -->
+        <div>
+          <label class="block text-xs font-bold text-foreground mb-1.5">
+            ลิงก์เมนูร้านค้า (Custom URL Slug) <span class="text-rose-500">*</span>
+          </label>
+          <div class="flex rounded-xl border overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+            <span class="inline-flex items-center bg-muted px-3.5 text-xs text-muted-foreground font-mono font-medium border-r">
+              chiimenu.com/m/
+            </span>
+            <input 
+              v-model="form.slug" 
+              type="text" 
+              required 
+              pattern="^[a-z0-9\-]+$" 
+              placeholder="my-restaurant-name" 
+              class="w-full px-3.5 py-2.5 bg-background text-xs font-mono font-bold outline-hidden"
+            />
+          </div>
+
+          <div class="mt-1.5 flex items-center justify-between text-xs">
+            <span class="text-[11px] text-muted-foreground">ใช้ตัวพิมพ์เล็ก a-z ตัวเลข และเครื่องหมาย - เท่านั้น</span>
             <div>
-              <h3 class="text-lg font-medium text-foreground">ข้อมูลพื้นฐาน</h3>
-              <p class="text-sm text-muted-foreground mt-1">ตั้งค่าชื่อร้านและรายละเอียดต่างๆ</p>
-            </div>
-            
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div class="sm:col-span-2">
-                <div class="flex items-center justify-between mb-1">
-                  <label for="name" class="block text-sm font-medium text-foreground">{{ $t('store_name_label') }} <span class="text-destructive">*</span></label>
-                  <button 
-                    type="button"
-                    @click="translateStoreName"
-                    :disabled="isTranslating || !form.name"
-                    class="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 hover:bg-purple-200 disabled:opacity-50 transition-colors"
-                  >
-                    <span v-if="isTranslating" class="w-3 h-3 border-2 border-purple-700 border-t-transparent rounded-full animate-spin"></span>
-                    ✨ แปลชื่อร้านอัตโนมัติ (AI)
-                  </button>
-                </div>
-                <input v-model="form.name" type="text" id="name" required class="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-              </div>
-
-              <div>
-                <label for="name_en" class="block text-sm font-medium text-foreground">ชื่อร้าน (English)</label>
-                <input v-model="form.name_en" type="text" id="name_en" placeholder="e.g. Kaprao Ta Lueak" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-              </div>
-
-              <div>
-                <label for="name_zh" class="block text-sm font-medium text-foreground">ชื่อร้าน (中文)</label>
-                <input v-model="form.name_zh" type="text" id="name_zh" placeholder="例如 卡帕劳塔卢阿" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-              </div>
-
-              <div class="sm:col-span-2">
-                <label for="slug" class="block text-sm font-medium text-foreground">{{ $t('store_slug_label') }} <span class="text-destructive">*</span></label>
-                <div class="mt-1 flex rounded-md shadow-sm">
-                  <span class="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-muted-foreground sm:text-sm">
-                    chiimenu.com/
-                  </span>
-                  <input v-model="form.slug" type="text" id="slug" required pattern="[a-z0-9-]+" class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-                </div>
-                <div class="mt-1 flex items-center justify-between">
-                  <p class="text-xs text-muted-foreground">{{ $t('store_slug_hint') }}</p>
-                  <p v-if="slugStatus === 'checking'" class="text-xs text-yellow-600 animate-pulse">กำลังตรวจสอบ...</p>
-                  <p v-else-if="slugStatus === 'taken'" class="text-xs text-destructive font-bold">❌ ลิงก์นี้มีคนใช้แล้ว กรุณาเปลี่ยนใหม่</p>
-                  <p v-else-if="slugStatus === 'available'" class="text-xs text-green-600 font-bold">✅ ลิงก์นี้สามารถใช้งานได้</p>
-                </div>
-              </div>
-
-              <div>
-                <label for="store_type" class="block text-sm font-medium text-foreground">{{ $t('store_type_label') }}</label>
-                <select v-model="form.store_type" id="store_type" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-                  <option v-for="t in storeTypes" :key="t.value" :value="t.value">{{ typeof t.label === 'string' ? t.label : t.label }}</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="default_language" class="block text-sm font-medium text-foreground">{{ $t('store_lang_label') }}</label>
-                <select v-model="form.default_language" id="default_language" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-                  <option value="th">{{ $t('store_lang_th') }}</option>
-                  <option value="en">{{ $t('store_lang_en') }}</option>
-                </select>
-              </div>
-
-              <div class="sm:col-span-2">
-                <label for="description" class="block text-sm font-medium text-foreground">{{ $t('store_desc_label') }}</label>
-                <textarea v-model="form.description" id="description" rows="3" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"></textarea>
-              </div>
-              
-              <div class="sm:col-span-2">
-                <label for="address" class="block text-sm font-medium text-foreground">{{ $t('store_address_label') }}</label>
-                <textarea v-model="form.address" id="address" rows="2" class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"></textarea>
-              </div>
-
-              <div class="sm:col-span-2 border-t border-border/50 pt-6 mt-2">
-                <h3 class="text-lg font-bold text-foreground mb-4">การเชื่อมต่อ LINE OA (สำหรับรับออเดอร์)</h3>
-                <label for="line_user_id" class="block text-sm font-medium text-foreground">LINE User ID ของร้าน</label>
-                <p class="text-xs text-muted-foreground mt-1 mb-2">เพื่อรับแจ้งเตือนออเดอร์เข้ามือถือทันที กรุณาแอด LINE: <strong class="text-primary">@819wgrsj</strong> และพิมพ์คำว่า "ขอไอดี" นำรหัสที่บอทตอบกลับมากรอกในช่องนี้</p>
-                <input v-model="form.line_user_id" type="text" id="line_user_id" placeholder="U1234567890abcdef..." class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-              </div>
+              <span v-if="slugStatus === 'checking'" class="text-amber-600 animate-pulse text-[11px] font-bold">กำลังตรวจสอบ...</span>
+              <span v-else-if="slugStatus === 'taken'" class="text-rose-600 text-[11px] font-bold">❌ ลิงก์นี้มีร้านอื่นใช้แล้ว</span>
+              <span v-else-if="slugStatus === 'available'" class="text-emerald-600 text-[11px] font-bold">✅ ลิงก์นี้ใช้งานได้</span>
             </div>
           </div>
         </div>
 
-        <div v-if="errorMsg" class="mt-6 rounded-md bg-destructive/10 p-4 border border-destructive/20">
-          <p class="text-sm font-medium text-destructive">{{ errorMsg }}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
+          <!-- Address -->
+          <div>
+            <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้าน / จุดสังเกต</label>
+            <textarea 
+              v-model="form.address" 
+              rows="2" 
+              placeholder="เช่น 123 ถ.พหลโยธิน ต.เวียง อ.เมือง จ.เชียงราย (ตรงข้ามหอนาฬิกา)" 
+              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+            ></textarea>
+          </div>
+
+          <!-- Phone Number -->
+          <div>
+            <label class="block text-xs font-bold text-foreground mb-1.5">เบอร์โทรศัพท์ติดต่อร้าน</label>
+            <input 
+              v-model="form.phone" 
+              type="text" 
+              placeholder="เช่น 081-234-5678" 
+              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+            />
+            <p class="text-[11px] text-muted-foreground mt-1.5">เบอร์โทรสำหรับให้ลูกค้าหรือทีมงานติดต่อกรณีฉุกเฉิน</p>
+          </div>
         </div>
+      </div>
+
+      <!-- 5. LINE OA Notification Integration Card (Clean, Frictionless, No Raw Code) -->
+      <div class="bg-gradient-to-br from-emerald-500/5 via-card to-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         
-        <div v-if="successMsg" class="mt-6 rounded-md bg-green-50 p-4 border border-green-200">
-          <p class="text-sm font-medium text-green-800">{{ successMsg }}</p>
+        <!-- Header with Status Badge -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-emerald-200/50 pb-4">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-2xl shadow-sm shadow-emerald-200 shrink-0">
+              <MessageCircle class="w-6 h-6" />
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-black text-foreground">การแจ้งเตือนออเดอร์ผ่าน LINE OA</h2>
+                <span 
+                  class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
+                  :class="form.line_user_id ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600'"
+                >
+                  {{ form.line_user_id ? '🟢 เปิดใช้งานแล้ว (Active)' : '⚪ ยังไม่เปิดใช้งาน' }}
+                </span>
+              </div>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                เมื่อนักท่องเที่ยวสั่งอาหารผ่าน QR Code รายการออเดอร์จะเด้งเข้าแชท LINE เจ้าของร้านทันที
+              </p>
+            </div>
+          </div>
         </div>
+
+        <!-- Connected State (Clean & Professional) -->
+        <div v-if="form.line_user_id" class="p-5 rounded-2xl bg-white/90 dark:bg-card/90 border border-emerald-200 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                <CheckCircle2 class="w-4 h-4 text-emerald-600" />
+                <span>ระบบพร้อมส่งออเดอร์เข้า LINE ของคุณแล้ว</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground">
+                LINE Official Account: <strong>@819wgrsj (ChiiMenu)</strong>
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <a 
+                href="https://line.me/R/ti/p/@819wgrsj" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all inline-flex items-center gap-1.5"
+              >
+                <MessageCircle class="w-3.5 h-3.5" />
+                <span>เปิดดูแชท LINE OA</span>
+              </a>
+
+              <button 
+                type="button" 
+                @click="disconnectLine"
+                class="px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                title="ปิดการแจ้งเตือน"
+              >
+                ปิดการเชื่อมต่อ
+              </button>
+            </div>
+          </div>
+
+          <!-- Advanced Toggle (Hidden by default) -->
+          <div class="pt-3 border-t border-emerald-100 flex items-center justify-between text-[11px]">
+            <button 
+              type="button" 
+              @click="showManualLineId = !showManualLineId" 
+              class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+            >
+              <span>{{ showManualLineId ? 'ซ่อนการตั้งค่ารหัส' : '⚙️ จัดการรหัส LINE ID ด้วยตนเอง (ขั้นสูง)' }}</span>
+            </button>
+            <span class="text-emerald-700 font-mono">Status: Connected</span>
+          </div>
+
+          <div v-if="showManualLineId" class="pt-2">
+            <input 
+              v-model="form.line_user_id" 
+              type="text" 
+              placeholder="U3cfe1457fc5f6d1c6939e4147cb8ba75"
+              class="w-full px-3 py-2 bg-background border rounded-xl font-mono text-xs text-foreground focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-hidden"
+            />
+          </div>
+        </div>
+
+        <!-- Disconnected State -->
+        <div v-else class="p-6 rounded-2xl bg-white/90 dark:bg-card/90 border border-slate-200 text-center space-y-4">
+          <div class="max-w-md mx-auto space-y-2">
+            <p class="text-xs font-bold text-foreground">ยังไม่ได้เปิดการแจ้งเตือนออเดอร์ผ่าน LINE</p>
+            <p class="text-xs text-muted-foreground">
+              กดปุ่มด้านล่างเพื่อเปิดใช้งานระบบแจ้งเตือนและเปิดหน้าแชท LINE OA ของร้านทันที
+            </p>
+          </div>
+
+          <button 
+            type="button" 
+            @click="activateLineAndOpenChat"
+            class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-md shadow-emerald-200 transition-all inline-flex items-center gap-2"
+          >
+            <MessageCircle class="w-4 h-4" />
+            <span>🟢 เปิดใช้งานการแจ้งเตือน & ไปที่แชท LINE</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 6. Display & Font Size Setting Card -->
+      <div class="bg-card border rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+        <div class="flex items-center gap-3.5 border-b pb-4">
+          <div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <Type class="w-5 h-5" />
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-foreground">ขนาดตัวอักษรของระบบ (Font Size & Display)</h2>
+            <p class="text-xs text-muted-foreground">ปรับขนาดตัวอักษรทั้งเว็บไซต์ให้พอดีกับสายตาของคุณ (ระบบจะจำค่านี้ไว้ตลอด)</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button 
+              v-for="lvl in fontLevels" 
+              :key="lvl.key"
+              type="button"
+              @click="setFontLevel(lvl.key)"
+              class="px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border"
+              :class="currentFontLevel === lvl.key ? 'bg-primary text-primary-foreground border-primary shadow-xs' : 'bg-muted/40 hover:bg-muted text-foreground border-border'"
+            >
+              {{ lvl.label }}
+            </button>
+          </div>
+
+          <button 
+            v-if="currentFontLevel !== 'md'"
+            type="button"
+            @click="resetFontSize"
+            class="px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors inline-flex items-center gap-1 self-start sm:self-auto"
+          >
+            <RotateCcw class="w-3.5 h-3.5" />
+            <span>รีเซ็ตค่าเริ่มต้น (100%)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div v-if="errorMsg" class="rounded-2xl bg-rose-50 p-4 border border-rose-200 flex items-center gap-3">
+        <AlertCircle class="w-5 h-5 text-rose-600 shrink-0" />
+        <p class="text-xs font-bold text-rose-800">{{ errorMsg }}</p>
       </div>
       
+      <div v-if="successMsg" class="rounded-2xl bg-emerald-50 p-4 border border-emerald-200 flex items-center gap-3 animate-in fade-in duration-300">
+        <CheckCircle2 class="w-5 h-5 text-emerald-600 shrink-0" />
+        <p class="text-xs font-bold text-emerald-800">{{ successMsg }}</p>
+      </div>
 
-      <div class="bg-muted/50 px-6 py-4 flex justify-between items-center">
-        <span class="text-sm text-muted-foreground">{{ $t('store_last_update') }} {{ new Date(form.updated_at || Date.now()).toLocaleDateString('th-TH') }}</span>
-        <button type="submit" :disabled="saving || slugStatus === 'taken' || slugStatus === 'checking'" class="inline-flex justify-center rounded-md border border-transparent bg-primary py-2 px-6 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50">
-          {{ saving ? $t('store_saving') : $t('store_save_btn') }}
+      <!-- Sticky / Fixed Bottom Submit Bar -->
+      <div class="bg-card border rounded-3xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row justify-between items-center gap-4 sticky bottom-4 z-20 backdrop-blur-md bg-card/95">
+        <div class="text-xs text-muted-foreground text-center sm:text-left">
+          <span>อัปเดตล่าสุดเมื่อ: </span>
+          <strong class="text-foreground font-semibold">{{ new Date(form.updated_at || Date.now()).toLocaleDateString('th-TH') }}</strong>
+        </div>
+
+        <button 
+          type="submit" 
+          :disabled="saving || slugStatus === 'taken' || slugStatus === 'checking'" 
+          class="w-full sm:w-auto px-8 py-3 bg-primary text-primary-foreground font-bold text-xs rounded-2xl shadow-md hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <span v-if="saving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+          <Check class="w-4 h-4" v-else />
+          <span>{{ saving ? 'กำลังบันทึกข้อมูล...' : 'บันทึกการเปลี่ยนแปลงทั้งหมด' }}</span>
         </button>
       </div>
+
     </form>
+
   </div>
 </template>

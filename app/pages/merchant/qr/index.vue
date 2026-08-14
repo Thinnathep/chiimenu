@@ -15,7 +15,7 @@ const baseUrl = ref('http://localhost:3000')
 
 const loading = ref(true)
 const generating = ref(false)
-const store = ref<any>(null)
+const { store, fetchStore } = useCurrentStore()
 const qrCodes = ref<any[]>([])
 
 const newQrLabel = ref('')
@@ -39,23 +39,19 @@ onMounted(async () => {
     }
   }
 
-  const { data: authData } = await client.auth.getUser()
-  if (!authData?.user?.id) return
-  
-  const { data: storeData } = await client
-    .from('stores')
-    .select('*')
-    .eq('owner_id', authData.user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
+  try {
+    if (!store.value) {
+      await fetchStore()
+    }
     
-  store.value = storeData?.[0] || null
-  
-  if (store.value) {
-    await fetchQrCodes()
+    if (store.value) {
+      await fetchQrCodes()
+    }
+  } catch (err) {
+    console.error('Fetch QR page error:', err)
+  } finally {
+    loading.value = false
   }
-  
-  loading.value = false
 })
 
 const fetchQrCodes = async () => {
@@ -65,22 +61,25 @@ const fetchQrCodes = async () => {
     .eq('store_id', store.value.id)
     .order('created_at', { ascending: false })
     
-  // Generate Data URLs for display
-  if (data) {
-    for (const qr of (data as any[])) {
-      let url = `${baseUrl.value}/m/${qr.short_code}`
-      qr.dataUrl = await QRCode.toDataURL(url, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
-        }
+  // Generate Data URLs for display in parallel
+  if (data && data.length > 0) {
+    await Promise.all(
+      (data as any[]).map(async (qr) => {
+        const url = `${baseUrl.value}/m/${qr.short_code}`
+        qr.dataUrl = await QRCode.toDataURL(url, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        })
       })
-    }
+    )
+    qrCodes.value = data
+  } else {
+    qrCodes.value = []
   }
-    
-  qrCodes.value = data || []
 }
 
 const generateRandomString = (length = 6) => {
@@ -111,9 +110,10 @@ const createQrCode = async () => {
   
   if (!error) {
     newQrLabel.value = ''
+    useToast().success('สร้าง QR Code ประจำโต๊ะสำเร็จ!')
     await fetchQrCodes()
   } else {
-    alert(useNuxtApp().$i18n.t('qr_error_create'))
+    useToast().error(useNuxtApp().$i18n.t('qr_error_create'))
   }
 }
 
@@ -121,11 +121,13 @@ const toggleStatus = async (qr: any) => {
   const newStatus = !qr.is_active
   qr.is_active = newStatus
   await (client as any).from('qr_codes').update({ is_active: newStatus }).eq('id', qr.id)
+  useToast().info(newStatus ? 'เปิดใช้งาน QR Code แล้ว' : 'ปิดการใช้งาน QR Code แล้ว')
 }
 
 const deleteQr = async (id: string) => {
   if (!confirm(useNuxtApp().$i18n.t('qr_delete_confirm'))) return
   await (client as any).from('qr_codes').delete().eq('id', id)
+  useToast().success('ลบ QR Code เรียบร้อยแล้ว')
   await fetchQrCodes()
 }
 

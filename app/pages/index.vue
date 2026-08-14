@@ -254,22 +254,18 @@ const textLayerStyle = computed(() => ({
             <ul class="space-y-4 text-sm font-medium">
               <li><NuxtLink to="/login" class="hover:text-primary transition-colors">เข้าสู่ระบบร้านค้า</NuxtLink></li>
               <li><NuxtLink to="/register" class="hover:text-primary transition-colors">ทดลองใช้งานฟรี 7 วัน</NuxtLink></li>
-              <!-- <li><a href="#" class="hover:text-primary transition-colors">ฟีเจอร์ทั้งหมด</a></li> -->
-              <li><a href="#" class="hover:text-primary transition-colors">ราคาแพ็กเกจ</a></li>
+              <li><NuxtLink to="/#pricing" class="hover:text-primary transition-colors">ราคาแพ็กเกจ</NuxtLink></li>
             </ul>
           </div>
           
           <div>
-            <h4 class="text-white font-bold mb-6">ช่วยเหลือ</h4>
+            <h4 class="text-white font-bold mb-6">ช่วยเหลือ & ข้อมูล</h4>
             <ul class="space-y-4 text-sm font-medium">
-              <li><a href="#" class="hover:text-primary transition-colors">ศูนย์ช่วยเหลือ</a></li>
-              <!-- Updated LINE Support link -->
-              <li><a href="https://line.me/R/ti/p/@819wgrsj" target="_blank" class="hover:text-primary transition-colors flex items-center gap-2">
-                <span>LINE Support</span>
-                <!-- <span class="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-md">@819wgrsj</span> -->
+              <li><a href="https://line.me/R/ti/p/@819wgrsj" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors flex items-center gap-2">
+                <span>💬 ติดต่อทีมงาน LINE Support</span>
+                <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-md font-mono">@819wgrsj</span>
               </a></li>
-              <li><a href="#" class="hover:text-primary transition-colors">เงื่อนไขการให้บริการ</a></li>
-              <li><NuxtLink to="/privacy" class="hover:text-primary transition-colors">นโยบายความเป็นส่วนตัว</NuxtLink></li>
+              <li><NuxtLink to="/privacy" class="hover:text-primary transition-colors">นโยบายความเป็นส่วนตัว (Privacy Policy)</NuxtLink></li>
             </ul>
           </div>
 

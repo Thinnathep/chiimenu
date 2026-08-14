@@ -36,6 +36,7 @@ CREATE TABLE public.stores (
   name_zh text,
   line_user_id text,
   phone character varying,
+  has_used_first_time_promo boolean DEFAULT false,
   CONSTRAINT stores_pkey PRIMARY KEY (id),
   CONSTRAINT stores_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.profiles(id)
 );
@@ -207,6 +208,9 @@ CREATE TABLE public.billing_records (
   tax_id text,
   net_amount numeric,
   vat_amount numeric,
+  original_amount numeric,
+  discount_amount numeric,
+  promotion_code text,
   CONSTRAINT billing_records_pkey PRIMARY KEY (id),
   CONSTRAINT billing_records_store_id_fkey FOREIGN KEY (store_id) REFERENCES public.stores(id),
   CONSTRAINT billing_records_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)

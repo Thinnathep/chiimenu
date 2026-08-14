@@ -7,12 +7,13 @@ definePageMeta({
 const user = useSupabaseUser()
 const client = useSupabaseClient()
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(true)
 const saving = ref(false)
 const isTranslating = ref(false)
 const errorMsg = ref('')
-const store = ref<any>(null)
+const { store, fetchStore } = useCurrentStore()
 const categories = ref<any[]>([])
 const allAllergens = ref<any[]>([])
 const allGroups = ref<any[]>([])
@@ -40,19 +41,11 @@ const photoFile = ref<File | null>(null)
 const photoPreview = ref('')
 
 onMounted(async () => {
-  const { data: authData } = await client.auth.getUser()
-  if (!authData?.user?.id) return
+  if (!store.value) {
+    await fetchStore()
+  }
   
-  // 1. Get Store
-  const { data: storeData } = await client
-    .from('stores')
-    .select('id')
-    .eq('owner_id', authData.user.id)
-    .single()
-    
-  store.value = storeData
-  
-  if (store.value) {
+  if (store.value?.id) {
     // 2. Get Categories
     const { data: catData } = await client
       .from('menu_categories')
@@ -60,6 +53,10 @@ onMounted(async () => {
       .eq('store_id', store.value.id)
       .order('sort_order', { ascending: true })
     categories.value = catData || []
+    
+    if (route.query.category_id && typeof route.query.category_id === 'string') {
+      form.value.category_id = route.query.category_id
+    }
     
     // 3. Get Allergens & Groups
     const [allergenData, groupData] = await Promise.all([
@@ -218,14 +215,7 @@ const submitForm = async () => {
       await client.from('menu_item_customizations').insert(groupInserts as never)
     }
     
-    const swal = useAlert()
-    swal.fire({
-      title: 'สำเร็จ!',
-      text: 'เพิ่มเมนูเรียบร้อยแล้ว',
-      icon: 'success',
-      timer: 1500,
-      showConfirmButton: false
-    })
+    useToast().success('เพิ่มเมนูอาหารเรียบร้อยแล้ว!')
     
     router.push('/merchant/menu')
   } catch (e: any) {

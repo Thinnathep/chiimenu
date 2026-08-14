@@ -4,5 +4,6 @@
       <NuxtPage />
     </NuxtLayout>
     <GlobalAlert />
+    <ToastContainer />
   </div>
 </template>

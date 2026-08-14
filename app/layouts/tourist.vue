@@ -15,7 +15,7 @@ onMounted(() => {
     
     <!-- Top Global Nav (Transparent / Glassmorphism) -->
     <header class="fixed top-0 w-full z-50 bg-background/80 dark:bg-background/60 backdrop-blur-md border-b border-border/40 shadow-sm transition-colors duration-300">
-      <div class="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+      <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         
         <!-- Logo Area -->
         <div class="flex items-center gap-2">
@@ -29,7 +29,7 @@ onMounted(() => {
           <select 
             v-model="locale" 
             @change="setLocale(($event.target as HTMLSelectElement).value as any)"
-            class="bg-transparent border border-border rounded-md text-sm px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground"
+            class="bg-transparent border border-border rounded-xl text-xs font-semibold px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground"
           >
             <option v-for="l in locales" :key="l.code" :value="l.code">
               {{ l.name }}
@@ -40,8 +40,8 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- Page Content Slot: Mobile-first container -->
-    <main class="max-w-md mx-auto min-h-screen pt-14 pb-24 shadow-2xl shadow-black/5 bg-background dark:bg-[#111] transition-colors duration-300">
+    <!-- Page Content Slot: Responsive container for Mobile, iPad, and PC -->
+    <main class="max-w-4xl mx-auto min-h-screen pt-14 pb-24 shadow-xl sm:border-x border-border/40 bg-background dark:bg-[#111] transition-colors duration-300">
       <slot />
     </main>
 
