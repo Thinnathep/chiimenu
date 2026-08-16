@@ -5,7 +5,32 @@ export default defineNuxtConfig({
   css: ['~/assets/css/tailwind.css'],
   app: {
     pageTransition: { name: 'page', mode: 'out-in' },
-    layoutTransition: { name: 'layout', mode: 'out-in' }
+    layoutTransition: { name: 'layout', mode: 'out-in' },
+    head: {
+      title: 'ChiiMenu',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover' },
+        { name: 'description', content: 'ChiiMenu ระบบจัดการเมนูอาหารและสั่งอาหารออนไลน์' },
+        { name: 'theme-color', content: '#D41244' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+        { name: 'apple-mobile-web-app-title', content: 'ChiiMenu' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { property: 'og:title', content: 'ChiiMenu - ระบบเมนูอาหารออนไลน์' },
+        { property: 'og:description', content: 'ChiiMenu ระบบจัดการเมนูอาหารและสั่งอาหารออนไลน์' },
+        { property: 'og:image', content: '/og-image.png' },
+        { property: 'og:type', content: 'website' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:image', content: '/og-image.png' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'manifest', href: '/manifest.json' }
+      ]
+    }
   },
 
   modules: [
