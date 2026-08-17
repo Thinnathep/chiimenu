@@ -26,9 +26,10 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: '/og-image.png' }
       ],
       link: [
-        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico?v=2' },
+        { rel: 'shortcut icon', href: '/favicon.ico?v=2' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png?v=2' },
         { rel: 'manifest', href: '/manifest.json' }
       ]
     }
