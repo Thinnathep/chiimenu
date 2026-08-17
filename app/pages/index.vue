@@ -87,12 +87,10 @@ const textLayerStyle = computed(() => ({
     
     <!-- Navbar -->
     <nav class="relative z-20 w-full px-6 lg:px-12 py-6 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary font-bold text-xl">
-          C
-        </div>
+      <NuxtLink to="/" class="flex items-center gap-3 group">
+        <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-2xl object-contain shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
         <span class="text-2xl font-black tracking-tight text-foreground bg-clip-text">ChiiMenu</span>
-      </div>
+      </NuxtLink>
       <div v-if="user">
         <NuxtLink to="/merchant/dashboard" class="text-sm font-bold text-primary hover:text-primary/80 transition-colors">เข้าสู่แดชบอร์ด &rarr;</NuxtLink>
       </div>
@@ -230,9 +228,7 @@ const textLayerStyle = computed(() => ({
           <!-- Brand -->
           <div class="md:col-span-2">
             <div class="flex items-center gap-3 mb-6">
-              <div class="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary font-bold text-xl">
-                C
-              </div>
+              <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-2xl object-contain shadow-md shadow-primary/20">
               <span class="text-2xl font-black tracking-tight text-white">ChiiMenu</span>
             </div>
             <p class="text-slate-400 max-w-sm mb-8 leading-relaxed">

@@ -18,11 +18,12 @@ onMounted(() => {
       <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         
         <!-- Logo Area -->
-        <div class="flex items-center gap-2">
-          <div class="text-primary font-bold text-lg tracking-tighter">
-            <span class="text-rose-600 dark:text-rose-400">Chii</span>Menu
+        <NuxtLink to="/" class="flex items-center gap-2 group">
+          <img src="/logo-icon.png" alt="ChiiMenu" class="w-7 h-7 rounded-lg object-contain shadow-xs">
+          <div class="font-black text-lg tracking-tight text-foreground">
+            <span class="text-[#D41244] dark:text-rose-400">Chii</span>Menu
           </div>
-        </div>
+        </NuxtLink>
 
         <!-- Language Switcher -->
         <div class="flex items-center gap-2">

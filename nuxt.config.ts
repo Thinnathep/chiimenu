@@ -7,26 +7,27 @@ export default defineNuxtConfig({
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
     head: {
-      title: 'ChiiMenu',
+      title: 'ChiiMenu - ระบบเมนูอาหาร 3 ภาษา และสั่งอาหารออนไลน์',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover' },
-        { name: 'description', content: 'ChiiMenu ระบบจัดการเมนูอาหารและสั่งอาหารออนไลน์' },
+        { name: 'description', content: 'ChiiMenu ระบบจัดการเมนูอาหาร 3 ภาษา (ไทย, อังกฤษ, จีน) และสั่งอาหารออนไลน์ผ่าน QR Code ประจำโต๊ะ' },
         { name: 'theme-color', content: '#D41244' },
+        { name: 'application-name', content: 'ChiiMenu' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
         { name: 'apple-mobile-web-app-title', content: 'ChiiMenu' },
         { name: 'mobile-web-app-capable', content: 'yes' },
-        { property: 'og:title', content: 'ChiiMenu - ระบบเมนูอาหารออนไลน์' },
-        { property: 'og:description', content: 'ChiiMenu ระบบจัดการเมนูอาหารและสั่งอาหารออนไลน์' },
+        { property: 'og:title', content: 'ChiiMenu - ระบบเมนูอาหาร 3 ภาษา' },
+        { property: 'og:description', content: 'ChiiMenu ระบบจัดการเมนูอาหาร 3 ภาษา (ไทย, อังกฤษ, จีน) และสั่งอาหารออนไลน์ผ่าน QR Code ประจำโต๊ะ' },
         { property: 'og:image', content: '/og-image.png' },
         { property: 'og:type', content: 'website' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:image', content: '/og-image.png' }
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
         { rel: 'manifest', href: '/manifest.json' }
       ]

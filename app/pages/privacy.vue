@@ -36,7 +36,7 @@ useHead({
           <span>กลับหน้าหลัก</span>
         </NuxtLink>
         <div class="flex items-center gap-2 font-bold text-foreground text-xs sm:text-sm">
-          <ShieldCheck class="w-4 h-4 text-emerald-600" />
+          <img src="/logo-icon.png" alt="ChiiMenu" class="w-6 h-6 rounded-md object-contain shadow-xs">
           <span>ChiiMenu Legal & Compliance</span>
         </div>
       </div>

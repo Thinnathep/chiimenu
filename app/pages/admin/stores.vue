@@ -438,9 +438,7 @@ const quickGrant7Days = async (store: any) => {
           
           <!-- Brand & Admin Title -->
           <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-sm shadow-rose-200">
-              <ShieldCheck class="w-5 h-5" />
-            </div>
+            <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-xl object-contain shadow-xs">
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-black tracking-tight text-lg text-foreground">ChiiMenu</span>

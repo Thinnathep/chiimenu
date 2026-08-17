@@ -51,7 +51,10 @@ const handleLocaleChange = (e: Event) => {
     <!-- Desktop Sidebar -->
     <aside class="hidden md:flex w-64 flex-col border-r bg-card z-20 shrink-0">
       <div class="h-16 flex items-center px-6 border-b shrink-0">
-        <NuxtLink to="/merchant/dashboard" class="text-xl font-bold text-primary">🥢 ChiiMenu</NuxtLink>
+        <NuxtLink to="/merchant/dashboard" class="flex items-center gap-2.5 group">
+          <img src="/logo-icon.png" alt="ChiiMenu" class="w-8 h-8 rounded-xl object-contain shadow-xs group-hover:scale-105 transition-transform">
+          <span class="text-xl font-black tracking-tight text-foreground">ChiiMenu</span>
+        </NuxtLink>
       </div>
       <nav class="flex-1 overflow-y-auto py-4 space-y-1">
         <NuxtLink v-if="!isTrialExpired" to="/merchant/dashboard" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
@@ -99,7 +102,10 @@ const handleLocaleChange = (e: Event) => {
           <button @click="mobileMenuOpen = true" class="md:hidden text-muted-foreground hover:text-foreground p-2 -ml-2 mr-2">
             <Menu class="w-6 h-6" />
           </button>
-          <NuxtLink to="/merchant/dashboard" class="md:hidden text-xl font-bold text-primary">🥢 ChiiMenu</NuxtLink>
+          <NuxtLink to="/merchant/dashboard" class="md:hidden flex items-center gap-2">
+            <img src="/logo-icon.png" alt="ChiiMenu" class="w-7 h-7 rounded-xl object-contain shadow-xs">
+            <span class="text-lg font-bold tracking-tight text-foreground">ChiiMenu</span>
+          </NuxtLink>
         </div>
         
         <div class="flex items-center gap-3 ml-auto">
@@ -204,7 +210,8 @@ const handleLocaleChange = (e: Event) => {
           <!-- App System Footer (Clean, Responsive, Support & Privacy Links) -->
           <footer class="mt-20 pt-6 pb-6 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
             <div class="flex items-center gap-2">
-              <span class="font-bold text-foreground">🥢 ChiiMenu</span>
+              <img src="/logo-icon.png" alt="ChiiMenu" class="w-5 h-5 rounded-md object-contain">
+              <span class="font-bold text-foreground">ChiiMenu</span>
               <span>•</span>
               <span>&copy; {{ new Date().getFullYear() }} All rights reserved.</span>
             </div>
@@ -252,7 +259,10 @@ const handleLocaleChange = (e: Event) => {
     >
       <div v-if="mobileMenuOpen && !isTrialExpired" class="fixed inset-y-0 left-0 w-[280px] bg-card shadow-2xl z-50 md:hidden flex flex-col h-full overflow-y-auto">
         <div class="p-5 border-b border-border flex items-center justify-between bg-muted/30">
-          <span class="text-xl font-bold text-primary">🥢 ChiiMenu</span>
+          <div class="flex items-center gap-2.5">
+            <img src="/logo-icon.png" alt="ChiiMenu" class="w-7 h-7 rounded-xl object-contain shadow-xs">
+            <span class="text-xl font-black tracking-tight text-foreground">ChiiMenu</span>
+          </div>
           <button @click="mobileMenuOpen = false" class="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-full transition-colors">
             <X class="w-5 h-5" />
           </button>

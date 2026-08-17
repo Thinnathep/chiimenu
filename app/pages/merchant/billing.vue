@@ -545,8 +545,9 @@ const packages = computed(() => [
         <div class="p-6 overflow-y-auto flex-1 bg-muted/10">
           <div id="receipt-content" ref="receiptContentRef" class="bg-white text-black p-8 mx-auto shadow-sm border border-gray-200 rounded-2xl" style="width: 100%; max-width: 400px; font-family: monospace, sans-serif;">
             <!-- Receipt Header -->
-            <div class="text-center mb-6">
-              <h2 class="text-xl font-bold mb-1">ChiiMenu</h2>
+            <div class="text-center mb-6 flex flex-col items-center">
+              <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-xl object-contain mb-2 shadow-xs" crossorigin="anonymous">
+              <h2 class="text-xl font-bold mb-0.5">ChiiMenu</h2>
               <p class="text-xs text-gray-500">{{ $t('billing_receipt_title') }}</p>
             </div>
             

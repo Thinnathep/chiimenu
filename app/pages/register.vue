@@ -278,7 +278,10 @@ const handleRegister = async () => {
       
       <!-- Content Overlay -->
       <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-12 text-center">
-        <h2 class="text-4xl lg:text-5xl font-black mb-10 leading-tight max-w-lg text-white animate-fade-in-up" style="animation-delay: 0.1s;">
+        <div class="mb-8 text-white/90 bg-white/10 p-5 rounded-3xl backdrop-blur-sm border border-white/20 shadow-2xl animate-fade-in-up flex items-center justify-center" style="animation-delay: 0.1s;">
+          <img src="/logo.png" alt="ChiiMenu" class="w-16 h-16 rounded-2xl object-contain shadow-xl" />
+        </div>
+        <h2 class="text-4xl lg:text-5xl font-black mb-10 leading-tight max-w-lg text-white animate-fade-in-up" style="animation-delay: 0.15s;">
           <template v-if="locale === 'th'">ยกระดับร้านอาหาร<br/>ด้วยระบบสั่งอาหารดิจิทัล</template>
           <template v-else-if="locale === 'en'">Elevate your restaurant<br/>with digital menus</template>
           <template v-else>使用数字菜单<br/>提升您的餐厅体验</template>

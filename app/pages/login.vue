@@ -186,8 +186,8 @@ const handleLogin = async () => {
       
       <!-- Content Overlay -->
       <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-12 text-center">
-        <div class="mb-10 text-white/90 bg-white/10 p-6 rounded-3xl backdrop-blur-sm border border-white/20 shadow-2xl animate-fade-in-up" style="animation-delay: 0.1s;">
-          <Store class="w-20 h-20" stroke-width="1.5" />
+        <div class="mb-10 text-white/90 bg-white/10 p-5 rounded-3xl backdrop-blur-sm border border-white/20 shadow-2xl animate-fade-in-up flex items-center justify-center" style="animation-delay: 0.1s;">
+          <img src="/logo.png" alt="ChiiMenu" class="w-20 h-20 rounded-2xl object-contain shadow-xl" />
         </div>
         <h2 class="text-4xl lg:text-5xl font-black mb-6 leading-tight max-w-lg text-white animate-fade-in-up" style="animation-delay: 0.2s;">
           <template v-if="locale === 'th'">ระบบเมนูคิวอาร์โค้ด<br/>สำหรับร้านอาหาร</template>
