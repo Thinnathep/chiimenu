@@ -21,9 +21,19 @@ export const useCurrentStore = () => {
       }
 
       const userId = authData.user.id
+      const userEmail = authData.user.email?.toLowerCase() || ''
 
-      // Fetch store and admin status in parallel with deterministic sort
-      const [storeRes, adminRes] = await Promise.all([
+      // 1. Check ADMIN_EMAILS whitelist from runtimeConfig
+      const config = useRuntimeConfig()
+      const adminEmails = (config.public?.adminEmails || '')
+        .split(',')
+        .map((e: string) => e.trim().toLowerCase())
+        .filter(Boolean)
+
+      const isEmailAdmin = userEmail ? adminEmails.includes(userEmail) : false
+
+      // 2. Fetch store, admin status, and profile in parallel
+      const [storeRes, adminRes, profileRes] = await Promise.all([
         client
           .from('stores')
           .select('*')
@@ -36,11 +46,16 @@ export const useCurrentStore = () => {
           .from('admins')
           .select('id')
           .eq('id', userId)
+          .maybeSingle(),
+        client
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
           .maybeSingle()
       ])
 
       store.value = storeRes.data?.[0] || null
-      isAdmin.value = !!adminRes.data
+      isAdmin.value = isEmailAdmin || !!adminRes.data || (profileRes.data as any)?.role === 'admin'
       isLoaded.value = true
     } catch (err) {
       console.error('useCurrentStore error:', err)
