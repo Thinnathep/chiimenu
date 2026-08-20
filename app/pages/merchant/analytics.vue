@@ -10,11 +10,14 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock, 
-  ArrowUpRight,
-  Sparkles,
-  Award,
-  ChevronRight,
-  Receipt
+  Award, 
+  Printer, 
+  FileSpreadsheet, 
+  Flame, 
+  Plus, 
+  Utensils, 
+  SlidersHorizontal,
+  Table as TableIcon
 } from 'lucide-vue-next'
 
 definePageMeta({
@@ -35,6 +38,9 @@ interface KPI {
   total_orders: number
   total_items_sold: number
   avg_order_value: number
+  avg_items_per_order?: number
+  lost_cancelled_sales?: number
+  completion_rate?: number
 }
 
 interface OrderStatus {
@@ -44,11 +50,22 @@ interface OrderStatus {
   cancelled_orders: number
 }
 
+interface DiningType {
+  sales: number
+  count: number
+  percentage: number
+}
+
 interface DailySale {
   sale_date: string
   display_date: string
+  day_name?: string
   sales: number
   order_count: number
+  items_count?: number
+  avg_order_value?: number
+  dinein_count?: number
+  takeaway_count?: number
 }
 
 interface TopItem {
@@ -57,6 +74,22 @@ interface TopItem {
   name_zh: string
   quantity_sold: number
   total_sales: number
+  percentage?: number
+}
+
+interface AddonStat {
+  name: string
+  name_th?: string
+  name_en?: string
+  name_zh?: string
+  count: number
+}
+
+interface HourlyStat {
+  hour: number
+  display: string
+  sales: number
+  count: number
 }
 
 interface AnalyticsPayload {
@@ -65,6 +98,13 @@ interface AnalyticsPayload {
   end_time: string
   kpi: KPI
   order_status: OrderStatus
+  dining_types?: {
+    dinein: DiningType
+    takeaway: DiningType
+  }
+  hourly_sales?: HourlyStat[]
+  top_addons?: AddonStat[]
+  spice_distribution?: Record<string, number>
   daily_sales: DailySale[]
   top_items: TopItem[]
 }
@@ -77,7 +117,10 @@ const analyticsData = ref<AnalyticsPayload>({
     total_sales: 0,
     total_orders: 0,
     total_items_sold: 0,
-    avg_order_value: 0
+    avg_order_value: 0,
+    avg_items_per_order: 0,
+    lost_cancelled_sales: 0,
+    completion_rate: 100
   },
   order_status: {
     total_orders: 0,
@@ -85,6 +128,13 @@ const analyticsData = ref<AnalyticsPayload>({
     pending_orders: 0,
     cancelled_orders: 0
   },
+  dining_types: {
+    dinein: { sales: 0, count: 0, percentage: 0 },
+    takeaway: { sales: 0, count: 0, percentage: 0 }
+  },
+  hourly_sales: [],
+  top_addons: [],
+  spice_distribution: { '0': 0, '1': 0, '2': 0, '3': 0 },
   daily_sales: [],
   top_items: []
 })
@@ -98,118 +148,150 @@ const fetchAnalytics = async () => {
   errorMessage.value = null
   
   try {
-    const res = await $fetch<{ success: boolean; data: AnalyticsPayload }>('/api/merchant/analytics', {
-      query: {
-        period: activePeriod.value,
-        storeId: store.value.id
-      }
+    const client = useSupabaseClient()
+    const { data: { session } } = await client.auth.getSession()
+    const token = session?.access_token || ''
+
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const res: any = await $fetch(`/api/merchant/analytics?period=${activePeriod.value}&storeId=${store.value.id}`, {
+      headers
     })
-    
-    if (res?.success && res.data) {
+
+    if (res?.data) {
       analyticsData.value = res.data
     } else {
-      throw new Error('Could not load analytics data')
+      throw new Error(t('analytics_err_load_title') as string)
     }
   } catch (err: any) {
-    console.error('Fetch analytics error:', err)
-    errorMessage.value = err?.data?.message || err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลการขาย'
+    console.error('[Analytics View] Fetch Error:', err)
+    errorMessage.value = err?.data?.message || err?.message || (t('analytics_err_load_title') as string)
   } finally {
     loading.value = false
   }
-}
-
-const setPeriod = (period: PeriodType) => {
-  if (activePeriod.value === period && !loading.value) return
-  activePeriod.value = period
-  fetchAnalytics()
 }
 
 onMounted(async () => {
   if (!store.value) {
     await fetchStore()
   }
-  if (store.value) {
+  if (store.value?.id) {
     await fetchAnalytics()
   }
 })
 
-watch(() => store.value?.id, (newId) => {
-  if (newId) {
-    fetchAnalytics()
-  }
-})
+const setPeriod = (period: PeriodType) => {
+  activePeriod.value = period
+  fetchAnalytics()
+}
 
-// Chart Helpers
+// Chart Calculations
 const maxDailySales = computed(() => {
-  const sales = analyticsData.value.daily_sales.map(d => Number(d.sales) || 0)
-  const max = Math.max(0, ...sales)
-  return max > 0 ? max : 100
+  if (!analyticsData.value.daily_sales || analyticsData.value.daily_sales.length === 0) return 1
+  const max = Math.max(...analyticsData.value.daily_sales.map(d => d.sales))
+  return max > 0 ? max : 1
 })
-
-const formatCurrency = (val: number | undefined) => {
-  return (Number(val) || 0).toLocaleString('th-TH', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  })
-}
-
-const formatDecimal = (val: number | undefined) => {
-  return (Number(val) || 0).toLocaleString('th-TH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })
-}
 
 const getItemName = (item: TopItem) => {
-  if (locale.value === 'en' && item.name_en) return item.name_en
-  if (locale.value === 'zh' && item.name_zh) return item.name_zh
-  return item.name_th || item.name_en || 'เมนูอาหาร'
+  if (locale.value === 'zh') {
+    return item.name_zh || item.name_en || item.name_th
+  }
+  if (locale.value === 'en') {
+    return item.name_en || item.name_th
+  }
+  return item.name_th
 }
 
-const getItemSubtitle = (item: TopItem) => {
+const getItemSubName = (item: TopItem) => {
   if (locale.value === 'th') {
-    return item.name_en || item.name_zh || ''
+    return item.name_en || ''
   }
   return item.name_th || ''
 }
 
-const topItemMaxSales = computed(() => {
-  if (analyticsData.value.top_items.length === 0) return 1
-  return Math.max(...analyticsData.value.top_items.map(i => i.total_sales || 1))
-})
-
-const periodLabels: Record<PeriodType, { th: string; en: string; zh: string; sub: string }> = {
-  today: {
-    th: 'วันนี้',
-    en: 'Today',
-    zh: '今日',
-    sub: '00:00 - 23:59 น.'
-  },
-  '7days': {
-    th: '7 วันที่ผ่านมา',
-    en: 'Last 7 Days',
-    zh: '最近7天',
-    sub: '7 วันล่าสุด'
-  },
-  month: {
-    th: 'เดือนนี้',
-    en: 'This Month',
-    zh: '本月',
-    sub: 'ตั้งแต่วันที่ 1 ของเดือน'
-  },
-  year: {
-    th: 'ปีนี้',
-    en: 'This Year',
-    zh: '今年',
-    sub: 'สถิติตลอดทั้งปี'
+const getAddonName = (addon: AddonStat) => {
+  if (locale.value === 'zh') {
+    return addon.name_zh || addon.name_en || addon.name_th || addon.name
   }
+  if (locale.value === 'en') {
+    return addon.name_en || addon.name_th || addon.name
+  }
+  return addon.name_th || addon.name
+}
+
+const getAddonSubName = (addon: AddonStat) => {
+  if (locale.value === 'th') {
+    return addon.name_en || ''
+  }
+  return addon.name_th || ''
+}
+
+// Export CSV Functionality (Business Ready)
+const exportCsvReport = () => {
+  const data = analyticsData.value
+  const storeName = store.value?.name || 'Store'
+  const periodLabel = activePeriod.value
+  
+  let csv = `\uFEFF` // UTF-8 BOM for Excel in Thai
+  csv += `รายงานยอดขาย ChiiMenu (Sales Report)\n`
+  csv += `ร้านค้า: ${storeName}\n`
+  csv += `ช่วงเวลา: ${periodLabel} (${data.start_time?.slice(0, 10)} ถึง ${data.end_time?.slice(0, 10)})\n`
+  csv += `วันที่ออกรายงาน: ${new Date().toLocaleString('th-TH')}\n\n`
+  
+  // Section 1: KPI Summary
+  csv += `=== สรุปยอดขายรวม (KPI Summary) ===\n`
+  csv += `ยอดขายสุทธิ (฿),${data.kpi.total_sales}\n`
+  csv += `จำนวนออเดอร์ที่สำเร็จ,${data.kpi.total_orders}\n`
+  csv += `จำนวนจานที่ขายได้,${data.kpi.total_items_sold}\n`
+  csv += `ยอดเฉลี่ยต่อบิล (AOV ฿),${data.kpi.avg_order_value}\n`
+  csv += `เฉลี่ยจานต่อบิล,${data.kpi.avg_items_per_order || 0}\n`
+  csv += `ยอดเงินที่สูญเสียจากออเดอร์ยกเลิก (฿),${data.kpi.lost_cancelled_sales || 0}\n\n`
+  
+  // Section 2: Daily Breakdown Table
+  csv += `=== รายละเอียดสถิติรายวัน (Daily Breakdown) ===\n`
+  csv += `วันที่,วัน,ยอดขาย (฿),จำนวนออเดอร์,จำนวนจาน,เฉลี่ย/บิล (฿),ทานที่ร้าน,กลับบ้าน\n`
+  data.daily_sales.forEach(d => {
+    csv += `${d.sale_date},${d.day_name || '-'},${d.sales},${d.order_count},${d.items_count || 0},${d.avg_order_value || 0},${d.dinein_count || 0},${d.takeaway_count || 0}\n`
+  })
+  csv += `\n`
+
+  // Section 3: All Menu Items
+  csv += `=== สรุปยอดขายรายเมนู (Menu Items Sales) ===\n`
+  csv += `อันดับ,ชื่อเมนู (ไทย),ชื่อเมนู (EN),จำนวนที่ขายได้ (จาน),ยอดขายรวม (฿),สัดส่วนยอดขาย (%)\n`
+  data.top_items.forEach((it, idx) => {
+    csv += `${idx + 1},"${it.name_th}","${it.name_en}",${it.quantity_sold},${it.total_sales},${it.percentage || 0}%\n`
+  })
+
+  // Trigger browser download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', `ChiiMenu-Sales-${storeName}-${periodLabel}-${new Date().toISOString().slice(0, 10)}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+const printExecutiveReport = () => {
+  window.print()
+}
+
+const periodLabels: Record<PeriodType, { th: string; en: string; zh: string }> = {
+  today: { th: 'วันนี้', en: 'Today', zh: '今天' },
+  '7days': { th: '7 วันล่าสุด', en: 'Last 7 Days', zh: '近7天' },
+  month: { th: 'เดือนนี้', en: 'This Month', zh: '本月' },
+  year: { th: 'ปีนี้', en: 'This Year', zh: '今年' }
 }
 </script>
 
 <template>
-  <div class="w-full pb-16">
+  <div class="w-full pb-20">
     
-    <!-- Page Header & Period Selector -->
+    <!-- Top Header Banner & Action Buttons -->
     <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border/80 p-5 sm:p-6 rounded-3xl shadow-xs">
       <div class="flex items-center gap-3.5">
         <div class="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold shrink-0 shadow-2xs">
@@ -219,21 +301,22 @@ const periodLabels: Record<PeriodType, { th: string; en: string; zh: string; sub
           <h1 class="text-lg sm:text-xl font-bold text-foreground">
             {{ $t('analytics_title') }}
           </h1>
-          <p class="text-xs text-muted-foreground mt-0.5">
+          <p class="text-xs text-muted-foreground mt-0.5 font-normal">
             {{ $t('analytics_desc') }}
           </p>
         </div>
       </div>
 
-      <!-- Controls: Period Tabs & Refresh -->
-      <div class="flex flex-wrap items-center gap-2 sm:gap-3 self-start md:self-auto">
-        <!-- Segmented Control Period Filter -->
+      <!-- Controls: Period Tabs + Export + Print + Refresh -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-2.5 self-start md:self-auto">
+        
+        <!-- Period Tabs -->
         <div class="inline-flex p-1 bg-muted/60 rounded-2xl border border-border/60 text-xs font-semibold">
           <button 
             type="button"
             @click="setPeriod('today')"
             :disabled="loading"
-            class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+            class="px-3.5 py-1.5 rounded-xl transition-all font-medium"
             :class="activePeriod === 'today' ? 'bg-background text-primary shadow-xs font-bold' : 'text-muted-foreground hover:text-foreground'"
           >
             <span>{{ periodLabels.today[locale as 'th' | 'en' | 'zh'] || periodLabels.today.th }}</span>
@@ -242,7 +325,7 @@ const periodLabels: Record<PeriodType, { th: string; en: string; zh: string; sub
             type="button"
             @click="setPeriod('7days')"
             :disabled="loading"
-            class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+            class="px-3.5 py-1.5 rounded-xl transition-all font-medium"
             :class="activePeriod === '7days' ? 'bg-background text-primary shadow-xs font-bold' : 'text-muted-foreground hover:text-foreground'"
           >
             <span>{{ periodLabels['7days'][locale as 'th' | 'en' | 'zh'] || periodLabels['7days'].th }}</span>
@@ -251,7 +334,7 @@ const periodLabels: Record<PeriodType, { th: string; en: string; zh: string; sub
             type="button"
             @click="setPeriod('month')"
             :disabled="loading"
-            class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+            class="px-3.5 py-1.5 rounded-xl transition-all font-medium"
             :class="activePeriod === 'month' ? 'bg-background text-primary shadow-xs font-bold' : 'text-muted-foreground hover:text-foreground'"
           >
             <span>{{ periodLabels.month[locale as 'th' | 'en' | 'zh'] || periodLabels.month.th }}</span>
@@ -260,23 +343,46 @@ const periodLabels: Record<PeriodType, { th: string; en: string; zh: string; sub
             type="button"
             @click="setPeriod('year')"
             :disabled="loading"
-            class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+            class="px-3.5 py-1.5 rounded-xl transition-all font-medium"
             :class="activePeriod === 'year' ? 'bg-background text-primary shadow-xs font-bold' : 'text-muted-foreground hover:text-foreground'"
           >
             <span>{{ periodLabels.year[locale as 'th' | 'en' | 'zh'] || periodLabels.year.th }}</span>
           </button>
         </div>
 
+        <!-- Export CSV Button (Business Grade) -->
+        <button 
+          @click="exportCsvReport"
+          :disabled="loading"
+          class="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 rounded-2xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+          :title="$t('analytics_btn_export_csv')"
+        >
+          <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-600" />
+          <span class="hidden sm:inline">{{ $t('analytics_btn_export_csv') }}</span>
+        </button>
+
+        <!-- Print Report Button -->
+        <button 
+          @click="printExecutiveReport"
+          :disabled="loading"
+          class="px-3 py-2 bg-card hover:bg-muted text-foreground border border-border/80 rounded-2xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+          :title="$t('analytics_btn_print_report')"
+        >
+          <Printer class="w-3.5 h-3.5" />
+          <span class="hidden sm:inline">{{ $t('analytics_btn_print_report') }}</span>
+        </button>
+
         <!-- Refresh Button -->
         <button 
           @click="fetchAnalytics"
           :disabled="loading"
-          class="px-3.5 py-2 bg-card hover:bg-muted text-foreground border border-border/80 rounded-2xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
-          title="รีเฟรชข้อมูลล่าสุด"
+          class="px-3 py-2 bg-card hover:bg-muted text-foreground border border-border/80 rounded-2xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+          :title="$t('order_btn_refresh')"
         >
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
-          <span class="hidden sm:inline">รีเฟรช</span>
+          <span class="hidden sm:inline">{{ $t('order_btn_refresh') }}</span>
         </button>
+
       </div>
     </div>
 
@@ -285,464 +391,464 @@ const periodLabels: Record<PeriodType, { th: string; en: string; zh: string; sub
       <div class="flex items-start gap-3">
         <AlertCircle class="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
         <div>
-          <h3 class="font-bold text-sm">ไม่สามารถโหลดข้อมูล Analytics ได้</h3>
-          <p class="text-xs text-rose-700 dark:text-rose-300 mt-0.5">{{ errorMessage }}</p>
+          <h3 class="font-semibold text-sm">{{ $t('analytics_err_load_title') }}</h3>
+          <p class="text-xs text-rose-700 dark:text-rose-300 mt-0.5 font-normal">{{ errorMessage }}</p>
         </div>
       </div>
       <button 
         @click="fetchAnalytics"
-        class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto shrink-0 shadow-xs"
+        class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto shrink-0 shadow-xs"
       >
         <RefreshCw class="w-3.5 h-3.5" />
-        <span>ลองใหม่อีกครั้ง</span>
+        <span>{{ $t('analytics_btn_retry') }}</span>
       </button>
     </div>
 
-    <!-- Loading Skeleton Shimmer -->
-    <div v-if="loading && !analyticsData.kpi.total_orders && !errorMessage" class="space-y-6 animate-pulse">
-      <!-- KPI Skeletons -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        <div v-for="i in 4" :key="i" class="h-32 bg-card border border-border/60 rounded-3xl p-5 flex flex-col justify-between">
-          <div class="h-4 bg-muted rounded w-24"></div>
-          <div class="h-8 bg-muted rounded w-32"></div>
-          <div class="h-3 bg-muted rounded w-20"></div>
-        </div>
+    <!-- Loading Shimmer State -->
+    <div v-if="loading" class="space-y-6">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <div v-for="i in 6" :key="i" class="h-28 bg-card border border-border/80 rounded-3xl animate-pulse"></div>
       </div>
-
-      <!-- Chart Skeleton -->
-      <div class="h-80 bg-card border border-border/60 rounded-3xl p-6">
-        <div class="h-5 bg-muted rounded w-36 mb-6"></div>
-        <div class="h-56 bg-muted/40 rounded-2xl"></div>
-      </div>
+      <div class="h-72 bg-card border border-border/80 rounded-3xl animate-pulse"></div>
     </div>
 
     <!-- Main Analytics Content -->
     <div v-else class="space-y-6">
       
-      <!-- 1. KPI Summary Cards (4 Primary Metrics) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <!-- 1. SUMMARY METRIC CARDS (6 METRICS) -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
         
-        <!-- Total Sales -->
-        <div class="bg-card border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xs relative overflow-hidden transition-all hover:border-primary/40 group">
+        <!-- Net Total Revenue -->
+        <div class="p-4 bg-card border border-border/80 rounded-3xl shadow-xs flex flex-col justify-between transition-all hover:shadow-md">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-muted-foreground">ยอดขายรวม (Sales)</span>
-            <div class="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+            <span class="text-[11px] font-medium text-muted-foreground">{{ $t('analytics_kpi_total_revenue') }}</span>
+            <span class="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold">
               ฿
-            </div>
+            </span>
           </div>
           <div class="mt-3">
-            <div class="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-baseline gap-1">
-              <span>฿{{ formatCurrency(analyticsData.kpi.total_sales) }}</span>
-            </div>
-            <p class="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
-              <span>ช่วงเวลา: {{ periodLabels[activePeriod][locale as 'th' | 'en' | 'zh'] || periodLabels[activePeriod].th }}</span>
-            </p>
+            <span class="text-xl sm:text-2xl font-bold text-foreground tabular-nums">
+              ฿{{ analyticsData.kpi.total_sales.toLocaleString('th-TH') }}
+            </span>
+            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block mt-0.5">
+              {{ $t('analytics_kpi_net_desc') }}
+            </span>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500/50 to-emerald-500/10"></div>
         </div>
 
-        <!-- Total Orders -->
-        <div class="bg-card border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xs relative overflow-hidden transition-all hover:border-primary/40 group">
+        <!-- Completed Orders -->
+        <div class="p-4 bg-card border border-border/80 rounded-3xl shadow-xs flex flex-col justify-between transition-all hover:shadow-md">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-muted-foreground">จำนวนออเดอร์ (Orders)</span>
-            <div class="w-9 h-9 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm">
-              🧾
-            </div>
+            <span class="text-[11px] font-medium text-muted-foreground">{{ $t('analytics_kpi_total_orders') }}</span>
+            <span class="w-7 h-7 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">
+              <ShoppingBag class="w-3.5 h-3.5" />
+            </span>
           </div>
           <div class="mt-3">
-            <div class="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-baseline gap-1">
-              <span>{{ (analyticsData.kpi.total_orders || 0).toLocaleString('th-TH') }}</span>
-              <span class="text-xs font-semibold text-muted-foreground">ออเดอร์</span>
-            </div>
-            <p class="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
-              <span v-if="analyticsData.order_status.cancelled_orders > 0" class="text-rose-500 font-semibold">
-                (ยกเลิก {{ analyticsData.order_status.cancelled_orders }} รายการ)
-              </span>
-              <span v-else class="text-emerald-600 font-medium">สำเร็จ 100%</span>
-            </p>
+            <span class="text-xl sm:text-2xl font-bold text-foreground tabular-nums">
+              {{ analyticsData.kpi.total_orders }}
+            </span>
+            <span class="text-[10px] text-blue-600 dark:text-blue-400 font-medium block mt-0.5">
+              {{ $t('analytics_kpi_completion_rate_desc', { rate: analyticsData.kpi.completion_rate || 100 }) }}
+            </span>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500/50 to-blue-500/10"></div>
-        </div>
-
-        <!-- Items Sold -->
-        <div class="bg-card border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xs relative overflow-hidden transition-all hover:border-primary/40 group">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-muted-foreground">จำนวนจาน/รายการที่ขาย</span>
-            <div class="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm">
-              🍲
-            </div>
-          </div>
-          <div class="mt-3">
-            <div class="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-baseline gap-1">
-              <span>{{ (analyticsData.kpi.total_items_sold || 0).toLocaleString('th-TH') }}</span>
-              <span class="text-xs font-semibold text-muted-foreground">จาน/แก้ว</span>
-            </div>
-            <p class="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
-              <span>เฉลี่ย {{ analyticsData.kpi.total_orders > 0 ? (analyticsData.kpi.total_items_sold / analyticsData.kpi.total_orders).toFixed(1) : 0 }} จาน / ออเดอร์</span>
-            </p>
-          </div>
-          <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/50 to-amber-500/10"></div>
         </div>
 
         <!-- Average Order Value (AOV) -->
-        <div class="bg-card border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xs relative overflow-hidden transition-all hover:border-primary/40 group">
+        <div class="p-4 bg-card border border-border/80 rounded-3xl shadow-xs flex flex-col justify-between transition-all hover:shadow-md">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-muted-foreground">ยอดเฉลี่ยต่อออเดอร์ (AOV)</span>
-            <div class="w-9 h-9 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm">
-              🎯
-            </div>
+            <span class="text-[11px] font-medium text-muted-foreground">{{ $t('analytics_kpi_aov') }}</span>
+            <span class="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold">
+              <TrendingUp class="w-3.5 h-3.5" />
+            </span>
           </div>
           <div class="mt-3">
-            <div class="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-baseline gap-1">
-              <span>฿{{ formatCurrency(analyticsData.kpi.avg_order_value) }}</span>
-            </div>
-            <p class="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
-              <span>ต่อ 1 คำสั่งซื้อ</span>
+            <span class="text-xl sm:text-2xl font-bold text-foreground tabular-nums">
+              ฿{{ analyticsData.kpi.avg_order_value.toLocaleString('th-TH') }}
+            </span>
+            <span class="text-[10px] text-muted-foreground font-normal block mt-0.5">
+              {{ $t('analytics_kpi_aov_desc') }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Total Items Sold -->
+        <div class="p-4 bg-card border border-border/80 rounded-3xl shadow-xs flex flex-col justify-between transition-all hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-medium text-muted-foreground">{{ $t('analytics_kpi_items_sold') }}</span>
+            <span class="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+              <Utensils class="w-3.5 h-3.5" />
+            </span>
+          </div>
+          <div class="mt-3">
+            <span class="text-xl sm:text-2xl font-bold text-foreground tabular-nums">
+              {{ analyticsData.kpi.total_items_sold }}
+            </span>
+            <span class="text-[10px] text-muted-foreground font-normal block mt-0.5">
+              {{ $t('analytics_kpi_items_desc') }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Avg Items per Order -->
+        <div class="p-4 bg-card border border-border/80 rounded-3xl shadow-xs flex flex-col justify-between transition-all hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-medium text-muted-foreground">{{ $t('analytics_kpi_avg_items') }}</span>
+            <span class="w-7 h-7 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs font-bold">
+              🥢
+            </span>
+          </div>
+          <div class="mt-3">
+            <span class="text-xl sm:text-2xl font-bold text-foreground tabular-nums">
+              {{ analyticsData.kpi.avg_items_per_order || 0 }}
+            </span>
+            <span class="text-[10px] text-muted-foreground font-normal block mt-0.5">
+              {{ $t('analytics_kpi_avg_items_desc') }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Lost Sales (Cancelled) -->
+        <div class="p-4 bg-card border border-border/80 rounded-3xl shadow-xs flex flex-col justify-between transition-all hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-medium text-muted-foreground">{{ $t('analytics_kpi_lost_sales') }}</span>
+            <span class="w-7 h-7 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs font-bold">
+              <XCircle class="w-3.5 h-3.5" />
+            </span>
+          </div>
+          <div class="mt-3">
+            <span class="text-xl sm:text-2xl font-bold text-rose-600 dark:text-rose-400 tabular-nums">
+              ฿{{ (analyticsData.kpi.lost_cancelled_sales || 0).toLocaleString('th-TH') }}
+            </span>
+            <span class="text-[10px] text-muted-foreground font-normal block mt-0.5">
+              {{ $t('analytics_kpi_lost_desc', { count: analyticsData.order_status.cancelled_orders }) }}
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 2. SALES REVENUE & VOLUME TREND CHART -->
+      <div class="p-5 sm:p-6 bg-card border border-border/80 rounded-3xl shadow-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+              <span>{{ $t('analytics_sales_trend_title') }}</span>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary">
+                {{ periodLabels[activePeriod][locale as 'th' | 'en' | 'zh'] || periodLabels[activePeriod].th }}
+              </span>
+            </h2>
+            <p class="text-xs text-muted-foreground mt-0.5 font-normal">
+              {{ $t('analytics_sales_trend_desc') }}
             </p>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500/50 to-purple-500/10"></div>
+
+          <!-- Tooltip Preview when Hovering -->
+          <div v-if="hoveredBar" class="text-xs font-semibold text-primary bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20 animate-in fade-in duration-150">
+            <span>📅 {{ hoveredBar.display_date }}: </span>
+            <span class="font-bold">฿{{ hoveredBar.sales.toLocaleString('th-TH') }}</span>
+            <span class="text-muted-foreground ml-1">({{ $t('analytics_unit_bills', { count: hoveredBar.order_count }) }})</span>
+          </div>
         </div>
 
+        <!-- Bar Chart Visualizer -->
+        <div v-if="analyticsData.daily_sales.length > 0" class="h-64 sm:h-72 w-full flex items-end gap-1 sm:gap-3 pt-6 pb-2 border-b border-border/60">
+          <div 
+            v-for="(day, idx) in analyticsData.daily_sales" 
+            :key="idx"
+            class="flex-1 flex flex-col items-center h-full justify-end group relative cursor-pointer"
+            @mouseenter="hoveredBar = day"
+            @mouseleave="hoveredBar = null"
+          >
+            <!-- Hover Tooltip Box -->
+            <div class="absolute -top-12 z-20 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground border shadow-md px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap pointer-events-none">
+              <span class="font-semibold">{{ day.display_date }}</span>
+              <span class="text-primary font-bold">฿{{ day.sales.toLocaleString('th-TH') }}</span>
+              <span class="text-muted-foreground text-[9px]">{{ $t('analytics_unit_bills', { count: day.order_count }) }}</span>
+            </div>
+
+            <!-- Bar Column -->
+            <div 
+              class="w-full max-w-[40px] rounded-t-xl transition-all duration-300 group-hover:opacity-80"
+              :class="day.sales > 0 ? 'bg-gradient-to-t from-primary/80 to-primary shadow-xs' : 'bg-muted/40 min-h-[4px]'"
+              :style="{ height: `${Math.max(4, Math.round((day.sales / maxDailySales) * 100))}%` }"
+            ></div>
+
+            <!-- X-axis Label -->
+            <span class="text-[10px] text-muted-foreground mt-2 truncate w-full text-center group-hover:text-foreground font-normal">
+              {{ day.display_date }}
+            </span>
+          </div>
+        </div>
+
+        <div v-else class="h-48 flex items-center justify-center text-xs text-muted-foreground">
+          {{ $t('analytics_empty_sales') }}
+        </div>
       </div>
 
-      <!-- Empty State Banner when no orders exist in period -->
-      <div 
-        v-if="analyticsData.kpi.total_orders === 0 && !loading" 
-        class="bg-card border border-dashed border-border/90 rounded-3xl p-10 sm:p-14 text-center max-w-3xl mx-auto shadow-xs"
-      >
-        <div class="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center text-3xl mx-auto mb-4">
-          🍽️
-        </div>
-        <h3 class="text-lg font-bold text-foreground mb-1.5">
-          ยังไม่มีข้อมูลการขายในช่วงเวลานี้
-        </h3>
-        <p class="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto mb-6">
-          เมื่อลูกค้าเริ่มสแกน QR Code ประจำโต๊ะและส่งคำสั่งซื้อ ระบบจะสรุปสถิติและยอดขายมาแสดงที่หน้านี้โดยอัตโนมัติ
-        </p>
-
-        <div class="flex flex-wrap items-center justify-center gap-3">
-          <NuxtLink 
-            to="/merchant/qr" 
-            class="px-4 py-2.5 bg-primary text-primary-foreground font-semibold text-xs rounded-xl shadow-xs hover:bg-primary/90 transition-all inline-flex items-center gap-1.5"
-          >
-            <span>🖨️ ดู QR Code ประจำโต๊ะ</span>
-          </NuxtLink>
-          <NuxtLink 
-            to="/merchant/orders" 
-            class="px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-semibold text-xs rounded-xl border transition-all inline-flex items-center gap-1.5"
-          >
-            <span>📋 ดูประวัติคำสั่งซื้อ</span>
-          </NuxtLink>
-        </div>
-      </div>
-
-      <!-- Analytics Visuals (Visible when data exists or empty with grid) -->
-      <div v-else class="space-y-6">
-
-        <!-- 2. Sales Trend & Daily Overview Chart -->
-        <div class="bg-card border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xs">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-            <div>
-              <h2 class="text-base font-bold text-foreground flex items-center gap-2">
-                <span>📈 {{ activePeriod === 'year' ? 'แนวโน้มยอดขายรายเดือน (Monthly Sales Trend)' : 'แนวโน้มยอดขายรายวัน (Daily Sales Trend)' }}</span>
-              </h2>
-              <p class="text-xs text-muted-foreground mt-0.5">
-                เปรียบเทียบยอดขายรวม (฿) และจำนวนออเดอร์ตาม{{ activePeriod === 'year' ? 'เดือน' : 'วัน' }}
-              </p>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <span class="inline-flex items-center gap-1.5 text-muted-foreground">
-                <span class="w-3 h-3 rounded-md bg-primary"></span>
-                <span>ยอดขาย (฿)</span>
-              </span>
-              <span class="inline-flex items-center gap-1.5 text-muted-foreground">
-                <span class="w-3 h-3 rounded-md bg-blue-400"></span>
-                <span>จำนวนออเดอร์</span>
-              </span>
-            </div>
-          </div>
-
-          <!-- Bar Chart Container -->
-          <div class="relative w-full">
-            
-            <!-- When daily sales has items -->
-            <div v-if="analyticsData.daily_sales.length > 0" class="pt-4 pb-2">
-              
-              <!-- Responsive SVG/HTML Bar Chart -->
-              <div class="flex items-end gap-2 sm:gap-4 h-56 sm:h-64 px-2 sm:px-4 border-b border-border/60">
-                
-                <div 
-                  v-for="(day, dIdx) in analyticsData.daily_sales" 
-                  :key="dIdx"
-                  class="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer"
-                  @mouseenter="hoveredBar = day"
-                  @mouseleave="hoveredBar = null"
-                >
-                  <!-- Tooltip Hover Card -->
-                  <div 
-                    v-if="hoveredBar?.sale_date === day.sale_date" 
-                    class="absolute -top-16 z-30 bg-foreground text-background text-xs rounded-xl py-2 px-3 shadow-lg pointer-events-none whitespace-nowrap text-center animate-in fade-in zoom-in-95 duration-150"
-                  >
-                    <div class="font-bold">{{ activePeriod === 'year' ? `เดือน ${day.display_date}` : `วันที่ ${day.display_date}` }}</div>
-                    <div class="text-[11px] text-primary-foreground/90 font-mono mt-0.5">
-                      ฿{{ formatCurrency(day.sales) }} • {{ day.order_count }} ออเดอร์
-                    </div>
-                  </div>
-
-                  <!-- Value Tag on Top of Bar -->
-                  <span class="text-[10px] font-mono font-bold text-muted-foreground mb-1 group-hover:text-primary transition-colors hidden sm:block">
-                    <template v-if="day.sales > 0">฿{{ formatCurrency(day.sales) }}</template>
-                  </span>
-
-                  <!-- Dual Bar Column (Sales Bar + Order Count Indicator) -->
-                  <div class="w-full max-w-[48px] flex items-end justify-center gap-1 h-full max-h-[85%]">
-                    
-                    <!-- Sales Bar -->
-                    <div 
-                      class="w-full rounded-t-xl bg-gradient-to-t from-primary/80 to-primary transition-all duration-500 group-hover:brightness-110 shadow-2xs relative overflow-hidden min-h-[4px]"
-                      :style="{ 
-                        height: `${Math.max(4, (day.sales / maxDailySales) * 100)}%` 
-                      }"
-                    >
-                      <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    </div>
-                  </div>
-
-                  <!-- Date Label Below Axis -->
-                  <div class="text-[11px] font-semibold text-muted-foreground mt-2.5 text-center truncate w-full group-hover:text-foreground transition-colors">
-                    {{ day.display_date }}
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- Summary Footnote -->
-              <div class="mt-4 flex items-center justify-between text-xs text-muted-foreground px-2">
-                <span>ทั้งหมด {{ analyticsData.daily_sales.length }} {{ activePeriod === 'year' ? 'เดือน' : 'วัน' }}ในช่วงนี้</span>
-                <span class="font-bold text-foreground">
-                  ยอดรวมในกราฟ: ฿{{ formatCurrency(analyticsData.kpi.total_sales) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Empty Graph Fallback -->
-            <div v-else class="h-48 flex items-center justify-center text-muted-foreground text-xs border rounded-2xl bg-muted/10">
-              ไม่มีข้อมูลยอดขายรายวันในช่วงเวลานี้
-            </div>
-
+      <!-- 3. DETAILED DAILY BREAKDOWN TABLE (ตารางแจกแจงรายวันอย่างละเอียด) -->
+      <div v-if="analyticsData.daily_sales.length > 0" class="p-5 sm:p-6 bg-card border border-border/80 rounded-3xl shadow-xs space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-bold text-foreground flex items-center gap-2">
+              <TableIcon class="w-4 h-4 text-primary" />
+              <span>{{ $t('analytics_daily_table_title') }}</span>
+            </h3>
+            <p class="text-xs text-muted-foreground mt-0.5 font-normal">
+              {{ $t('analytics_daily_table_desc') }}
+            </p>
           </div>
         </div>
 
-        <!-- 3. Two-Column Grid: Top Selling Menu & Order Status Summary -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <!-- Top Selling Menu (2 Columns on Large Screens) -->
-          <div class="lg:col-span-2 bg-card border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col">
-            <div class="flex items-center justify-between mb-5">
-              <div>
-                <h2 class="text-base font-bold text-foreground flex items-center gap-2">
-                  <span>🏆 เมนูขายดี (Top Selling Menu)</span>
-                </h2>
-                <p class="text-xs text-muted-foreground mt-0.5">
-                  10 อันดับเมนูที่ได้รับความนิยมสูงสุด เรียงตามจำนวนที่สั่ง
-                </p>
-              </div>
-              <span class="px-2.5 py-1 bg-primary/10 text-primary text-xs font-bold rounded-xl">
-                Top {{ analyticsData.top_items.length }}
-              </span>
-            </div>
-
-            <!-- Menu Table / List -->
-            <div v-if="analyticsData.top_items.length > 0" class="flex-1 overflow-x-auto">
-              <table class="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr class="border-b border-border/60 text-muted-foreground font-semibold">
-                    <th class="pb-3 pl-2 w-12 text-center">อันดับ</th>
-                    <th class="pb-3">รายการอาหาร</th>
-                    <th class="pb-3 text-right">จำนวนที่ขาย</th>
-                    <th class="pb-3 text-right pr-2">ยอดขายรวม</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-border/40">
-                  <tr 
-                    v-for="(item, idx) in analyticsData.top_items" 
-                    :key="idx"
-                    class="hover:bg-muted/30 transition-colors group"
-                  >
-                    <!-- Rank Badge -->
-                    <td class="py-3.5 pl-2 text-center font-bold">
-                      <span 
-                        v-if="idx === 0" 
-                        class="w-6 h-6 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 inline-flex items-center justify-center text-xs font-black shadow-2xs"
-                      >
-                        🥇
-                      </span>
-                      <span 
-                        v-else-if="idx === 1" 
-                        class="w-6 h-6 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 inline-flex items-center justify-center text-xs font-black"
-                      >
-                        🥈
-                      </span>
-                      <span 
-                        v-else-if="idx === 2" 
-                        class="w-6 h-6 rounded-full bg-amber-900/10 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400 inline-flex items-center justify-center text-xs font-black"
-                      >
-                        🥉
-                      </span>
-                      <span v-else class="text-muted-foreground font-mono">
-                        {{ idx + 1 }}
-                      </span>
-                    </td>
-
-                    <!-- Menu Info + Visual Share Bar -->
-                    <td class="py-3.5 pr-3 min-w-[180px]">
-                      <div class="font-bold text-foreground text-sm group-hover:text-primary transition-colors">
-                        {{ getItemName(item) }}
-                      </div>
-                      <div v-if="getItemSubtitle(item)" class="text-[11px] text-muted-foreground font-normal">
-                        {{ getItemSubtitle(item) }}
-                      </div>
-                      <!-- Share Bar -->
-                      <div class="w-full bg-muted/60 h-1.5 rounded-full mt-1.5 overflow-hidden max-w-[240px]">
-                        <div 
-                          class="bg-primary h-full rounded-full transition-all duration-500"
-                          :style="{ width: `${(item.total_sales / topItemMaxSales) * 100}%` }"
-                        ></div>
-                      </div>
-                    </td>
-
-                    <!-- Quantity Sold -->
-                    <td class="py-3.5 text-right font-bold font-mono text-foreground text-sm whitespace-nowrap">
-                      {{ item.quantity_sold }} <span class="text-[11px] font-normal text-muted-foreground">จาน</span>
-                    </td>
-
-                    <!-- Total Item Sales -->
-                    <td class="py-3.5 text-right pr-2 font-black font-mono text-primary text-sm whitespace-nowrap">
-                      ฿{{ formatCurrency(item.total_sales) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Empty Top Items State -->
-            <div v-else class="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground text-xs border rounded-2xl border-dashed">
-              <UtensilsCrossed class="w-8 h-8 mb-2 opacity-40 text-primary" />
-              <span>ยังไม่มีข้อมูลเมนูที่ขายได้ในช่วงนี้</span>
-            </div>
-          </div>
-
-          <!-- Order Status Summary Card (1 Column on Large Screens) -->
-          <div class="bg-card border border-border/80 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
-            <div>
-              <div class="mb-5">
-                <h2 class="text-base font-bold text-foreground flex items-center gap-2">
-                  <span>📑 สรุปสถานะออเดอร์</span>
-                </h2>
-                <p class="text-xs text-muted-foreground mt-0.5">
-                  ความสมบูรณ์และอัตราการยกเลิกคำสั่งซื้อ
-                </p>
-              </div>
-
-              <!-- Status Metrics Breakdown -->
-              <div class="space-y-3.5">
-                
-                <!-- Total Orders -->
-                <div class="p-3.5 bg-muted/30 rounded-2xl border border-border/60 flex items-center justify-between">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-foreground/5 text-foreground flex items-center justify-center text-sm font-bold">
-                      🧾
-                    </div>
-                    <div>
-                      <div class="text-xs font-bold text-foreground">ออเดอร์ทั้งหมด</div>
-                      <div class="text-[10px] text-muted-foreground">Total Placed Orders</div>
-                    </div>
-                  </div>
-                  <span class="text-base font-black font-mono text-foreground">
-                    {{ analyticsData.order_status.total_orders }}
-                  </span>
-                </div>
-
-                <!-- Completed / Paid / Confirmed -->
-                <div class="p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40 flex items-center justify-between">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-sm">
-                      <CheckCircle2 class="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div class="text-xs font-bold text-emerald-900 dark:text-emerald-300">ออเดอร์ที่สำเร็จ/ชำระแล้ว</div>
-                      <div class="text-[10px] text-emerald-700/80 dark:text-emerald-400">Completed / Active</div>
-                    </div>
-                  </div>
-                  <span class="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
-                    {{ analyticsData.order_status.completed_orders + analyticsData.order_status.pending_orders }}
-                  </span>
-                </div>
-
-                <!-- Cancelled Orders -->
-                <div class="p-3.5 bg-rose-50/50 dark:bg-rose-950/20 rounded-2xl border border-rose-200/60 dark:border-rose-900/40 flex items-center justify-between">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center text-sm">
-                      <XCircle class="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div class="text-xs font-bold text-rose-900 dark:text-rose-300">ออเดอร์ที่ยกเลิก</div>
-                      <div class="text-[10px] text-rose-700/80 dark:text-rose-400">Cancelled / Void</div>
-                    </div>
-                  </div>
-                  <span class="text-base font-black font-mono text-rose-600 dark:text-rose-400">
-                    {{ analyticsData.order_status.cancelled_orders }}
-                  </span>
-                </div>
-
-              </div>
-
-              <!-- Completion Ratio Bar -->
-              <div class="mt-6 pt-5 border-t border-border/60">
-                <div class="flex justify-between text-xs font-semibold mb-2">
-                  <span class="text-muted-foreground">อัตราออเดอร์สำเร็จ (Success Rate)</span>
-                  <span class="text-emerald-600 font-bold font-mono">
-                    {{ analyticsData.order_status.total_orders > 0 
-                      ? Math.round(((analyticsData.order_status.total_orders - analyticsData.order_status.cancelled_orders) / analyticsData.order_status.total_orders) * 100) 
-                      : 100 }}%
-                  </span>
-                </div>
-                <div class="w-full bg-muted h-2.5 rounded-full overflow-hidden flex">
-                  <div 
-                    class="bg-emerald-500 h-full transition-all duration-500"
-                    :style="{ 
-                      width: `${analyticsData.order_status.total_orders > 0 
-                        ? ((analyticsData.order_status.total_orders - analyticsData.order_status.cancelled_orders) / analyticsData.order_status.total_orders) * 100 
-                        : 100}%` 
-                    }"
-                  ></div>
-                  <div 
-                    class="bg-rose-500 h-full transition-all duration-500"
-                    :style="{ 
-                      width: `${analyticsData.order_status.total_orders > 0 
-                        ? (analyticsData.order_status.cancelled_orders / analyticsData.order_status.total_orders) * 100 
-                        : 0}%` 
-                    }"
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Link to Order History -->
-            <div class="mt-6 pt-4 border-t border-border/60">
-              <NuxtLink 
-                to="/merchant/orders" 
-                class="w-full py-2.5 px-4 bg-muted hover:bg-muted/80 text-foreground font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 border border-border/80"
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-muted/40 border-b border-border/80 text-muted-foreground font-semibold">
+              <tr>
+                <th class="py-3 px-4">{{ $t('analytics_col_date') }}</th>
+                <th class="py-3 px-4">{{ $t('analytics_col_day') }}</th>
+                <th class="py-3 px-4 text-right">{{ $t('analytics_col_sales') }}</th>
+                <th class="py-3 px-4 text-center">{{ $t('analytics_col_orders_count') }}</th>
+                <th class="py-3 px-4 text-center">{{ $t('analytics_col_dishes_count') }}</th>
+                <th class="py-3 px-4 text-right">{{ $t('analytics_col_avg_bill') }}</th>
+                <th class="py-3 px-4 text-center">{{ $t('analytics_col_channels') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border/60">
+              <tr 
+                v-for="(day, idx) in analyticsData.daily_sales" 
+                :key="idx"
+                class="hover:bg-muted/20 transition-colors"
               >
-                <span>ดูประวัติคำสั่งซื้อทั้งหมด</span>
-                <ChevronRight class="w-3.5 h-3.5" />
-              </NuxtLink>
-            </div>
+                <td class="py-3 px-4 font-medium text-foreground whitespace-nowrap">
+                  {{ day.sale_date }}
+                </td>
+                <td class="py-3 px-4 text-muted-foreground whitespace-nowrap">
+                  {{ day.day_name || day.display_date }}
+                </td>
+                <td class="py-3 px-4 text-right font-bold text-primary tabular-nums whitespace-nowrap">
+                  ฿{{ day.sales.toLocaleString('th-TH') }}
+                </td>
+                <td class="py-3 px-4 text-center font-medium text-foreground tabular-nums whitespace-nowrap">
+                  {{ $t('analytics_unit_bills', { count: day.order_count }) }}
+                </td>
+                <td class="py-3 px-4 text-center text-muted-foreground tabular-nums whitespace-nowrap">
+                  {{ $t('analytics_unit_dishes', { count: day.items_count || 0 }) }}
+                </td>
+                <td class="py-3 px-4 text-right text-muted-foreground tabular-nums whitespace-nowrap">
+                  ฿{{ (day.avg_order_value || 0).toLocaleString('th-TH') }}
+                </td>
+                <td class="py-3 px-4 text-center text-muted-foreground whitespace-nowrap">
+                  🪑 {{ day.dinein_count || 0 }} / 🥡 {{ day.takeaway_count || 0 }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-          </div>
-
+      <!-- 4. MENU ITEMS SALES BREAKDOWN (ตารางยอดขายทุกเมนูอาหาร) -->
+      <div class="p-5 sm:p-6 bg-card border border-border/80 rounded-3xl shadow-xs space-y-4">
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+            <Award class="w-4 h-4 text-amber-500" />
+            <span>{{ $t('analytics_top_menu_title') }}</span>
+          </h3>
+          <p class="text-xs text-muted-foreground mt-0.5 font-normal">
+            {{ $t('analytics_top_menu_desc') }}
+          </p>
         </div>
 
+        <div v-if="analyticsData.top_items.length > 0" class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-muted/40 border-b border-border/80 text-muted-foreground font-semibold">
+              <tr>
+                <th class="py-3 px-3 text-center w-12">{{ $t('analytics_col_rank') }}</th>
+                <th class="py-3 px-4">{{ $t('analytics_col_dish') }}</th>
+                <th class="py-3 px-4 text-center">{{ $t('analytics_col_qty') }}</th>
+                <th class="py-3 px-4 text-right">{{ $t('analytics_col_sales') }}</th>
+                <th class="py-3 px-4 text-right w-36">{{ $t('analytics_col_share') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border/60">
+              <tr 
+                v-for="(item, idx) in analyticsData.top_items" 
+                :key="idx"
+                class="hover:bg-muted/20 transition-colors"
+              >
+                <!-- Rank Badge -->
+                <td class="py-3.5 px-3 text-center">
+                  <span 
+                    v-if="idx === 0" 
+                    class="w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-xs inline-flex items-center justify-center shadow-2xs"
+                  >
+                    1
+                  </span>
+                  <span 
+                    v-else-if="idx === 1" 
+                    class="w-6 h-6 rounded-full bg-slate-400 text-white font-bold text-xs inline-flex items-center justify-center shadow-2xs"
+                  >
+                    2
+                  </span>
+                  <span 
+                    v-else-if="idx === 2" 
+                    class="w-6 h-6 rounded-full bg-amber-700 text-white font-bold text-xs inline-flex items-center justify-center shadow-2xs"
+                  >
+                    3
+                  </span>
+                  <span v-else class="text-muted-foreground font-medium text-xs">
+                    {{ idx + 1 }}
+                  </span>
+                </td>
+
+                <!-- Dish Name (Multilingual) -->
+                <td class="py-3.5 px-4 font-medium text-foreground">
+                  <div>
+                    <span>{{ getItemName(item) }}</span>
+                    <span v-if="getItemSubName(item)" class="text-[10px] text-muted-foreground font-normal block sm:inline sm:ml-1">
+                      ({{ getItemSubName(item) }})
+                    </span>
+                  </div>
+                </td>
+
+                <!-- Quantity Sold -->
+                <td class="py-3.5 px-4 text-center font-semibold text-foreground tabular-nums">
+                  {{ $t('analytics_unit_dishes', { count: item.quantity_sold }) }}
+                </td>
+
+                <!-- Total Sales -->
+                <td class="py-3.5 px-4 text-right font-bold text-primary tabular-nums">
+                  ฿{{ item.total_sales.toLocaleString('th-TH') }}
+                </td>
+
+                <!-- Share % Progress -->
+                <td class="py-3.5 px-4 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <div class="w-16 bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div class="bg-primary h-full rounded-full" :style="{ width: `${Math.min(100, (item.percentage || 0))}%` }"></div>
+                    </div>
+                    <span class="text-[11px] font-semibold text-muted-foreground tabular-nums">
+                      {{ item.percentage || 0 }}%
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="py-12 text-center text-xs text-muted-foreground">
+          {{ $t('analytics_empty_dishes') }}
+        </div>
+      </div>
+
+      <!-- 5. OPERATIONAL BREAKDOWN (CHANNELS & PREFERENCES) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Dining Channel Breakdown -->
+        <div class="p-5 sm:p-6 bg-card border border-border/80 rounded-3xl shadow-xs space-y-4">
+          <h3 class="text-sm font-bold text-foreground flex items-center gap-2">
+            <UtensilsCrossed class="w-4 h-4 text-primary" />
+            <span>{{ $t('analytics_channels_title') }}</span>
+          </h3>
+
+          <div class="space-y-3 pt-1">
+            <div class="p-3 bg-muted/20 border border-border/60 rounded-2xl space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="font-medium text-foreground">{{ $t('analytics_channel_dinein') }}</span>
+                <span class="font-bold text-foreground">฿{{ (analyticsData.dining_types?.dinein.sales || 0).toLocaleString('th-TH') }}</span>
+              </div>
+              <div class="text-[10px] text-muted-foreground flex justify-between">
+                <span>{{ $t('analytics_unit_bills', { count: analyticsData.dining_types?.dinein.count || 0 }) }}</span>
+                <span>{{ analyticsData.dining_types?.dinein.percentage || 0 }}%</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-muted/20 border border-border/60 rounded-2xl space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="font-medium text-foreground">{{ $t('analytics_channel_takeaway') }}</span>
+                <span class="font-bold text-foreground">฿{{ (analyticsData.dining_types?.takeaway.sales || 0).toLocaleString('th-TH') }}</span>
+              </div>
+              <div class="text-[10px] text-muted-foreground flex justify-between">
+                <span>{{ $t('analytics_unit_bills', { count: analyticsData.dining_types?.takeaway.count || 0 }) }}</span>
+                <span>{{ analyticsData.dining_types?.takeaway.percentage || 0 }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spiciness Preference Breakdown -->
+        <div class="p-5 sm:p-6 bg-card border border-border/80 rounded-3xl shadow-xs space-y-4">
+          <h3 class="text-sm font-bold text-foreground flex items-center gap-2">
+            <Flame class="w-4 h-4 text-rose-500" />
+            <span>{{ $t('analytics_spice_title') }}</span>
+          </h3>
+
+          <div class="space-y-2 pt-1 text-xs">
+            <div class="flex justify-between items-center p-2 bg-muted/20 rounded-xl">
+              <span>{{ $t('analytics_spice_level_0') }}</span>
+              <span class="font-bold text-foreground">{{ $t('analytics_unit_dishes', { count: analyticsData.spice_distribution?.['0'] || 0 }) }}</span>
+            </div>
+            <div class="flex justify-between items-center p-2 bg-muted/20 rounded-xl">
+              <span>{{ $t('analytics_spice_level_1') }}</span>
+              <span class="font-bold text-foreground">{{ $t('analytics_unit_dishes', { count: analyticsData.spice_distribution?.['1'] || 0 }) }}</span>
+            </div>
+            <div class="flex justify-between items-center p-2 bg-muted/20 rounded-xl">
+              <span>{{ $t('analytics_spice_level_2') }}</span>
+              <span class="font-bold text-foreground">{{ $t('analytics_unit_dishes', { count: analyticsData.spice_distribution?.['2'] || 0 }) }}</span>
+            </div>
+            <div class="flex justify-between items-center p-2 bg-muted/20 rounded-xl">
+              <span>{{ $t('analytics_spice_level_3') }}</span>
+              <span class="font-bold text-foreground">{{ $t('analytics_unit_dishes', { count: analyticsData.spice_distribution?.['3'] || 0 }) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Add-ons Breakdown -->
+        <div class="p-5 sm:p-6 bg-card border border-border/80 rounded-3xl shadow-xs space-y-4">
+          <h3 class="text-sm font-bold text-foreground flex items-center gap-2">
+            <Plus class="w-4 h-4 text-primary" />
+            <span>{{ $t('analytics_addons_title') }}</span>
+          </h3>
+
+          <div v-if="analyticsData.top_addons && analyticsData.top_addons.length > 0" class="space-y-2 pt-1 text-xs">
+            <div 
+              v-for="(addon, aIdx) in analyticsData.top_addons" 
+              :key="aIdx"
+              class="flex justify-between items-center p-2 bg-muted/20 rounded-xl"
+            >
+              <span class="truncate">
+                <span>{{ getAddonName(addon) }}</span>
+                <span v-if="getAddonSubName(addon)" class="text-[10px] text-muted-foreground ml-1 font-normal">({{ getAddonSubName(addon) }})</span>
+              </span>
+              <span class="font-bold text-foreground shrink-0 ml-2 tabular-nums">{{ $t('analytics_unit_times', { count: addon.count }) }}</span>
+            </div>
+          </div>
+          <div v-else class="py-6 text-center text-xs text-muted-foreground">
+            {{ $t('analytics_addons_empty') }}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 6. HOURLY BREAKDOWN TABLE (สถิติแจกแจงรายชั่วโมง) -->
+      <div v-if="analyticsData.hourly_sales && analyticsData.hourly_sales.length > 0" class="p-5 sm:p-6 bg-card border border-border/80 rounded-3xl shadow-xs space-y-4">
+        <h3 class="text-base font-bold text-foreground flex items-center gap-2">
+          <Clock class="w-4 h-4 text-primary" />
+          <span>{{ $t('analytics_hourly_title') }}</span>
+        </h3>
+
+        <div class="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-8 gap-2.5">
+          <div 
+            v-for="h in analyticsData.hourly_sales" 
+            :key="h.hour"
+            class="p-3 bg-muted/20 border border-border/60 rounded-2xl text-center"
+            :class="{ 'border-primary/40 bg-primary/5': h.sales > 0 }"
+          >
+            <span class="text-xs font-semibold text-foreground block">{{ h.display }}</span>
+            <span class="text-xs font-bold text-primary block mt-1 tabular-nums">฿{{ h.sales.toLocaleString('th-TH') }}</span>
+            <span class="text-[10px] text-muted-foreground block">{{ $t('analytics_unit_bills', { count: h.count }) }}</span>
+          </div>
+        </div>
       </div>
 
     </div>

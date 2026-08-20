@@ -29,6 +29,20 @@ const isTrialExpired = computed(() => {
 })
 
 const logout = async () => {
+  const swal = useAlert()
+  const result = await swal.fire({
+    title: (useNuxtApp().$i18n.t('confirm_logout_title') as string) || 'ยืนยันการออกจากระบบ',
+    text: (useNuxtApp().$i18n.t('confirm_logout_text') as string) || 'คุณต้องการออกจากระบบ ChiiMenu ใช่หรือไม่?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e11d48',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: (useNuxtApp().$i18n.t('btn_logout_confirm') as string) || 'ออกจากระบบ',
+    cancelButtonText: (useNuxtApp().$i18n.t('btn_cancel') as string) || 'ยกเลิก'
+  })
+
+  if (!result.isConfirmed) return
+
   clearStore()
   await client.auth.signOut()
   router.push('/login')
@@ -76,13 +90,13 @@ const handleLocaleChange = (e: Event) => {
           {{ $t('nav_qr_codes') }}
         </NuxtLink>
         <NuxtLink to="/merchant/billing" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          แพ็กเกจ/ต่ออายุ
+          💳 {{ $t('nav_billing') }}
         </NuxtLink>
         <NuxtLink to="/merchant/guide" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          📚 คู่มือการใช้งาน
+          📖 {{ $t('nav_guide') }}
         </NuxtLink>
         <NuxtLink v-if="isAdmin" to="/admin/stores" class="block px-6 py-3 border-l-4 border-transparent text-sm font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-colors" active-class="bg-orange-100 border-orange-600 text-orange-700">
-          ⭐ Admin
+          ⭐ {{ $t('nav_admin') }}
         </NuxtLink>
       </nav>
 
@@ -90,7 +104,7 @@ const handleLocaleChange = (e: Event) => {
       <div class="p-4 border-t border-border bg-muted/10 shrink-0">
         <div class="flex items-center justify-between text-[11px]">
           <span class="font-bold text-foreground">ChiiMenu Platform</span>
-          <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.0</span>
+          <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.1.0</span>
         </div>
         <p class="text-[10px] text-muted-foreground mt-0.5">Official Production Release</p>
       </div>
@@ -291,13 +305,13 @@ const handleLocaleChange = (e: Event) => {
             {{ $t('nav_qr_codes') }}
           </NuxtLink>
           <NuxtLink to="/merchant/billing" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            แพ็กเกจ/ต่ออายุ
+            💳 {{ $t('nav_billing') }}
           </NuxtLink>
           <NuxtLink to="/merchant/guide" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            📚 คู่มือการใช้งาน
+            📖 {{ $t('nav_guide') }}
           </NuxtLink>
           <NuxtLink v-if="isAdmin" to="/admin/stores" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-colors" active-class="bg-orange-100 border-orange-600 text-orange-700">
-            ⭐ Admin
+            ⭐ {{ $t('nav_admin') }}
           </NuxtLink>
         </div>
         

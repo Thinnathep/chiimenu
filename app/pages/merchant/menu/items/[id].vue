@@ -262,9 +262,23 @@ const submitForm = async () => {
 }
 
 const deleteItem = async () => {
-  if (!confirm(useNuxtApp().$i18n.t('item_not_found_msg') + '?')) return
+  const swal = useAlert()
+  const result = await swal.fire({
+    title: (useNuxtApp().$i18n.t('item_delete_title') as string) || 'ยืนยันการลบเมนูอาหาร?',
+    text: (useNuxtApp().$i18n.t('item_delete_text') as string) || 'ต้องการลบเมนูนี้ออกจากร้านค้าใช่หรือไม่? (ข้อมูลที่ลบจะไม่สามารถกู้คืนได้)',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e11d48',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'ใช่, ลบเมนูนี้เลย',
+    cancelButtonText: (useNuxtApp().$i18n.t('btn_cancel') as string) || 'ยกเลิก'
+  })
+
+  if (!result.isConfirmed) return
+
   saving.value = true
   await client.from('menu_items').delete().eq('id', itemId)
+  useToast().success('ลบเมนูอาหารเรียบร้อยแล้ว')
   router.push('/merchant/menu')
 }
 </script>

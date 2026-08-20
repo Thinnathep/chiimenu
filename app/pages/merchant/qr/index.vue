@@ -125,7 +125,20 @@ const toggleStatus = async (qr: any) => {
 }
 
 const deleteQr = async (id: string) => {
-  if (!confirm(useNuxtApp().$i18n.t('qr_delete_confirm'))) return
+  const swal = useAlert()
+  const result = await swal.fire({
+    title: (useNuxtApp().$i18n.t('qr_delete_title') as string) || 'ยืนยันการลบ QR Code?',
+    text: (useNuxtApp().$i18n.t('qr_delete_text') as string) || 'ต้องการลบ QR Code นี้ใช่หรือไม่? (เมื่อลบแล้ว โต๊ะนี้จะไม่สามารถสแกนสั่งอาหารได้)',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e11d48',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'ใช่, ลบเลย',
+    cancelButtonText: (useNuxtApp().$i18n.t('btn_cancel') as string) || 'ยกเลิก'
+  })
+
+  if (!result.isConfirmed) return
+
   await (client as any).from('qr_codes').delete().eq('id', id)
   useToast().success('ลบ QR Code เรียบร้อยแล้ว')
   await fetchQrCodes()

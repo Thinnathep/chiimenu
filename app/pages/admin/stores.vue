@@ -479,6 +479,20 @@ const saveStoreInfo = async () => {
 }
 
 const handleLogout = async () => {
+  const swal = useAlert()
+  const result = await swal.fire({
+    title: (useNuxtApp().$i18n.t('confirm_logout_title') as string) || 'ยืนยันการออกจากระบบ',
+    text: 'คุณต้องการออกจากระบบผู้ดูแลระบบ (Admin) ใช่หรือไม่?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e11d48',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: (useNuxtApp().$i18n.t('btn_logout_confirm') as string) || 'ออกจากระบบ',
+    cancelButtonText: (useNuxtApp().$i18n.t('btn_cancel') as string) || 'ยกเลิก'
+  })
+
+  if (!result.isConfirmed) return
+
   await client.auth.signOut()
   navigateTo('/login')
 }

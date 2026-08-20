@@ -61,7 +61,13 @@ export default defineNuxtConfig({
     defaultLocale: 'th',
     strategy: 'no_prefix',
     langDir: 'locales/',
-    detectBrowserLanguage: false
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      redirectOn: 'root',
+      alwaysRedirect: false,
+      fallbackLocale: 'th'
+    }
   },
 
   googleFonts: {

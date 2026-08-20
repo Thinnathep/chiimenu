@@ -55,9 +55,17 @@ const isSubmitting = ref(false)
 const orderSuccess = ref(false)
 
 // === Item Selection Modal ===
+interface AddonOptionSelection {
+  name: string
+  name_th?: string
+  name_en?: string
+  name_zh?: string
+  price: number
+}
+
 const selectedItem = ref<any>(null)
 const itemSpiceLevel = ref<number>(1)
-const itemAddons = ref<Record<string, { name: string; price: number }>>({})
+const itemAddons = ref<Record<string, AddonOptionSelection>>({})
 const itemQuantity = ref<number>(1)
 const itemNote = ref('')
 
@@ -245,6 +253,9 @@ const closeItemModal = () => {
 const selectAddonOption = (groupId: string, option: any) => {
   itemAddons.value[groupId] = {
     name: option[`name_${locale.value}`] || option.name_en || option.name_th,
+    name_th: option.name_th || '',
+    name_en: option.name_en || '',
+    name_zh: option.name_zh || '',
     price: Number(option.extra_price !== undefined ? option.extra_price : (option.price_delta || option.price || 0))
   }
 }
