@@ -35,12 +35,24 @@ export default defineEventHandler(async (event) => {
                 if (targetSlug && supabase) {
                     const { data: storeData, error: findError } = await supabase
                         .from('stores')
-                        .select('id, name, slug')
+                        .select('id, name, slug, line_user_id')
                         .eq('slug', targetSlug)
                         .single();
 
                     if (storeData && !findError) {
-                        // Update line_user_id in DB
+                        // 🛡️ Security Check: Anti-Hijacking Protection
+                        // If store is already linked to another LINE User ID, reject unverified overwrite
+                        if (storeData.line_user_id && storeData.line_user_id.trim() && storeData.line_user_id.trim() !== userId) {
+                            await replyLineMessage(replyToken, lineToken, [
+                                {
+                                    type: 'text',
+                                    text: `🔒 ไม่สามารถผูกร้านค้าได้\n\nร้าน "${storeData.name}" มีการเชื่อมต่อกับบัญชี LINE อื่นอยู่แล้ว\n\n🛡️ เพื่อความปลอดภัยของข้อมูลออเดอร์ หากคุณเป็นเจ้าของร้าน กรุณาไปที่เมนู "ตั้งค่าร้านค้า" ในระบบ ChiiMenu แล้วกดยกเลิกการผูกเดิมก่อน จึงจะสามารถผูกบัญชีใหม่ได้ค่ะ`
+                                }
+                            ]);
+                            continue;
+                        }
+
+                        // Update line_user_id in DB safely
                         await supabase
                             .from('stores')
                             .update({ line_user_id: userId, updated_at: new Date().toISOString() })

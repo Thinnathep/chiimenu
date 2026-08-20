@@ -1,6 +1,29 @@
-import { serverSupabaseServiceRole, serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole, serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
+    // 🛡️ Production Security Guard: Debug endpoint is blocked in production unless called by an authenticated Admin
+    if (process.env.NODE_ENV === 'production' && !import.meta.dev) {
+        let user = null
+        try {
+            user = await serverSupabaseUser(event)
+        } catch {}
+
+        const config = useRuntimeConfig(event)
+        const adminEmails = (config.public?.adminEmails || process.env.ADMIN_EMAILS || '')
+            .split(',')
+            .map((e: string) => e.trim().toLowerCase())
+            .filter(Boolean)
+
+        const isEmailAdmin = user?.email ? adminEmails.includes(user.email.toLowerCase()) : false
+
+        if (!user || !isEmailAdmin) {
+            throw createError({
+                statusCode: 404,
+                statusMessage: 'Not Found'
+            })
+        }
+    }
+
     let supabase: any;
     try {
         supabase = await serverSupabaseServiceRole(event);

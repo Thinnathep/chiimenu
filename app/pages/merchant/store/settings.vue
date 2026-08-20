@@ -16,7 +16,8 @@ import {
   Layers,
   Phone,
   Type,
-  RotateCcw
+  RotateCcw,
+  ShieldCheck
 } from 'lucide-vue-next'
 
 definePageMeta({
@@ -645,10 +646,14 @@ const submitForm = async () => {
         <!-- Connected State (Clean & Professional) -->
         <div v-if="form.line_user_id" class="p-5 rounded-2xl bg-white/90 dark:bg-card/90 border border-emerald-200 space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="space-y-1">
+            <div class="space-y-1.5">
               <div class="flex items-center gap-2 text-xs font-bold text-emerald-800">
                 <CheckCircle2 class="w-4 h-4 text-emerald-600" />
                 <span>ระบบพร้อมส่งออเดอร์เข้า LINE ของคุณแล้ว</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <ShieldCheck class="w-3 h-3 text-emerald-700" />
+                  <span>ล็อกสิทธิ์เฉพาะเจ้าของร้าน (Protected)</span>
+                </span>
               </div>
               <p class="text-[11px] text-muted-foreground">
                 LINE Official Account: <strong>@946vhuev (ChiiMenu Alert)</strong>

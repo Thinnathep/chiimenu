@@ -1,6 +1,39 @@
+import { serverSupabaseUser } from '#supabase/server'
+import { createClient } from '@supabase/supabase-js'
+
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
+  // 🛡️ Security Guard: Require authenticated merchant/admin to prevent AI quota exhaustion
+  let user: any = null
+  try {
+    user = await serverSupabaseUser(event)
+  } catch {}
+
+  const config = useRuntimeConfig(event)
+  const rawUrl = (config.public as any)?.supabaseUrl || (config.public as any)?.supabase?.url || process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL || ''
+  const rawKey = (config.public as any)?.supabaseKey || (config.public as any)?.supabase?.key || process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_KEY || ''
   
+  if (!user) {
+    const authHeader = getHeader(event, 'authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '').trim()
+      if (token && rawUrl && rawKey) {
+        const tokenClient = createClient(String(rawUrl), String(rawKey))
+        try {
+          const { data: userData } = await tokenClient.auth.getUser(token)
+          if (userData?.user) user = userData.user
+        } catch {}
+      }
+    }
+  }
+
+  if (!user) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      message: 'You must be logged in to use the AI translation service.'
+    })
+  }
+
   if (!config.cloudflareAccountId || !config.cloudflareApiToken) {
     throw createError({
       statusCode: 500,
