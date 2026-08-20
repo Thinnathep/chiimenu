@@ -31,6 +31,31 @@ const storeTypes = [
   { value: 'drink', label: 'ร้านเครื่องดื่ม (Drink / Bar)' }
 ]
 
+// Prevent duplicate store creation: Check if user already owns a store on mount
+onMounted(async () => {
+  const { data: authData } = await client.auth.getUser()
+  if (authData?.user?.id) {
+    const { data: existingStores } = await (client as any)
+      .from('stores')
+      .select('id, name')
+      .eq('owner_id', authData.user.id)
+      .limit(1)
+
+    const firstStore = (existingStores as any[])?.[0]
+    if (firstStore) {
+      const storeName = firstStore.name || ''
+      const swal = useAlert()
+      await swal.fire({
+        title: 'คุณมีร้านค้าอยู่ในระบบแล้ว',
+        text: `บัญชีของคุณเป็นเจ้าของร้าน "${storeName}" อยู่แล้ว หากต้องการแก้ไขข้อมูลร้าน สามารถทำได้ที่หน้าตั้งค่าร้านค้า`,
+        icon: 'info',
+        confirmButtonText: 'ไปที่หน้าตั้งค่าร้านค้า'
+      })
+      router.replace('/merchant/store/settings')
+    }
+  }
+})
+
 // Auto-generate slug from name (simple version)
 watch(() => form.value.name, (newName) => {
   if (newName && !form.value.slug) {
@@ -83,6 +108,16 @@ const submitForm = async () => {
     
     const ownerId = authData.user.id
 
+    // Strict Check: Check if user already owns a store
+    const { count: existingStoreCount } = await client
+      .from('stores')
+      .select('*', { count: 'exact', head: true })
+      .eq('owner_id', ownerId)
+
+    if (existingStoreCount && existingStoreCount > 0) {
+      throw new Error('บัญชีของคุณมีร้านค้าในระบบอยู่แล้ว ไม่สามารถสร้างร้านค้าซ้ำได้')
+    }
+
     // Duplicate name warning
     const { count: nameCount } = await client
       .from('stores')
@@ -127,8 +162,12 @@ const submitForm = async () => {
     // Redirect to dashboard
     router.push('/merchant/dashboard')
   } catch (e: any) {
-    if (e.code === '23505') { // Unique violation for slug
-      errorMsg.value = useNuxtApp().$i18n.t('store_err_slug')
+    if (e.code === '23505') {
+      if (e.message?.includes('owner_id') || e.details?.includes('owner_id')) {
+        errorMsg.value = 'บัญชีของคุณมีร้านค้าในระบบอยู่แล้ว ไม่สามารถสร้างร้านค้าซ้ำได้'
+      } else {
+        errorMsg.value = useNuxtApp().$i18n.t('store_err_slug')
+      }
     } else {
       errorMsg.value = e.message || useNuxtApp().$i18n.t('store_err_create')
     }

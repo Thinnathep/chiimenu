@@ -65,7 +65,23 @@ const fetchOrders = async () => {
 
 
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const datePart = new Intl.DateTimeFormat('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(date)
+  
+  const timePart = new Intl.DateTimeFormat('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date)
+  
+  return `${datePart}, ${timePart} น.`
 }
 </script>
 
@@ -83,9 +99,14 @@ const formatDate = (dateStr: string) => {
           </p>
         </div>
       </div>
-      <button @click="fetchOrders" class="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-semibold transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto border">
-        <span>🔄 รีเฟรชรายการ</span>
-      </button>
+      <div class="flex items-center gap-2 self-start sm:self-auto">
+        <NuxtLink to="/merchant/analytics" class="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 border border-primary/20">
+          <span>📊 ดูรายงานยอดขาย</span>
+        </NuxtLink>
+        <button @click="fetchOrders" class="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-semibold transition-colors inline-flex items-center gap-1.5 border">
+          <span>🔄 รีเฟรช</span>
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="p-8 text-center text-muted-foreground bg-card rounded-lg border">

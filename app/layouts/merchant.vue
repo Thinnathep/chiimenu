@@ -60,8 +60,11 @@ const handleLocaleChange = (e: Event) => {
         <NuxtLink v-if="!isTrialExpired" to="/merchant/dashboard" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
           {{ $t('nav_dashboard') }}
         </NuxtLink>
+        <NuxtLink v-if="!isTrialExpired" to="/merchant/analytics" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
+          {{ $t('nav_analytics') }}
+        </NuxtLink>
         <NuxtLink v-if="!isTrialExpired" to="/merchant/orders" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          ประวัติออเดอร์
+          {{ $t('nav_orders') }}
         </NuxtLink>
         <NuxtLink v-if="!isTrialExpired" to="/merchant/store/settings" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
           {{ $t('nav_store_settings') }}
@@ -272,8 +275,11 @@ const handleLocaleChange = (e: Event) => {
           <NuxtLink to="/merchant/dashboard" @click="mobileMenuOpen = false" class="block px-6 py-3 text-base font-medium transition-colors" active-class="bg-primary/10 border-l-4 border-primary text-primary">
             {{ $t('nav_dashboard') }}
           </NuxtLink>
+          <NuxtLink to="/merchant/analytics" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
+            {{ $t('nav_analytics') }}
+          </NuxtLink>
           <NuxtLink to="/merchant/orders" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            ประวัติออเดอร์
+            {{ $t('nav_orders') }}
           </NuxtLink>
           <NuxtLink to="/merchant/store/settings" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
             {{ $t('nav_store_settings') }}

@@ -113,7 +113,7 @@ const textLayerStyle = computed(() => ({
         </h1>
         
         <p class="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl lg:max-w-3xl animate-fade-in-up font-medium leading-relaxed" style="animation-delay: 0.2s;">
-          ลดข้อผิดพลาดในการรับออเดอร์ ขจัดปัญหาอุปสรรคทางภาษา พร้อมระบบแจ้งเตือนผ่าน LINE ทันที ไม่ต้องลงทุนซื้ออุปกรณ์เพิ่มเติม
+          ลดข้อผิดพลาดในการรับออเดอร์ ขจัดปัญหาอุปสรรคทางภาษา พร้อมระบบแจ้งเตือนผ่าน LINE ทันที 
         </p>
         
         <!-- CTA Action Area -->

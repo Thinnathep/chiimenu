@@ -22,13 +22,15 @@ export const useCurrentStore = () => {
 
       const userId = authData.user.id
 
-      // Fetch store and admin status in parallel
+      // Fetch store and admin status in parallel with deterministic sort
       const [storeRes, adminRes] = await Promise.all([
         client
           .from('stores')
           .select('*')
           .eq('owner_id', userId)
+          .order('updated_at', { ascending: false })
           .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
           .limit(1),
         client
           .from('admins')

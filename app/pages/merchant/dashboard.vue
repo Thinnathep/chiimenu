@@ -167,6 +167,16 @@ const isTrial = computed(() => store.value?.plan_status === 'trial')
                 </li>
               </ul>
             </div>
+
+            <div class="mt-4 pt-3 border-t border-border/50 flex justify-between items-center text-xs">
+              <NuxtLink to="/merchant/orders" class="text-muted-foreground hover:text-foreground transition-colors font-medium">
+                ดูออเดอร์ทั้งหมด
+              </NuxtLink>
+              <NuxtLink to="/merchant/analytics" class="text-primary hover:underline font-bold inline-flex items-center gap-1">
+                <span>📊 รายงานยอดขาย (Analytics)</span>
+                <span>→</span>
+              </NuxtLink>
+            </div>
           </div>
         </div>
 

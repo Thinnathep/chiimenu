@@ -1,14 +1,23 @@
 import { serverSupabaseServiceRole, serverSupabaseClient } from '#supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 const MAX_REQUESTS = 5;
 const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 export default defineEventHandler(async (event) => {
+    const config = useRuntimeConfig(event)
+    const rawUrl = (config.public as any)?.supabaseUrl || (config.public as any)?.supabase?.url || process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL || ''
+    const secretKey = (config as any)?.supabase?.secretKey || process.env.SUPABASE_SECRET_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || ''
+
     let supabase: any;
-    try {
-        supabase = await serverSupabaseServiceRole(event);
-    } catch {
-        supabase = await serverSupabaseClient(event);
+    if (secretKey && rawUrl) {
+        supabase = createClient(String(rawUrl), String(secretKey))
+    } else {
+        try {
+            supabase = await serverSupabaseServiceRole(event);
+        } catch {
+            supabase = await serverSupabaseClient(event);
+        }
     }
 
     // 1. Rate Limiting Check (Safe & Non-blocking)
@@ -89,7 +98,8 @@ export default defineEventHandler(async (event) => {
         }
 
         // 4. Save to Database (Table `orders`)
-        const { data: order, error: insertError } = await supabase
+        let order: any = null;
+        const { data: insertedOrder, error: insertError } = await supabase
             .from('orders')
             .insert({
                 store_id: storeId,
@@ -101,13 +111,25 @@ export default defineEventHandler(async (event) => {
             .select()
             .single() as any;
 
-        if (insertError) {
-            console.error('Failed to insert order:', insertError);
-            throw createError({
-                statusCode: 500,
-                statusMessage: 'Internal Server Error',
-                message: 'Failed to save order: ' + JSON.stringify(insertError)
+        if (!insertError && insertedOrder) {
+            order = insertedOrder;
+        } else {
+            // Try calling Security Definer RPC submit_customer_order
+            const { data: rpcOrder, error: rpcError } = await supabase.rpc('submit_customer_order', {
+                p_store_id: storeId,
+                p_table_no: tableNo,
+                p_items: cart
             });
+            if (!rpcError && rpcOrder) {
+                order = rpcOrder;
+            } else {
+                console.error('Failed to insert order via table & RPC:', insertError, rpcError);
+                throw createError({
+                    statusCode: 500,
+                    statusMessage: 'Internal Server Error',
+                    message: 'Failed to save order: ' + (insertError?.message || rpcError?.message || 'Database insert error')
+                });
+            }
         }
 
         // 5. Send to LINE OA

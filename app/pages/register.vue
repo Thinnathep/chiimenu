@@ -69,8 +69,24 @@ const handleRegister = async () => {
     }
     actualEmail = `${actualEmail}@phone.chiimenu.com`
   }
+
+  // 1. Pre-check: Check if Email or Phone is already registered in profiles
+  const phoneVal = loginId.value.trim()
+  const { data: existingProfiles, error: profCheckErr } = await client
+    .from('profiles')
+    .select('id, email, phone')
+    .or(`email.eq.${actualEmail},phone.eq.${phoneVal}`)
+    .limit(1)
+
+  if (existingProfiles && existingProfiles.length > 0) {
+    errorMsg.value = locale.value === 'th' 
+      ? 'อีเมลหรือเบอร์โทรนี้ถูกลงทะเบียนไว้ในระบบแล้ว กรุณาเข้าสู่ระบบด้วยบัญชีเดิม' 
+      : 'This email or phone number is already registered. Please sign in.'
+    loading.value = false
+    return
+  }
   
-  // Duplicate Name Check
+  // 2. Duplicate Name Check Warning
   const { count } = await client
     .from('profiles')
     .select('*', { count: 'exact', head: true })
