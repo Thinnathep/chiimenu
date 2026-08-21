@@ -42,26 +42,39 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { name_th, description_th } = body
+  const { name_th, description_th, address_th, type } = body
 
-  if (!name_th) {
+  if (!name_th && !description_th && !address_th) {
     throw createError({
       statusCode: 400,
-      message: 'Thai name is required'
+      message: 'Thai text is required for translation'
     })
   }
 
   const model = '@cf/meta/llama-3.1-8b-instruct'
   const url = `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountId}/ai/run/${model}`
 
+  const isStore = type === 'store' || address_th !== undefined
+
   // Prompt kept short to avoid truncated responses from the model
-  const systemPrompt = `You are a Thai-to-English/Chinese food translator.
+  const systemPrompt = isStore
+    ? `You are a Thai-to-English/Chinese restaurant info translator.
+Translate Thai restaurant name, description, and address into English and Simplified Chinese.
+If description is empty, generate an appetizing, friendly 1-sentence store introduction.
+If address is empty, return empty string for addresses.
+Reply ONLY with valid JSON, no markdown, no extra text.
+Format: {"name_en":"","description_en":"","address_en":"","name_zh":"","description_zh":"","address_zh":""}`
+    : `You are a Thai-to-English/Chinese food translator.
 Translate the Thai menu item name and description into English and Simplified Chinese.
 If description is empty, write a short appetizing one-line explanation for tourists.
 Reply ONLY with valid JSON, no markdown, no extra text.
 Format: {"name_en":"","description_en":"","name_zh":"","description_zh":""}`
 
-  const userPrompt = `Name: ${name_th}
+  const userPrompt = isStore
+    ? `Store Name: ${name_th || ''}
+Description: ${description_th || ''}
+Address: ${address_th || ''}`
+    : `Name: ${name_th}
 Desc: ${description_th || ''}`
 
   // Retry up to 2 times if AI returns invalid JSON
@@ -81,7 +94,7 @@ Desc: ${description_th || ''}`
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          max_tokens: 300
+          max_tokens: 450
         })
       })
 
@@ -102,12 +115,14 @@ Desc: ${description_th || ''}`
       if (typeof jsonResponse.result?.response === 'object' && jsonResponse.result.response !== null) {
         const r = jsonResponse.result.response
         // Validate required fields exist
-        if (r.name_en !== undefined && r.name_zh !== undefined) {
+        if (r.name_en !== undefined || r.name_zh !== undefined || r.description_en !== undefined) {
           return {
             name_en: r.name_en || '',
             description_en: r.description_en || '',
+            address_en: r.address_en || '',
             name_zh: r.name_zh || '',
-            description_zh: r.description_zh || ''
+            description_zh: r.description_zh || '',
+            address_zh: r.address_zh || ''
           }
         }
       }
@@ -137,8 +152,10 @@ Desc: ${description_th || ''}`
       return {
         name_en: parsed.name_en || '',
         description_en: parsed.description_en || '',
+        address_en: parsed.address_en || '',
         name_zh: parsed.name_zh || '',
-        description_zh: parsed.description_zh || ''
+        description_zh: parsed.description_zh || '',
+        address_zh: parsed.address_zh || ''
       }
     } catch (error: any) {
       lastError = error.message || 'Translation failed'

@@ -589,7 +589,25 @@ const formatPrice = (price: number) => {
 const getStoreName = () => {
   if (!store.value) return 'ChiiMenu'
   const l = locale.value
-  return store.value[`name_${l}`] || store.value.name_en || store.value.name
+  if (l === 'en' && store.value.name_en) return store.value.name_en
+  if (l === 'zh' && store.value.name_zh) return store.value.name_zh
+  return store.value.name || store.value.name_en || 'ChiiMenu'
+}
+
+const getStoreDescription = () => {
+  if (!store.value) return ''
+  const l = locale.value
+  if (l === 'en' && store.value.description_en) return store.value.description_en
+  if (l === 'zh' && store.value.description_zh) return store.value.description_zh
+  return store.value.description || store.value.description_en || ''
+}
+
+const getStoreAddress = () => {
+  if (!store.value) return ''
+  const l = locale.value
+  if (l === 'en' && store.value.address_en) return store.value.address_en
+  if (l === 'zh' && store.value.address_zh) return store.value.address_zh
+  return store.value.address || store.value.address_en || ''
 }
 
 const getSpiceLabel = (lvl: number) => {
@@ -798,16 +816,16 @@ const getCategoryEmoji = (name: string) => {
                   <Sparkles class="w-4 h-4 shrink-0 text-amber-500" />
                 </div>
 
-                <p v-if="store.address" class="text-xs text-muted-foreground truncate flex items-center gap-1 mt-1">
+                <p v-if="getStoreAddress()" class="text-xs text-muted-foreground truncate flex items-center gap-1 mt-1">
                   <MapPin class="w-3.5 h-3.5 shrink-0" :style="{ color: palette.primary }" />
-                  <span class="truncate">{{ store.address }}</span>
+                  <span class="truncate">{{ getStoreAddress() }}</span>
                 </p>
               </div>
             </div>
 
             <!-- Store Description -->
-            <p v-if="store.description" class="text-xs text-muted-foreground leading-relaxed bg-muted/40 p-2.5 rounded-2xl border border-border/40">
-              {{ store.description }}
+            <p v-if="getStoreDescription()" class="text-xs text-muted-foreground leading-relaxed bg-muted/40 p-2.5 rounded-2xl border border-border/40">
+              {{ getStoreDescription() }}
             </p>
 
             <!-- Table QR Verification Tag -->

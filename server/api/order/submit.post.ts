@@ -97,10 +97,10 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        // 3. Get Store Info (to check line_user_id and plan status)
+        // 3. Get Store Info (to check line_user_id, is_active, and plan status)
         const { data: store, error: storeError } = await supabase
             .from('stores')
-            .select('id, name, name_en, slug, line_user_id, plan_status, trial_ends_at')
+            .select('id, name, name_en, slug, line_user_id, plan_status, trial_ends_at, is_active')
             .eq('id', storeId)
             .single() as any;
 
@@ -109,6 +109,15 @@ export default defineEventHandler(async (event) => {
                 statusCode: 404,
                 statusMessage: 'Not Found',
                 message: 'Store not found.'
+            });
+        }
+
+        // 3a. Check if store is open/active
+        if (store.is_active === false) {
+            throw createError({
+                statusCode: 403,
+                statusMessage: 'Forbidden',
+                message: 'ขณะนี้ร้านค้าปิดรับออเดอร์ชั่วคราว ไม่สามารถส่งคำสั่งซื้อได้ (Store is temporarily closed)'
             });
         }
 

@@ -46,8 +46,12 @@ const form = ref({
   name_zh: '',
   slug: '',
   description: '',
+  description_en: '',
+  description_zh: '',
   store_type: 'restaurant',
   address: '',
+  address_en: '',
+  address_zh: '',
   phone: '',
   default_language: 'th',
   line_user_id: '',
@@ -73,6 +77,12 @@ onMounted(async () => {
     if (store.value) {
       form.value = { 
         ...store.value,
+        name_en: store.value.name_en || '',
+        name_zh: store.value.name_zh || '',
+        description_en: store.value.description_en || '',
+        description_zh: store.value.description_zh || '',
+        address_en: store.value.address_en || '',
+        address_zh: store.value.address_zh || '',
         line_user_id: store.value.line_user_id || ''
       }
     }
@@ -137,23 +147,76 @@ watch(() => form.value.slug, (newSlug) => {
   }, 400)
 })
 
-// AI Translation for Store Name
-const translateStoreName = async () => {
-  if (!form.value.name.trim()) return
+// Instant Toggle Store Active / Closed Status
+const isTogglingStatus = ref(false)
+const toggleStoreStatus = async () => {
+  const newStatus = !form.value.is_active
+  form.value.is_active = newStatus
+  
+  if (form.value.id) {
+    isTogglingStatus.value = true
+    try {
+      const { error } = await (client as any)
+        .from('stores')
+        .update({ 
+          is_active: newStatus, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', form.value.id)
+        
+      if (error) throw error
+      
+      if (store.value) {
+        setStore({ ...store.value, is_active: newStatus })
+      }
+      useToast().success(newStatus ? '🟢 เปิดให้บริการร้านค้าเรียบร้อยแล้ว (Active)' : '🔴 ปิดร้านชั่วคราวเรียบร้อยแล้ว (Offline)')
+    } catch (err: any) {
+      console.error('Toggle store status error:', err)
+      form.value.is_active = !newStatus // Revert on failure
+      useToast().error('ไม่สามารถบันทึกสถานะร้านได้ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      isTogglingStatus.value = false
+    }
+  }
+}
+
+// AI Translation for All Store Info (Name, Description, Address)
+const translateStoreInfo = async () => {
+  const swal = useAlert()
+  if (!form.value.name.trim() && !form.value.description.trim() && !form.value.address.trim()) {
+    swal.fire('แจ้งเตือน', 'กรุณากรอกชื่อร้าน คำอธิบาย หรือที่อยู่ภาษาไทยก่อนทำการแปลค่ะ', 'warning')
+    return
+  }
   
   isTranslating.value = true
   try {
-    const response = await fetch('/api/translate', {
+    const data = await $fetch<any>('/api/translate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name_th: form.value.name, description_th: form.value.description })
+      body: { 
+        name_th: form.value.name, 
+        description_th: form.value.description,
+        address_th: form.value.address,
+        type: 'store'
+      }
     })
-    const data = await response.json()
-    if (data.error) throw new Error(data.message)
-    if (data.name_en) form.value.name_en = data.name_en
-    if (data.name_zh) form.value.name_zh = data.name_zh
+    
+    if (data) {
+      if (data.name_en && !form.value.name_en) form.value.name_en = data.name_en
+      else if (data.name_en) form.value.name_en = data.name_en
+
+      if (data.name_zh && !form.value.name_zh) form.value.name_zh = data.name_zh
+      else if (data.name_zh) form.value.name_zh = data.name_zh
+
+      if (data.description_en) form.value.description_en = data.description_en
+      if (data.description_zh) form.value.description_zh = data.description_zh
+      if (data.address_en) form.value.address_en = data.address_en
+      if (data.address_zh) form.value.address_zh = data.address_zh
+      
+      useToast().success('✨ แปลข้อมูลร้านค้าครบ 3 ภาษา (ไทย, อังกฤษ, จีน) สำเร็จแล้ว!')
+    }
   } catch (error: any) {
-    alert(error.message || 'การแปลล้มเหลว กรุณาลองใหม่อีกครั้ง')
+    console.error('Store AI Translate error:', error)
+    swal.fire('การแปลล้มเหลว', error.data?.message || error.message || 'ไม่สามารถติดต่อ AI Translation ได้ในขณะนี้', 'error')
   } finally {
     isTranslating.value = false
   }
@@ -260,9 +323,13 @@ const submitForm = async () => {
         name_en: form.value.name_en || null,
         name_zh: form.value.name_zh || null,
         slug: form.value.slug,
-        description: form.value.description,
+        description: form.value.description || null,
+        description_en: form.value.description_en || null,
+        description_zh: form.value.description_zh || null,
         store_type: form.value.store_type,
-        address: form.value.address,
+        address: form.value.address || null,
+        address_en: form.value.address_en || null,
+        address_zh: form.value.address_zh || null,
         phone: form.value.phone || null,
         default_language: form.value.default_language,
         line_user_id: form.value.line_user_id ? form.value.line_user_id.trim() : null,
@@ -366,21 +433,25 @@ const submitForm = async () => {
               </span>
             </div>
             <p class="text-xs text-muted-foreground mt-0.5">
-              {{ form.is_active ? 'ลูกค้าสามารถสแกน QR Code และกดสั่งอาหารได้ตามปกติ' : 'หน้าร้านจะแสดงป้ายแจ้งว่าปิดให้บริการชั่วคราว' }}
+              {{ form.is_active ? 'ลูกค้าสามารถสแกน QR Code และกดสั่งอาหารได้ตามปกติ' : 'หน้าร้านจะแสดงป้ายแจ้งว่าปิดให้บริการชั่วคราว และไม่อนุญาตให้สั่งอาหาร' }}
             </p>
           </div>
         </div>
 
         <button 
           type="button" 
-          @click="form.is_active = !form.is_active" 
-          class="relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
+          @click="toggleStoreStatus"
+          :disabled="isTogglingStatus" 
+          class="relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50"
           :class="form.is_active ? 'bg-emerald-600' : 'bg-slate-300'"
+          :title="form.is_active ? 'กดเพื่อปิดร้านชั่วคราว' : 'กดเพื่อเปิดให้บริการ'"
         >
           <span 
-            class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out"
+            class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out flex items-center justify-center text-[10px]"
             :class="form.is_active ? 'translate-x-7' : 'translate-x-0'"
-          ></span>
+          >
+            <span v-if="isTogglingStatus" class="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></span>
+          </span>
         </button>
       </div>
 
@@ -423,7 +494,7 @@ const submitForm = async () => {
         </div>
       </div>
 
-      <!-- 3. Store Identity & Multi-Language Names -->
+      <!-- 3. Store Identity & Multi-Language Names & Descriptions -->
       <div class="bg-card border rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
           <div>
@@ -431,23 +502,23 @@ const submitForm = async () => {
               <Globe class="w-4 h-4 text-primary" />
               ชื่อร้านค้าและ 3 ภาษา (Multi-Language)
             </h2>
-            <p class="text-xs text-muted-foreground mt-0.5">แปลชื่อร้านเป็นภาษาอังกฤษและภาษาจีนเพื่อต้อนรับชาวต่างชาติ</p>
+            <p class="text-xs text-muted-foreground mt-0.5">แปลชื่อร้าน คำอธิบาย และที่อยู่เป็นภาษาอังกฤษและภาษาจีนเพื่อต้อนรับชาวต่างชาติ</p>
           </div>
 
           <button 
             type="button"
-            @click="translateStoreName"
-            :disabled="isTranslating || !form.name"
+            @click="translateStoreInfo"
+            :disabled="isTranslating || (!form.name && !form.description && !form.address)"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-100 text-purple-700 hover:bg-purple-200 font-bold text-xs disabled:opacity-50 transition-colors shadow-2xs self-start sm:self-auto"
           >
             <span v-if="isTranslating" class="w-3.5 h-3.5 border-2 border-purple-700 border-t-transparent rounded-full animate-spin"></span>
             <Sparkles v-else class="w-3.5 h-3.5" />
-            <span>✨ แปลชื่อร้านอัตโนมัติ (AI)</span>
+            <span>{{ isTranslating ? 'กำลังแปลด้วย AI...' : '✨ แปลข้อมูลร้านอัตโนมัติ (AI)' }}</span>
           </button>
         </div>
 
+        <!-- 3.1 Store Names (3 Languages) -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-          
           <!-- Thai Name -->
           <div>
             <label class="block text-xs font-bold text-foreground mb-1.5">
@@ -487,10 +558,9 @@ const submitForm = async () => {
               class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
             />
           </div>
-
         </div>
 
-        <!-- Store Type & Default Lang -->
+        <!-- 3.2 Store Type & Default Language -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
           <div>
             <label class="block text-xs font-bold text-foreground mb-1.5">ประเภทธุรกิจ / ร้านอาหาร</label>
@@ -514,19 +584,48 @@ const submitForm = async () => {
           </div>
         </div>
 
-        <!-- Description & Story -->
-        <div class="pt-2">
-          <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายหรือเรื่องราวของร้าน (Description)</label>
-          <textarea 
-            v-model="form.description" 
-            rows="2" 
-            placeholder="เช่น ร้านอาหารพื้นเมืองเชียงราย รสชาติต้นตำรับ เปิดบริการมากว่า 20 ปี..."
-            class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
-          ></textarea>
+        <!-- 3.3 Descriptions (3 Languages) -->
+        <div class="space-y-4 pt-2 border-t border-border/40">
+          <h3 class="text-xs font-black text-foreground flex items-center gap-1.5">
+            <FileText class="w-3.5 h-3.5 text-primary" />
+            คำอธิบายหรือเรื่องราวของร้าน (Store Descriptions)
+          </h3>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายภาษาไทย</label>
+              <textarea 
+                v-model="form.description" 
+                rows="3" 
+                placeholder="เช่น ร้านอาหารพื้นเมืองเชียงราย รสชาติต้นตำรับ เปิดบริการมากว่า 20 ปี..."
+                class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all leading-relaxed"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายภาษาอังกฤษ (English)</label>
+              <textarea 
+                v-model="form.description_en" 
+                rows="3" 
+                placeholder="e.g. Authentic Northern Thai restaurant in Chiang Rai, serving local recipes..."
+                class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all leading-relaxed"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายภาษาจีน (中文简介)</label>
+              <textarea 
+                v-model="form.description_zh" 
+                rows="3" 
+                placeholder="例如 清莱正宗传统泰北特色风味餐厅，精选地道食材..."
+                class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all leading-relaxed"
+              ></textarea>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 4. Store Link & Location (Slug & Address) -->
+      <!-- 4. Store Link & Location (Slug & 3-Language Address) -->
       <div class="bg-card border rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         <div class="border-b pb-4">
           <h2 class="text-base font-black text-foreground flex items-center gap-2">
@@ -591,16 +690,41 @@ const submitForm = async () => {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
-          <!-- Address -->
-          <div>
-            <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้าน / จุดสังเกต</label>
-            <textarea 
-              v-model="form.address" 
-              rows="2" 
-              placeholder="เช่น 123 ถ.พหลโยธิน ต.เวียง อ.เมือง จ.เชียงราย (ตรงข้ามหอนาฬิกา)" 
-              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
-            ></textarea>
+        <!-- 3-Language Address Grid -->
+        <div class="space-y-4 pt-2 border-t border-border/40">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <!-- Thai Address -->
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้านภาษาไทย</label>
+              <input 
+                v-model="form.address" 
+                type="text" 
+                placeholder="เช่น เชียงราย (ตรงข้ามหอนาฬิกา)" 
+                class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+              />
+            </div>
+
+            <!-- English Address -->
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้านภาษาอังกฤษ (English)</label>
+              <input 
+                v-model="form.address_en" 
+                type="text" 
+                placeholder="e.g. Chiang Rai, Thailand" 
+                class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+              />
+            </div>
+
+            <!-- Chinese Address -->
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้านภาษาจีน (中文地址)</label>
+              <input 
+                v-model="form.address_zh" 
+                type="text" 
+                placeholder="例如 泰国 清莱府" 
+                class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+              />
+            </div>
           </div>
 
           <!-- Phone Number -->
@@ -610,7 +734,7 @@ const submitForm = async () => {
               v-model="form.phone" 
               type="text" 
               placeholder="เช่น 081-234-5678" 
-              class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
+              class="w-full max-w-sm px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
             />
             <p class="text-[11px] text-muted-foreground mt-1.5">เบอร์โทรสำหรับให้ลูกค้าหรือทีมงานติดต่อกรณีฉุกเฉิน</p>
           </div>
