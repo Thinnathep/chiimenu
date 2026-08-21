@@ -349,15 +349,15 @@ const submitForm = async () => {
     if (error) throw error
     
     setStore({ ...store.value, ...form.value })
-    useToast().success($t('settings_save_success'))
-    successMsg.value = $t('settings_save_success')
+    useToast().success(t('settings_save_success'))
+    successMsg.value = t('settings_save_success')
     setTimeout(() => { successMsg.value = '' }, 4000)
   } catch (e: any) {
     if (e.code === '23505') {
-      errorMsg.value = $t('settings_error_slug_taken')
-      useToast().error($t('settings_error_slug_taken'))
+      errorMsg.value = t('settings_error_slug_taken')
+      useToast().error(t('settings_error_slug_taken'))
     } else {
-      errorMsg.value = e.message || $t('settings_error_generic')
+      errorMsg.value = e.message || t('settings_error_generic')
       useToast().error(errorMsg.value)
     }
   } finally {

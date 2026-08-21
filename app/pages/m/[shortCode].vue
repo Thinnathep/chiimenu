@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { 
   Search, 
@@ -331,6 +331,32 @@ const openItemModal = (item: any) => {
 const closeItemModal = () => {
   selectedItem.value = null
 }
+
+// === Background Scroll Lock Handler (Prevents background scrolling when modal is open) ===
+watch([selectedItem, isCartOpen, orderSuccess], ([item, cartOpen, success]) => {
+  if (typeof document !== 'undefined') {
+    if (item || cartOpen || success) {
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+      document.body.style.touchAction = 'none'
+      document.body.classList.add('overflow-hidden')
+    } else {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+      document.body.style.touchAction = ''
+      document.body.classList.remove('overflow-hidden')
+    }
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = ''
+    document.documentElement.style.overflow = ''
+    document.body.style.touchAction = ''
+    document.body.classList.remove('overflow-hidden')
+  }
+})
 
 const selectAddonOption = (groupId: string, option: any) => {
   const currentVal = itemAddons.value[groupId]?.name
@@ -1082,7 +1108,7 @@ const getCategoryEmoji = (name: string) => {
     <div 
       v-if="selectedItem" 
       class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200"
-      @click.self="closeItemModal"
+      @touchmove.self.prevent
     >
       <div class="bg-card w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in slide-in-from-bottom duration-300 border border-border/50">
         
@@ -1102,10 +1128,12 @@ const getCategoryEmoji = (name: string) => {
           <div v-else class="w-full h-full flex items-center justify-center text-5xl">🍲</div>
           
           <button 
+            type="button"
             @click="closeItemModal" 
-            class="absolute top-3 right-3 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-md shadow-xs hover:bg-black/80 transition-colors"
+            class="absolute top-3 right-3 z-30 w-9 h-9 sm:w-10 sm:h-10 bg-black/70 hover:bg-black/90 active:scale-90 text-white rounded-full flex items-center justify-center backdrop-blur-md shadow-md border border-white/20 transition-all cursor-pointer"
+            aria-label="Close menu modal"
           >
-            <X class="w-4 h-4" />
+            <X class="w-5 h-5 stroke-[2.5]" />
           </button>
 
           <div class="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-white font-black text-sm">
@@ -1319,7 +1347,7 @@ const getCategoryEmoji = (name: string) => {
     <div 
       v-if="isCartOpen" 
       class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-center items-end sm:items-center p-0 sm:p-4 animate-in fade-in duration-200"
-      @click.self="isCartOpen = false"
+      @touchmove.self.prevent
     >
       <div class="w-full sm:max-w-lg bg-card sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col max-h-[88vh] sm:border border-border/50 overflow-hidden animate-in slide-in-from-bottom duration-300">
         
@@ -1334,8 +1362,13 @@ const getCategoryEmoji = (name: string) => {
               <p class="text-[10px] text-muted-foreground">{{ cartItemCount }} รายการ</p>
             </div>
           </div>
-          <button @click="isCartOpen = false" class="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground">
-            <X class="w-5 h-5" />
+          <button 
+            type="button"
+            @click="isCartOpen = false" 
+            class="p-2 rounded-xl hover:bg-muted active:scale-90 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+            aria-label="Close cart"
+          >
+            <X class="w-5 h-5 stroke-[2.5]" />
           </button>
         </div>
 

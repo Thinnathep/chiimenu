@@ -135,7 +135,7 @@ export default defineEventHandler(async (event) => {
 
         // 3c. Cross-verify item prices from Database (Anti-Tampering Protection)
         const itemIds = cart
-            .map((i: any) => i.menuItemId || i.menu_item_id || i.id)
+            .map((i: any) => i.menuItem?.id || i.menuItemId || i.menu_item_id || i.id)
             .filter((id: any) => typeof id === 'string' && id.length > 10);
 
         const dbItemMap = new Map<string, any>();
@@ -156,7 +156,7 @@ export default defineEventHandler(async (event) => {
             const rawQty = Number(item.quantity);
             const quantity = Number.isInteger(rawQty) && rawQty >= 1 && rawQty <= 99 ? rawQty : 1;
             
-            const itemId = item.menuItemId || item.menu_item_id || item.id;
+            const itemId = item.menuItem?.id || item.menuItemId || item.menu_item_id || item.id;
             const dbItem = itemId ? dbItemMap.get(itemId) : null;
 
             let verifiedUnitPrice = Number(item.unitPrice !== undefined ? item.unitPrice : (item.price !== undefined ? item.price : 0));
