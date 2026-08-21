@@ -221,7 +221,7 @@ BEGIN
             '浓郁椰浆融入新鲜手工青咖喱酱，搭配鲜嫩鸡肉片、脆嫩泰式小茄子与九层塔香叶。',
             'Rich, aromatic green curry with herbal heat balanced by silky coconut cream.',
             160.00,
-            'https://images.unsplash.com/photo-1596797038530-2c107229654b?auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=600&q=80',
             true, true, 2, 1
         ),
         -- 6. Massaman Beef Curry
@@ -257,7 +257,7 @@ BEGIN
             '特选茉莉香米配合猛火快炒，粒粒分明带有诱人镬气，满满鲜甜蟹肉块，金黄鲜香。',
             'Classic Thai fried rice loaded with generous chunks of sweet fresh crab meat.',
             150.00,
-            'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80',
             true, false, 0, 2
         ),
         -- 9. Chicken Satay
@@ -269,7 +269,7 @@ BEGIN
             '鲜鸡胸肉以黄姜粉与椰浆腌制入味，炭火炙烤至微焦香嫩，配上浓郁醇厚坚果花生酱与酸甜黄瓜清碟。',
             'Tender grilled chicken skewers accompanied by house-made peanut sauce and relish.',
             90.00,
-            'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?auto=format&fit=crop&w=600&q=80',
             true, false, 0, 1
         ),
         -- 10. Som Tum Thai
@@ -293,7 +293,7 @@ BEGIN
             '泰北清莱经典代表风味，手工猪肉肠融入香茅、黄姜、柠檬叶等多种草本香料，炭烤外脆内嫩。',
             'Famous Chiang Rai artisanal herbal pork sausage loaded with aromatic local herbs.',
             110.00,
-            'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80',
             true, true, 2, 1
         ),
         -- 12. Yum Talay
@@ -329,7 +329,7 @@ BEGIN
             '精选清莱高山茶叶新鲜现萃，茶香浓郁纯正，融入特调鲜奶与淡奶，冰爽香浓回甘。',
             'Iconic orange Thai iced tea brewed from premium highland tea leaves with silky fresh milk.',
             65.00,
-            'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=600&q=80',
             true, false, 0, 1
         ),
         -- 15. Fresh Young Coconut

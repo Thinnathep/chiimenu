@@ -52,6 +52,8 @@ const categories = ref<any[]>([])
 const menuItems = ref<any[]>([])
 const activeCategory = ref<string>('all')
 const isStoreLocked = ref(false)
+const isStoreClosed = ref(false)
+const isStoreNotFound = ref(false)
 const detectedTableFromQr = ref<string>('')
 const scannedQrLabel = ref<string>('')
 
@@ -175,6 +177,7 @@ onMounted(async () => {
     }
 
     if (!targetStoreId) {
+      isStoreNotFound.value = true
       loading.value = false
       return
     }
@@ -213,14 +216,17 @@ onMounted(async () => {
 
     const storeData = storeRes.data as any
     if (storeData) {
-      if (storeData.is_active === false) {
-        loading.value = false
-        return
-      }
-
       store.value = storeData
       if (storeData.default_language && ['th', 'en', 'zh'].includes(storeData.default_language)) {
         locale.value = storeData.default_language
+      }
+
+      // Check if store is manually toggled offline / closed
+      if (storeData.is_active === false) {
+        isStoreClosed.value = true
+        extractFromImage(storeData.logo_url || storeData.cover_url)
+        loading.value = false
+        return
       }
       
       // Check plan expiration
@@ -236,6 +242,10 @@ onMounted(async () => {
 
       // 3. Extract Dynamic Brand Colors from Logo or Cover (Ultra-fast async)
       extractFromImage(storeData.logo_url || storeData.cover_url)
+    } else {
+      isStoreNotFound.value = true
+      loading.value = false
+      return
     }
 
     categories.value = catRes.data || []
@@ -620,18 +630,54 @@ const getCategoryEmoji = (name: string) => {
       </div>
     </div>
 
-    <!-- 2. STORE CLOSED -->
-    <div v-else-if="!store" class="flex flex-col items-center justify-center min-h-[70vh] text-center px-6 space-y-4">
-      <div class="w-20 h-20 bg-rose-100 dark:bg-rose-950/50 text-rose-600 rounded-3xl flex items-center justify-center text-4xl shadow-inner">
-        🚫
+    <!-- 2. STORE NOT FOUND -->
+    <div v-else-if="isStoreNotFound || !store" class="flex flex-col items-center justify-center min-h-[70vh] text-center px-6 space-y-4">
+      <div class="w-20 h-20 bg-muted text-muted-foreground rounded-3xl flex items-center justify-center text-4xl shadow-inner">
+        🔍
       </div>
       <div>
-        <h2 class="text-xl font-black text-foreground">Temporarily Closed</h2>
-        <p class="text-xs text-muted-foreground mt-1">ร้านค้านี้ปิดให้บริการชั่วคราว ขออภัยในความไม่สะดวก</p>
+        <h2 class="text-xl font-black text-foreground">{{ locale === 'zh' ? '未找到餐厅' : (locale === 'en' ? 'Store Not Found' : 'ไม่พบข้อมูลร้านค้า') }}</h2>
+        <p class="text-xs text-muted-foreground mt-1">{{ locale === 'zh' ? '请检查二维码或联系服务员' : (locale === 'en' ? 'Please check your QR Code or contact staff' : 'กรุณาตรวจสอบ QR Code หรือติดต่อพนักงานของร้าน') }}</p>
       </div>
     </div>
 
-    <!-- 3. STORE EXPIRED / LOCKED -->
+    <!-- 3. STORE CLOSED TEMPORARILY (is_active = false) -->
+    <div v-else-if="isStoreClosed || store?.is_active === false" class="flex flex-col items-center justify-center min-h-[75vh] text-center px-6 space-y-5">
+      <div 
+        class="w-24 h-24 rounded-3xl overflow-hidden shadow-lg border-2 border-border flex items-center justify-center bg-card"
+        :style="{ borderColor: palette.primaryBorder }"
+      >
+        <img v-if="store.logo_url" :src="store.logo_url" class="w-full h-full object-cover grayscale-50" alt="Logo" />
+        <span v-else class="text-3xl font-black">{{ store.name?.charAt(0) || '🏪' }}</span>
+      </div>
+
+      <div class="space-y-2">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 text-xs font-bold shadow-xs">
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+          <span>{{ locale === 'zh' ? '暂停营业 (Closed)' : (locale === 'en' ? 'Temporarily Closed' : 'ปิดให้บริการชั่วคราว') }}</span>
+        </div>
+        <h2 class="text-xl sm:text-2xl font-black text-foreground">{{ getStoreName() }}</h2>
+        <p class="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+          {{ locale === 'zh' ? '本店目前暂停接单，欢迎稍后再来' : (locale === 'en' ? 'This store is currently not taking orders. Please check back later.' : 'ขณะนี้ร้านค้าปิดรับออเดอร์ชั่วคราว ขออภัยในความไม่สะดวก') }}
+        </p>
+      </div>
+
+      <!-- Language Pill Switcher on Closed Screen -->
+      <div class="flex items-center bg-muted/80 rounded-xl p-0.5 border border-border/40 text-xs font-bold shadow-2xs">
+        <button 
+          v-for="l in locales" 
+          :key="l.code"
+          @click="setLocale(l.code as any)"
+          class="px-2.5 py-1 rounded-lg transition-all"
+          :class="locale === l.code ? 'shadow-xs font-black' : 'text-muted-foreground hover:text-foreground'"
+          :style="locale === l.code ? { backgroundColor: palette.primary, color: palette.primaryContrast } : {}"
+        >
+          {{ l.code === 'th' ? '🇹🇭 TH' : (l.code === 'en' ? '🇬🇧 EN' : '🇨🇳 中文') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. STORE EXPIRED / LOCKED -->
     <div v-else-if="isStoreLocked" class="flex flex-col items-center justify-center min-h-[70vh] text-center px-6 space-y-4">
       <div class="w-20 h-20 bg-amber-100 dark:bg-amber-950/50 text-amber-600 rounded-3xl flex items-center justify-center text-3xl shadow-inner">
         ⏳
