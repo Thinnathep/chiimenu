@@ -52,15 +52,16 @@ export default defineNuxtConfig({
   },
 
   i18n: {
+    vueI18n: './i18n.config.ts',
+    langDir: 'locales',
     locales: [
       { code: 'th', iso: 'th-TH', file: 'th.json', name: 'ไทย' },
       { code: 'en', iso: 'en-US', file: 'en.json', name: 'English' },
-      { code: 'zh', iso: 'zh-CN', file: 'zh.json', name: '中文' },
+      { code: 'zh', iso: 'zh-CN', file: 'zh.json', name: '中文' }
       // { code: 'nod', iso: 'nod-TH', file: 'nod.json', name: 'ล้านนา' }
     ],
     defaultLocale: 'th',
     strategy: 'no_prefix',
-    langDir: 'locales/',
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'i18n_redirected',

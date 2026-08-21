@@ -1,5 +1,25 @@
 <script setup lang="ts">
-import { Menu, X, QrCode, ChevronDown } from 'lucide-vue-next'
+import { 
+  LayoutDashboard, 
+  ClipboardList, 
+  QrCode, 
+  Utensils, 
+  BarChart3, 
+  Store, 
+  CreditCard, 
+  BookOpen, 
+  ShieldCheck, 
+  Menu, 
+  X, 
+  ChevronDown, 
+  ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  LogOut, 
+  User,
+  MoreHorizontal
+} from 'lucide-vue-next'
 
 const user = useSupabaseUser()
 const client = useSupabaseClient()
@@ -9,12 +29,27 @@ const config = useRuntimeConfig()
 const { locale, locales, setLocale } = useI18n()
 const mobileMenuOpen = ref(false)
 const isUserDropdownOpen = ref(false)
+const isCollapsed = ref(false)
 
 const { store, isAdmin, loading, fetchStore, clearStore } = useCurrentStore()
 
 onMounted(async () => {
+  // Load persisted sidebar state from localStorage
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('merchant_sidebar_collapsed')
+    if (saved !== null) {
+      isCollapsed.value = saved === 'true'
+    }
+  }
   await fetchStore()
 })
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('merchant_sidebar_collapsed', String(isCollapsed.value))
+  }
+}
 
 const daysRemaining = computed(() => {
   if (!store.value?.trial_ends_at) return 0
@@ -54,89 +89,276 @@ const isBillingPage = computed(() => route.path.includes('/merchant/billing'))
 const handleLocaleChange = (e: Event) => {
   const target = e.target as HTMLSelectElement
   if (target) {
-    setLocale(target.value as 'th' | 'en' | 'zh')
+    setLocale(target.value as any)
   }
 }
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-muted/20">
+  <div class="flex h-screen overflow-hidden bg-muted/20 select-none">
     
-    <!-- Desktop Sidebar -->
-    <aside class="hidden md:flex w-64 flex-col border-r bg-card z-20 shrink-0">
-      <div class="h-16 flex items-center px-6 border-b shrink-0">
-        <NuxtLink to="/merchant/dashboard" class="flex items-center gap-2.5 group">
-          <img src="/logo-icon.png" alt="ChiiMenu" class="w-8 h-8 rounded-xl object-contain shadow-xs group-hover:scale-105 transition-transform">
-          <span class="text-xl font-black tracking-tight text-foreground">ChiiMenu</span>
+    <!-- DESKTOP SIDEBAR (Collapsible & Persistent) -->
+    <aside 
+      class="hidden md:flex flex-col border-r bg-card z-20 shrink-0 transition-all duration-300 ease-in-out relative"
+      :class="isCollapsed ? 'w-[72px]' : 'w-64'"
+    >
+      <!-- Sidebar Header (Logo & Toggle Button) -->
+      <div 
+        class="h-16 flex items-center border-b shrink-0 transition-all duration-300"
+        :class="isCollapsed ? 'justify-center px-2' : 'justify-between px-5'"
+      >
+        <NuxtLink to="/merchant/dashboard" class="flex items-center gap-2.5 group overflow-hidden">
+          <img src="/logo-icon.png" alt="ChiiMenu" class="w-8 h-8 rounded-xl object-contain shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+          <span 
+            v-show="!isCollapsed" 
+            class="text-xl font-black tracking-tight text-foreground whitespace-nowrap transition-opacity duration-200"
+          >
+            ChiiMenu
+          </span>
         </NuxtLink>
+
+        <!-- Toggle Collapse Button -->
+        <button 
+          type="button"
+          @click="toggleSidebar"
+          class="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
+          :class="isCollapsed ? 'absolute -right-3 top-5 bg-card border shadow-xs z-30 rounded-full w-6 h-6 flex items-center justify-center p-0' : ''"
+          :title="isCollapsed ? 'ขยายแถบเมนู (Expand Sidebar)' : 'ย่อแถบเมนู (Collapse Sidebar)'"
+        >
+          <ChevronRight v-if="isCollapsed" class="w-3.5 h-3.5" />
+          <PanelLeftClose v-else class="w-4 h-4" />
+        </button>
       </div>
-      <nav class="flex-1 overflow-y-auto py-4 space-y-1">
-        <NuxtLink v-if="!isTrialExpired" to="/merchant/dashboard" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          {{ $t('nav_dashboard') }}
-        </NuxtLink>
-        <NuxtLink v-if="!isTrialExpired" to="/merchant/analytics" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          {{ $t('nav_analytics') }}
-        </NuxtLink>
-        <NuxtLink v-if="!isTrialExpired" to="/merchant/orders" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          {{ $t('nav_orders') }}
-        </NuxtLink>
-        <NuxtLink v-if="!isTrialExpired" to="/merchant/store/settings" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          {{ $t('nav_store_settings') }}
-        </NuxtLink>
-        <NuxtLink v-if="!isTrialExpired" to="/merchant/menu" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          {{ $t('nav_menu_manage') }}
-        </NuxtLink>
-        <NuxtLink v-if="!isTrialExpired" to="/merchant/qr" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          {{ $t('nav_qr_codes') }}
-        </NuxtLink>
-        <NuxtLink to="/merchant/billing" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          💳 {{ $t('nav_billing') }}
-        </NuxtLink>
-        <NuxtLink to="/merchant/guide" class="block px-6 py-3 border-l-4 border-transparent text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-          📖 {{ $t('nav_guide') }}
-        </NuxtLink>
-        <NuxtLink v-if="isAdmin" to="/admin/stores" class="block px-6 py-3 border-l-4 border-transparent text-sm font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-colors" active-class="bg-orange-100 border-orange-600 text-orange-700">
-          ⭐ {{ $t('nav_admin') }}
-        </NuxtLink>
+
+      <!-- Navigation Links Container -->
+      <nav class="flex-1 overflow-y-auto py-3 space-y-4 overflow-x-hidden">
+        
+        <!-- Group 1: Operations (การขาย & หน้าร้าน) -->
+        <div class="space-y-0.5">
+          <div 
+            v-if="!isCollapsed" 
+            class="px-5 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase truncate"
+          >
+            {{ $t('nav_section_ops') }}
+          </div>
+          <div v-else class="my-1.5 mx-3 border-t border-border/40"></div>
+
+          <!-- Dashboard -->
+          <NuxtLink 
+            v-if="!isTrialExpired" 
+            to="/merchant/dashboard" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_dashboard') : undefined"
+          >
+            <LayoutDashboard class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_dashboard') }}</span>
+          </NuxtLink>
+
+          <!-- Orders -->
+          <NuxtLink 
+            v-if="!isTrialExpired" 
+            to="/merchant/orders" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_orders') : undefined"
+          >
+            <ClipboardList class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_orders') }}</span>
+          </NuxtLink>
+
+          <!-- QR Codes -->
+          <NuxtLink 
+            v-if="!isTrialExpired" 
+            to="/merchant/qr" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_qr_codes') : undefined"
+          >
+            <QrCode class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_qr_codes') }}</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Group 2: Menu & Items (เมนูอาหาร) -->
+        <div class="space-y-0.5">
+          <div 
+            v-if="!isCollapsed" 
+            class="px-5 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase truncate"
+          >
+            {{ $t('nav_section_menu') }}
+          </div>
+          <div v-else class="my-1.5 mx-3 border-t border-border/40"></div>
+
+          <!-- Menu Management -->
+          <NuxtLink 
+            v-if="!isTrialExpired" 
+            to="/merchant/menu" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_menu_manage') : undefined"
+          >
+            <Utensils class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_menu_manage') }}</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Group 3: Analytics & BI (รายงาน & สถิติ) -->
+        <div class="space-y-0.5">
+          <div 
+            v-if="!isCollapsed" 
+            class="px-5 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase truncate"
+          >
+            {{ $t('nav_section_analytics') }}
+          </div>
+          <div v-else class="my-1.5 mx-3 border-t border-border/40"></div>
+
+          <!-- Sales Analytics -->
+          <NuxtLink 
+            v-if="!isTrialExpired" 
+            to="/merchant/analytics" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_analytics') : undefined"
+          >
+            <BarChart3 class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_analytics') }}</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Group 4: Settings & Plans (ตั้งค่า & บัญชี) -->
+        <div class="space-y-0.5">
+          <div 
+            v-if="!isCollapsed" 
+            class="px-5 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase truncate"
+          >
+            {{ $t('nav_section_settings') }}
+          </div>
+          <div v-else class="my-1.5 mx-3 border-t border-border/40"></div>
+
+          <!-- Store Settings -->
+          <NuxtLink 
+            v-if="!isTrialExpired" 
+            to="/merchant/store/settings" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_store_settings') : undefined"
+          >
+            <Store class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_store_settings') }}</span>
+          </NuxtLink>
+
+          <!-- Billing & Plans -->
+          <NuxtLink 
+            to="/merchant/billing" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_billing') : undefined"
+          >
+            <CreditCard class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_billing') }}</span>
+          </NuxtLink>
+
+          <!-- Merchant Guide -->
+          <NuxtLink 
+            to="/merchant/guide" 
+            class="flex items-center text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            :title="isCollapsed ? $t('nav_guide') : undefined"
+          >
+            <BookOpen class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_guide') }}</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Group 5: Super Admin (if isAdmin) -->
+        <div v-if="isAdmin" class="space-y-0.5 pt-1">
+          <div 
+            v-if="!isCollapsed" 
+            class="px-5 pb-1.5 text-[10px] font-bold tracking-wider text-orange-600/70 uppercase truncate"
+          >
+            {{ $t('nav_section_admin') }}
+          </div>
+          <div v-else class="my-1.5 mx-3 border-t border-orange-500/20"></div>
+
+          <NuxtLink 
+            to="/admin/stores" 
+            class="flex items-center text-sm font-bold text-orange-600 hover:bg-orange-500/10 hover:text-orange-700 transition-all rounded-r-2xl border-l-4 border-transparent group" 
+            :class="isCollapsed ? 'justify-center px-0 py-2.5 mx-2 rounded-xl border-l-0' : 'px-5 py-2.5 gap-3'"
+            active-class="!border-orange-600 !bg-orange-500/15 !text-orange-700"
+            :title="isCollapsed ? $t('nav_admin') : undefined"
+          >
+            <ShieldCheck class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ $t('nav_admin') }}</span>
+          </NuxtLink>
+        </div>
+
       </nav>
 
-      <!-- Version & Platform Badge -->
-      <div class="p-4 border-t border-border bg-muted/10 shrink-0">
-        <div class="flex items-center justify-between text-[11px]">
-          <span class="font-bold text-foreground">ChiiMenu Platform</span>
-          <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.1.0</span>
+      <!-- Sidebar Footer (Version & Release Info) -->
+      <div 
+        class="border-t border-border bg-muted/10 shrink-0 transition-all duration-300"
+        :class="isCollapsed ? 'p-2 text-center' : 'p-4'"
+      >
+        <div v-if="!isCollapsed" class="flex items-center justify-between text-[11px]">
+          <span class="font-bold text-foreground truncate">ChiiMenu</span>
+          <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.1</span>
         </div>
-        <p class="text-[10px] text-muted-foreground mt-0.5">Official Production Release</p>
+        <span v-else class="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-mono font-bold text-[9px] inline-block">
+          v1.1
+        </span>
       </div>
     </aside>
 
-    <!-- Main Content Area -->
+    <!-- MAIN CONTENT AREA -->
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
       
-      <!-- Top Header -->
+      <!-- Top Header (Desktop & Mobile) -->
       <header class="h-16 flex items-center justify-between border-b bg-card px-4 sm:px-6 shrink-0 z-10">
-        <div class="flex items-center">
-          <button @click="mobileMenuOpen = true" class="md:hidden text-muted-foreground hover:text-foreground p-2 -ml-2 mr-2">
+        <div class="flex items-center gap-2">
+          <!-- Mobile Hamburger Toggle Button -->
+          <button 
+            @click="mobileMenuOpen = true" 
+            class="md:hidden text-muted-foreground hover:text-foreground p-2 -ml-2 rounded-xl hover:bg-muted transition-colors cursor-pointer"
+            title="Open Menu"
+          >
             <Menu class="w-6 h-6" />
           </button>
+
+          <!-- Mobile Brand Logo -->
           <NuxtLink to="/merchant/dashboard" class="md:hidden flex items-center gap-2">
             <img src="/logo-icon.png" alt="ChiiMenu" class="w-7 h-7 rounded-xl object-contain shadow-xs">
             <span class="text-lg font-bold tracking-tight text-foreground">ChiiMenu</span>
           </NuxtLink>
         </div>
         
+        <!-- Right Header Items: Language Switcher & Account Menu -->
         <div class="flex items-center gap-3 ml-auto">
+          <!-- Language Selector -->
           <select 
             v-model="locale" 
             @change="handleLocaleChange"
-            class="bg-transparent border border-border rounded-xl text-xs font-semibold px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary text-foreground"
+            class="bg-transparent border border-border rounded-xl text-xs font-semibold px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary text-foreground cursor-pointer"
           >
             <option v-for="l in locales" :key="l.code" :value="l.code">
               {{ l.name }}
             </option>
           </select>
+
+          <!-- User Dropdown Menu -->
           <div class="relative ml-1">
-            <button @click="isUserDropdownOpen = !isUserDropdownOpen" class="flex items-center max-w-xs text-xs font-semibold bg-muted/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary px-3 py-1.5 transition-colors hover:bg-muted border">
+            <button 
+              @click="isUserDropdownOpen = !isUserDropdownOpen" 
+              class="flex items-center max-w-xs text-xs font-semibold bg-muted/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary px-3 py-1.5 transition-colors hover:bg-muted border cursor-pointer"
+            >
               <span class="sr-only">Open user menu</span>
               <span class="text-xs font-semibold text-foreground mr-1">จัดการบัญชี</span>
               <ChevronDown class="w-3.5 h-3.5 text-muted-foreground" />
@@ -144,20 +366,26 @@ const handleLocaleChange = (e: Event) => {
             
             <div v-if="isUserDropdownOpen" @click="isUserDropdownOpen = false" class="fixed inset-0 z-40"></div>
             
-            <div v-if="isUserDropdownOpen" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 divide-y divide-border z-50 overflow-hidden border border-border">
+            <div v-if="isUserDropdownOpen" class="origin-top-right absolute right-0 mt-2 w-48 rounded-2xl shadow-lg bg-card ring-1 ring-black/5 divide-y divide-border z-50 overflow-hidden border border-border">
               <div class="py-1">
-                <NuxtLink to="/merchant/profile" @click="isUserDropdownOpen = false" class="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors">โปรไฟล์ส่วนตัว</NuxtLink>
+                <NuxtLink to="/merchant/profile" @click="isUserDropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors">
+                  <User class="w-4 h-4 text-muted-foreground" />
+                  <span>โปรไฟล์ส่วนตัว</span>
+                </NuxtLink>
               </div>
               <div class="py-1">
-                <button @click="logout" class="block w-full text-left px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">ออกจากระบบ</button>
+                <button @click="logout" class="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors cursor-pointer">
+                  <LogOut class="w-4 h-4" />
+                  <span>ออกจากระบบ</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <!-- Scrollable Main Content -->
-      <main class="flex-1 overflow-y-auto bg-muted/20">
+      <!-- Scrollable Main Content Container -->
+      <main class="flex-1 overflow-y-auto bg-muted/20 pb-20 md:pb-8">
         <div class="p-4 sm:p-6 lg:p-8 w-full max-w-[1600px] mx-auto">
           
           <!-- Loading State -->
@@ -166,7 +394,7 @@ const handleLocaleChange = (e: Event) => {
           </div>
           
           <!-- Trial Expired Lock Screen -->
-          <div v-else-if="isTrialExpired && !isBillingPage" class="max-w-2xl mx-auto bg-card rounded-2xl shadow-lg border-2 overflow-hidden text-center mt-10" :class="!store?.has_used_first_time_promo ? 'border-rose-300' : 'border-red-200'">
+          <div v-else-if="isTrialExpired && !isBillingPage" class="max-w-2xl mx-auto bg-card rounded-3xl shadow-lg border-2 overflow-hidden text-center mt-10" :class="!store?.has_used_first_time_promo ? 'border-rose-300' : 'border-red-200'">
             <div :class="!store?.has_used_first_time_promo ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white p-8' : 'bg-red-500 text-white p-6'">
               <div v-if="!store?.has_used_first_time_promo" class="inline-block bg-white text-rose-600 font-bold px-3 py-1 rounded-full text-sm mb-4 shadow-sm">🔥 สิทธิพิเศษเฉพาะคุณ</div>
               <h2 class="font-black" :class="!store?.has_used_first_time_promo ? 'text-4xl mb-2' : 'text-3xl'">
@@ -180,92 +408,30 @@ const handleLocaleChange = (e: Event) => {
                 กรุณาต่ออายุแพ็กเกจเพื่อกลับมาใช้งานระบบจัดการและเมนูร้านค้าอีกครั้ง
               </p>
             </div>
-            
+
             <div class="p-8">
-              <div class="flex justify-center mb-8">
-                <NuxtLink v-if="!store?.has_used_first_time_promo" to="/merchant/billing" class="bg-rose-500 hover:bg-rose-600 text-white px-8 py-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 text-lg font-bold w-full max-w-sm">
-                  ดูราคาแพ็กเกจโปรโมชั่น 50%
-                </NuxtLink>
-                <a v-else href="https://line.me/R/ti/p/@819wgrsj" target="_blank" rel="noopener noreferrer" class="bg-[#00B900] hover:bg-[#009900] text-white px-8 py-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 text-lg font-bold w-full max-w-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 0c4.411 0 8 2.912 8 6.492 0 3.146-2.618 5.86-6.326 6.39-.304.043-.63.14-.725.437-.083.257-.023.75-.023.75s.033.4.156.966c.094.432-.423.633-.787.41-1.636-.994-5.69-3.414-7.258-5.328C.612 8.441 0 7.502 0 6.492 0 2.912 3.589 0 8 0z" />
-                  </svg>
-                  ติดต่อแอดมินผ่าน LINE
-                </a>
-              </div>
-              
-              <h3 class="text-xl font-bold text-foreground mb-4">ขั้นตอนการต่ออายุ:</h3>
-              <div class="text-left bg-muted/30 p-6 rounded-xl text-foreground space-y-4 mb-4 mx-auto max-w-md font-medium border border-border">
-                <div class="flex items-start gap-3">
-                  <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
-                  <div>
-                    กดปุ่มด้านบน หรือแอด LINE ID: <strong class="text-primary">@819wgrsj</strong>
-                  </div>
-                </div>
-                <div class="flex items-start gap-3">
-                  <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
-                  <div>
-                    ส่งข้อความหาแอดมินว่า: <br>
-                    <span class="text-primary font-bold bg-primary/10 px-3 py-1.5 rounded-lg inline-block mt-2 border border-primary/20">"ต่ออายุร้าน: {{ store?.name || 'ชื่อร้านของคุณ' }}"</span>
-                  </div>
-                </div>
-                <div class="flex items-start gap-3">
-                  <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">3</div>
-                  <div>
-                    แอดมินจะปลดล็อกระบบให้ร้านของคุณกลับมาออนไลน์ทันที
-                  </div>
-                </div>
-              </div>
+              <NuxtLink to="/merchant/billing" class="inline-flex items-center justify-center gap-2 w-full py-4 bg-primary text-primary-foreground font-bold text-lg rounded-2xl shadow-md hover:bg-primary/90 transition-all cursor-pointer">
+                <span>เลือกแพ็กเกจและต่ออายุ</span>
+                <span class="text-xl">→</span>
+              </NuxtLink>
             </div>
           </div>
-          
-          <!-- Normal Content -->
-          <div v-show="!loading && (!isTrialExpired || isBillingPage)">
-            <slot />
-          </div>
 
-          <!-- App System Footer (Clean, Responsive, Support & Privacy Links) -->
-          <footer class="mt-20 pt-6 pb-6 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-            <div class="flex items-center gap-2">
-              <img src="/logo-icon.png" alt="ChiiMenu" class="w-5 h-5 rounded-md object-contain">
-              <span class="font-bold text-foreground">ChiiMenu</span>
-              <span>•</span>
-              <span>&copy; {{ new Date().getFullYear() }} All rights reserved.</span>
-            </div>
-
-            <div class="flex items-center gap-4 flex-wrap justify-center font-medium">
-              <NuxtLink to="/merchant/billing" class="hover:text-primary transition-colors">แพ็กเกจและการต่ออายุ</NuxtLink>
-              <span>•</span>
-              <NuxtLink to="/privacy" class="hover:text-primary transition-colors">นโยบายความเป็นส่วนตัว</NuxtLink>
-              <span>•</span>
-              <a 
-                href="https://line.me/R/ti/p/@819wgrsj" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                class="hover:text-emerald-700 font-bold transition-colors inline-flex items-center gap-1 text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200"
-              >
-                <span>💬 ติดต่อช่วยเหลือ LINE: @819wgrsj</span>
-              </a>
-            </div>
-          </footer>
+          <!-- Normal Page Content Slot -->
+          <slot v-else />
 
         </div>
       </main>
+
     </div>
 
-    <!-- Mobile Menu Backdrop -->
-    <Transition 
-      enter-active-class="transition-opacity ease-linear duration-300" 
-      enter-from-class="opacity-0" 
-      enter-to-class="opacity-100" 
-      leave-active-class="transition-opacity ease-linear duration-300" 
-      leave-from-class="opacity-100" 
-      leave-to-class="opacity-0"
-    >
-      <div v-if="mobileMenuOpen && !isTrialExpired" class="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" @click="mobileMenuOpen = false"></div>
-    </Transition>
+    <!-- MOBILE DRAWER (Full Slide-Out Menu for Phones) -->
+    <div 
+      v-if="mobileMenuOpen" 
+      @click="mobileMenuOpen = false" 
+      class="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-xs transition-opacity"
+    ></div>
 
-    <!-- Mobile Menu Drawer -->
     <Transition 
       enter-active-class="transition ease-in-out duration-300 transform" 
       enter-from-class="-translate-x-full" 
@@ -274,57 +440,213 @@ const handleLocaleChange = (e: Event) => {
       leave-from-class="translate-x-0" 
       leave-to-class="-translate-x-full"
     >
-      <div v-if="mobileMenuOpen && !isTrialExpired" class="fixed inset-y-0 left-0 w-[280px] bg-card shadow-2xl z-50 md:hidden flex flex-col h-full overflow-y-auto">
+      <div v-if="mobileMenuOpen && !isTrialExpired" class="fixed inset-y-0 left-0 w-[280px] bg-card shadow-2xl z-50 md:hidden flex flex-col h-full overflow-y-auto select-none">
+        
+        <!-- Drawer Header -->
         <div class="p-5 border-b border-border flex items-center justify-between bg-muted/30">
           <div class="flex items-center gap-2.5">
             <img src="/logo-icon.png" alt="ChiiMenu" class="w-7 h-7 rounded-xl object-contain shadow-xs">
             <span class="text-xl font-black tracking-tight text-foreground">ChiiMenu</span>
           </div>
-          <button @click="mobileMenuOpen = false" class="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-full transition-colors">
+          <button @click="mobileMenuOpen = false" class="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-full transition-colors cursor-pointer">
             <X class="w-5 h-5" />
           </button>
         </div>
         
-        <div class="py-4 space-y-1 flex-1">
-          <NuxtLink to="/merchant/dashboard" @click="mobileMenuOpen = false" class="block px-6 py-3 text-base font-medium transition-colors" active-class="bg-primary/10 border-l-4 border-primary text-primary">
-            {{ $t('nav_dashboard') }}
-          </NuxtLink>
-          <NuxtLink to="/merchant/analytics" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            {{ $t('nav_analytics') }}
-          </NuxtLink>
-          <NuxtLink to="/merchant/orders" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            {{ $t('nav_orders') }}
-          </NuxtLink>
-          <NuxtLink to="/merchant/store/settings" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            {{ $t('nav_store_settings') }}
-          </NuxtLink>
-          <NuxtLink to="/merchant/menu" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            {{ $t('nav_menu_manage') }}
-          </NuxtLink>
-          <NuxtLink to="/merchant/qr" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            {{ $t('nav_qr_codes') }}
-          </NuxtLink>
-          <NuxtLink to="/merchant/billing" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            💳 {{ $t('nav_billing') }}
-          </NuxtLink>
-          <NuxtLink to="/merchant/guide" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" active-class="bg-primary/10 border-primary text-primary">
-            📖 {{ $t('nav_guide') }}
-          </NuxtLink>
-          <NuxtLink v-if="isAdmin" to="/admin/stores" @click="mobileMenuOpen = false" class="block px-6 py-3 border-l-4 border-transparent text-base font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-colors" active-class="bg-orange-100 border-orange-600 text-orange-700">
-            ⭐ {{ $t('nav_admin') }}
-          </NuxtLink>
+        <!-- Drawer Menu Groups -->
+        <div class="py-3 space-y-4 flex-1">
+          
+          <!-- Mobile Group 1: Operations -->
+          <div class="space-y-0.5">
+            <div class="px-6 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase">
+              {{ $t('nav_section_ops') }}
+            </div>
+
+            <NuxtLink 
+              to="/merchant/dashboard" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <LayoutDashboard class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_dashboard') }}</span>
+            </NuxtLink>
+
+            <NuxtLink 
+              to="/merchant/orders" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <ClipboardList class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_orders') }}</span>
+            </NuxtLink>
+
+            <NuxtLink 
+              to="/merchant/qr" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <QrCode class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_qr_codes') }}</span>
+            </NuxtLink>
+          </div>
+
+          <!-- Mobile Group 2: Menu -->
+          <div class="space-y-0.5">
+            <div class="px-6 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase">
+              {{ $t('nav_section_menu') }}
+            </div>
+
+            <NuxtLink 
+              to="/merchant/menu" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <Utensils class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_menu_manage') }}</span>
+            </NuxtLink>
+          </div>
+
+          <!-- Mobile Group 3: Analytics -->
+          <div class="space-y-0.5">
+            <div class="px-6 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase">
+              {{ $t('nav_section_analytics') }}
+            </div>
+
+            <NuxtLink 
+              to="/merchant/analytics" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <BarChart3 class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_analytics') }}</span>
+            </NuxtLink>
+          </div>
+
+          <!-- Mobile Group 4: Settings -->
+          <div class="space-y-0.5">
+            <div class="px-6 pb-1.5 text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase">
+              {{ $t('nav_section_settings') }}
+            </div>
+
+            <NuxtLink 
+              to="/merchant/store/settings" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <Store class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_store_settings') }}</span>
+            </NuxtLink>
+
+            <NuxtLink 
+              to="/merchant/billing" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <CreditCard class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_billing') }}</span>
+            </NuxtLink>
+
+            <NuxtLink 
+              to="/merchant/guide" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-primary !bg-primary/10 !text-primary !font-bold"
+            >
+              <BookOpen class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_guide') }}</span>
+            </NuxtLink>
+          </div>
+
+          <!-- Mobile Group 5: Super Admin -->
+          <div v-if="isAdmin" class="space-y-0.5 pt-1">
+            <div class="px-6 pb-1.5 text-[10px] font-bold tracking-wider text-orange-600/70 uppercase">
+              {{ $t('nav_section_admin') }}
+            </div>
+
+            <NuxtLink 
+              to="/admin/stores" 
+              @click="mobileMenuOpen = false" 
+              class="flex items-center gap-3 px-6 py-2.5 text-sm font-bold text-orange-600 hover:bg-orange-500/10 hover:text-orange-700 transition-all rounded-r-2xl border-l-4 border-transparent" 
+              active-class="!border-orange-600 !bg-orange-500/15 !text-orange-700"
+            >
+              <ShieldCheck class="w-4 h-4 shrink-0" />
+              <span>{{ $t('nav_admin') }}</span>
+            </NuxtLink>
+          </div>
+
         </div>
         
+        <!-- Drawer Footer -->
         <div class="p-5 border-t border-border bg-muted/10 space-y-3">
-           <button @click="logout" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-muted text-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors border shadow-sm">
-             {{ $t('nav_logout') }}
+           <button @click="logout" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-muted text-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors border shadow-xs cursor-pointer">
+             <LogOut class="w-4 h-4 text-destructive" />
+             <span>{{ $t('nav_logout') }}</span>
            </button>
            <div class="flex items-center justify-between text-[11px] pt-1">
              <span class="font-bold text-foreground">ChiiMenu Platform</span>
-             <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.0</span>
+             <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold text-[10px]">v1.1.0</span>
            </div>
         </div>
       </div>
     </Transition>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR (Quick Access for Mobile Phone Operations) -->
+    <nav 
+      v-if="!isTrialExpired"
+      class="md:hidden fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur-md border-t border-border z-30 flex items-center justify-around px-2 py-2 shadow-lg select-none"
+    >
+      <NuxtLink 
+        to="/merchant/dashboard" 
+        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
+        active-class="!text-primary !font-bold bg-primary/10"
+      >
+        <LayoutDashboard class="w-5 h-5" />
+        <span>{{ $t('nav_dashboard') }}</span>
+      </NuxtLink>
+
+      <NuxtLink 
+        to="/merchant/orders" 
+        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
+        active-class="!text-primary !font-bold bg-primary/10"
+      >
+        <ClipboardList class="w-5 h-5" />
+        <span>{{ $t('nav_orders') }}</span>
+      </NuxtLink>
+
+      <NuxtLink 
+        to="/merchant/menu" 
+        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
+        active-class="!text-primary !font-bold bg-primary/10"
+      >
+        <Utensils class="w-5 h-5" />
+        <span>{{ $t('nav_menu_manage') }}</span>
+      </NuxtLink>
+
+      <NuxtLink 
+        to="/merchant/analytics" 
+        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
+        active-class="!text-primary !font-bold bg-primary/10"
+      >
+        <BarChart3 class="w-5 h-5" />
+        <span>{{ $t('nav_analytics') }}</span>
+      </NuxtLink>
+
+      <button 
+        type="button"
+        @click="mobileMenuOpen = true" 
+        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors cursor-pointer"
+      >
+        <MoreHorizontal class="w-5 h-5" />
+        <span>เมนูอื่น</span>
+      </button>
+    </nav>
+
   </div>
 </template>

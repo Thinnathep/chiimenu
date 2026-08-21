@@ -37,6 +37,10 @@ CREATE TABLE public.stores (
   line_user_id text,
   phone character varying,
   has_used_first_time_promo boolean DEFAULT false,
+  description_en text,
+  description_zh text,
+  address_en text,
+  address_zh text,
   CONSTRAINT stores_pkey PRIMARY KEY (id),
   CONSTRAINT stores_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.profiles(id)
 );
@@ -180,6 +184,8 @@ CREATE TABLE public.orders (
   status text NOT NULL DEFAULT 'pending'::text,
   line_notified boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  cancel_reason text,
+  cancelled_at timestamp with time zone,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
   CONSTRAINT orders_store_id_fkey FOREIGN KEY (store_id) REFERENCES public.stores(id)
 );
@@ -220,4 +226,4 @@ CREATE TABLE public.rate_limits (
   request_count integer NOT NULL DEFAULT 1,
   reset_at bigint NOT NULL,
   CONSTRAINT rate_limits_pkey PRIMARY KEY (ip)
-);
+)
