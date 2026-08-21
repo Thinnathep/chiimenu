@@ -1,51 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-
-const { locale, locales, setLocale } = useI18n()
+import { onMounted } from 'vue'
 
 onMounted(() => {
-  // ใช้งาน Light Mode เป็นค่าเริ่มต้น
-  document.documentElement.classList.remove('dark')
+  // Use Light mode as standard default for tourist menu, responsive to device preferences if configured
+  if (!document.documentElement.classList.contains('dark') && !document.documentElement.classList.contains('light')) {
+    document.documentElement.classList.remove('dark')
+  }
 })
 </script>
 
 <template>
-  <!-- Main layout container: Dark mode support, Lanna Premium Vibe -->
-  <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 transition-colors duration-300 font-sans selection:bg-primary/30">
-    
-    <!-- Top Global Nav (Transparent / Glassmorphism) -->
-    <header class="fixed top-0 w-full z-50 bg-background/80 dark:bg-background/60 backdrop-blur-md border-b border-border/40 shadow-sm transition-colors duration-300">
-      <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-        
-        <!-- Logo Area -->
-        <NuxtLink to="/" class="flex items-center gap-2 group">
-          <img src="/logo-icon.png" alt="ChiiMenu" class="w-7 h-7 rounded-lg object-contain shadow-xs">
-          <div class="font-black text-lg tracking-tight text-foreground">
-            <span class="text-[#D41244] dark:text-rose-400">Chii</span>Menu
-          </div>
-        </NuxtLink>
-
-        <!-- Language Switcher -->
-        <div class="flex items-center gap-2">
-          <select 
-            v-model="locale" 
-            @change="setLocale(($event.target as HTMLSelectElement).value as any)"
-            class="bg-transparent border border-border rounded-xl text-xs font-semibold px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option v-for="l in locales" :key="l.code" :value="l.code">
-              {{ l.name }}
-            </option>
-          </select>
-        </div>
-        
-      </div>
-    </header>
-
-    <!-- Page Content Slot: Responsive container for Mobile, iPad, and PC -->
-    <main class="max-w-4xl mx-auto min-h-screen pt-14 pb-24 shadow-xl sm:border-x border-border/40 bg-background dark:bg-[#111] transition-colors duration-300">
+  <!-- Main layout container: Responsive for Mobile, iPad / Tablet, and PC / Desktop -->
+  <div class="min-h-screen bg-slate-100/80 dark:bg-neutral-950 transition-colors duration-300 font-sans selection:bg-primary/30 text-foreground antialiased">
+    <!-- Responsive Content Container: Adapts seamlessly to iPhone (430px), iPad (768-1024px), and PC (1280px+) -->
+    <main class="w-full max-w-lg md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto min-h-screen sm:border-x sm:border-border/40 bg-background shadow-2xl transition-colors duration-300 relative">
       <slot />
     </main>
-
   </div>
 </template>
 
@@ -56,12 +26,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Hide scrollbar for category tabs but allow scrolling */
+/* Hide scrollbars for category horizontal tabs while maintaining smooth scrolling */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Glassmorphic utilities */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dark .glass-effect {
+  background: rgba(18, 18, 18, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 </style>
