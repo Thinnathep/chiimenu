@@ -253,6 +253,16 @@ const deleteCategory = async (cat: any) => {
   await (client as any).from('menu_categories').delete().eq('id', cat.id)
   await fetchCategories()
 }
+
+const { locale, t } = useI18n()
+
+const getCategoryDisplayName = (cat: any) => {
+  if (!cat) return ''
+  const l = locale.value
+  if (l === 'en' && cat.name_en) return cat.name_en
+  if (l === 'zh' && cat.name_zh) return cat.name_zh
+  return cat.name_th || cat.name_en || cat.name_zh || ''
+}
 </script>
 
 <template>
@@ -266,14 +276,14 @@ const deleteCategory = async (cat: any) => {
           class="text-xs font-bold text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-2"
         >
           <ArrowLeft class="w-3.5 h-3.5" />
-          <span>กลับไปหน้ารายการเมนู</span>
+          <span>{{ $t('cat_back_to_menu') }}</span>
         </NuxtLink>
         <h1 class="text-xl font-black text-foreground flex items-center gap-2">
           <Layers class="w-6 h-6 text-primary" />
-          <span>จัดการหมวดหมู่เมนู (Categories)</span>
+          <span>{{ $t('cat_title') }}</span>
         </h1>
         <p class="text-xs text-muted-foreground mt-0.5">
-          จัดกลุ่มอาหารเพื่อให้นักท่องเที่ยวเลือกดูเมนูได้ง่ายและรวดเร็ว
+          {{ $t('cat_subtitle') }}
         </p>
       </div>
     </div>
@@ -283,7 +293,7 @@ const deleteCategory = async (cat: any) => {
       <div class="flex items-center justify-between border-b pb-3">
         <h2 class="text-sm font-black text-foreground flex items-center gap-1.5">
           <Plus class="w-4 h-4 text-primary" />
-          <span>เพิ่มหมวดหมู่ใหม่</span>
+          <span>{{ $t('cat_add_new') }}</span>
         </h2>
         
         <button 
@@ -293,7 +303,7 @@ const deleteCategory = async (cat: any) => {
           class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
         >
           <Sparkles class="w-3.5 h-3.5 text-purple-600" :class="isTranslating ? 'animate-spin' : ''" />
-          <span>{{ isTranslating ? 'กำลังแปล...' : '✨ แปลภาษา AI' }}</span>
+          <span>{{ isTranslating ? $t('cat_translating') : $t('cat_translate_ai') }}</span>
         </button>
       </div>
 
@@ -301,7 +311,7 @@ const deleteCategory = async (cat: any) => {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-xs font-bold text-foreground mb-1">
-              ชื่อภาษาไทย <span class="text-rose-500">*</span>
+              {{ $t('settings_name_th') }} <span class="text-rose-500">*</span>
             </label>
             <input 
               v-model="newCategory.name_th" 
@@ -314,7 +324,7 @@ const deleteCategory = async (cat: any) => {
 
           <div>
             <label class="block text-xs font-bold text-foreground mb-1">
-              ชื่อภาษาอังกฤษ (English)
+              {{ $t('settings_name_en') }}
             </label>
             <input 
               v-model="newCategory.name_en" 
@@ -326,7 +336,7 @@ const deleteCategory = async (cat: any) => {
 
           <div>
             <label class="block text-xs font-bold text-foreground mb-1">
-              ชื่อภาษาจีน (中文)
+              {{ $t('settings_name_zh') }}
             </label>
             <input 
               v-model="newCategory.name_zh" 
@@ -344,7 +354,7 @@ const deleteCategory = async (cat: any) => {
             class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs rounded-xl shadow-xs disabled:opacity-50 transition-all flex items-center gap-1.5"
           >
             <Plus class="w-4 h-4" />
-            <span>{{ addingCategory ? 'กำลังบันทึก...' : 'เพิ่มหมวดหมู่' }}</span>
+            <span>{{ addingCategory ? $t('cat_btn_adding') : $t('cat_btn_add') }}</span>
           </button>
         </div>
       </form>
@@ -354,18 +364,18 @@ const deleteCategory = async (cat: any) => {
     <div class="bg-card border rounded-3xl overflow-hidden shadow-xs">
       <div class="p-4 bg-muted/30 border-b flex items-center justify-between">
         <h3 class="text-xs font-black text-foreground">
-          รายการหมวดหมู่ทั้งหมด ({{ categories.length }} หมวด)
+          {{ $t('cat_list_title') }} ({{ categories.length }})
         </h3>
-        <span class="text-[11px] text-muted-foreground">จัดลำดับโดยใช้ปุ่มลูกศร ขึ้น / ลง</span>
+        <span class="text-[11px] text-muted-foreground">{{ $t('cat_reorder_hint') }}</span>
       </div>
 
       <div v-if="loading" class="p-8 text-center text-muted-foreground text-xs animate-pulse">
-        กำลังโหลดหมวดหมู่...
+        {{ $t('loading') }}
       </div>
 
       <div v-else-if="categories.length === 0" class="p-12 text-center space-y-2 text-muted-foreground">
         <div class="text-3xl opacity-50">📂</div>
-        <p class="text-xs font-bold">ยังไม่มีหมวดหมู่เมนูในร้าน</p>
+        <p class="text-xs font-bold">{{ $t('cat_empty_title') }}</p>
       </div>
 
       <ul v-else class="divide-y">
@@ -384,15 +394,15 @@ const deleteCategory = async (cat: any) => {
 
             <div>
               <div class="flex items-center gap-2">
-                <span class="font-black text-sm text-foreground">{{ cat.name_th }}</span>
+                <span class="font-black text-sm text-foreground">{{ getCategoryDisplayName(cat) }}</span>
                 <span 
                   class="px-2 py-0.5 rounded-full text-[10px] font-black"
                   :class="cat.is_active !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
                 >
-                  {{ cat.is_active !== false ? 'เปิดใช้งาน' : 'ซ่อนหมวดนี้' }}
+                  {{ cat.is_active !== false ? $t('cat_status_active') : $t('cat_status_hidden') }}
                 </span>
                 <span class="px-2 py-0.5 bg-muted rounded-md text-[10px] font-bold text-muted-foreground">
-                  {{ cat.menu_items?.[0]?.count || 0 }} เมนู
+                  {{ cat.menu_items?.[0]?.count || 0 }} {{ $t('cat_item_unit') }}
                 </span>
               </div>
 
@@ -412,7 +422,7 @@ const deleteCategory = async (cat: any) => {
               @click="moveCategory(index, 'up')" 
               :disabled="index === 0"
               class="p-1.5 rounded-lg border bg-background hover:bg-muted disabled:opacity-30 transition-colors"
-              title="เลื่อนขึ้น"
+              title="Move Up"
             >
               <ArrowUp class="w-3.5 h-3.5" />
             </button>
@@ -423,40 +433,39 @@ const deleteCategory = async (cat: any) => {
               @click="moveCategory(index, 'down')" 
               :disabled="index === categories.length - 1"
               class="p-1.5 rounded-lg border bg-background hover:bg-muted disabled:opacity-30 transition-colors"
-              title="เลื่อนลง"
+              title="Move Down"
             >
               <ArrowDown class="w-3.5 h-3.5" />
             </button>
 
             <!-- Toggle Active Switch -->
             <button 
-              type="button"
+              type="button" 
               @click="toggleCategoryActive(cat)"
               class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1 ml-1"
               :class="cat.is_active !== false ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'"
-              :title="cat.is_active !== false ? 'กดเพื่อซ่อนหมวดนี้จากเมนู' : 'กดเพื่อเปิดแสดงหมวดนี้'"
             >
               <EyeOff v-if="cat.is_active !== false" class="w-3.5 h-3.5 text-muted-foreground" />
               <Eye v-else class="w-3.5 h-3.5 text-emerald-600" />
-              <span>{{ cat.is_active !== false ? 'ซ่อน' : 'แสดง' }}</span>
+              <span>{{ cat.is_active !== false ? $t('cat_btn_hide') : $t('cat_btn_show') }}</span>
             </button>
 
             <!-- Edit Button -->
             <button 
-              type="button"
+              type="button" 
               @click="openEditModal(cat)"
               class="p-1.5 bg-muted/60 hover:bg-primary hover:text-white rounded-xl text-muted-foreground transition-colors ml-1"
-              title="แก้ไขหมวดหมู่"
+              title="Edit Category"
             >
               <Edit class="w-4 h-4" />
             </button>
 
             <!-- Delete Button -->
             <button 
-              type="button"
+              type="button" 
               @click="deleteCategory(cat)"
               class="p-1.5 bg-muted/60 hover:bg-rose-600 hover:text-white rounded-xl text-muted-foreground transition-colors"
-              title="ลบหมวดหมู่"
+              title="Delete Category"
             >
               <Trash2 class="w-4 h-4" />
             </button>
@@ -472,7 +481,7 @@ const deleteCategory = async (cat: any) => {
     >
       <div class="bg-card w-full max-w-md rounded-3xl p-6 shadow-2xl border space-y-4 animate-in zoom-in-95 duration-200">
         <div class="flex items-center justify-between border-b pb-3">
-          <h3 class="text-sm font-black text-foreground">แก้ไขหมวดหมู่เมนู</h3>
+          <h3 class="text-sm font-black text-foreground">{{ $t('cat_edit_title') }}</h3>
           <button @click="editingCategory = null" class="p-1 rounded-lg hover:bg-muted text-muted-foreground">
             <X class="w-4 h-4" />
           </button>
@@ -481,7 +490,7 @@ const deleteCategory = async (cat: any) => {
         <form @submit.prevent="updateCategory" class="space-y-3">
           <div>
             <label class="block text-xs font-bold text-foreground mb-1">
-              ชื่อภาษาไทย <span class="text-rose-500">*</span>
+              {{ $t('settings_name_th') }} <span class="text-rose-500">*</span>
             </label>
             <input 
               v-model="editForm.name_th" 
@@ -493,7 +502,7 @@ const deleteCategory = async (cat: any) => {
 
           <div>
             <label class="block text-xs font-bold text-foreground mb-1">
-              ชื่อภาษาอังกฤษ (English)
+              {{ $t('settings_name_en') }}
             </label>
             <input 
               v-model="editForm.name_en" 
@@ -504,7 +513,7 @@ const deleteCategory = async (cat: any) => {
 
           <div>
             <label class="block text-xs font-bold text-foreground mb-1">
-              ชื่อภาษาจีน (中文)
+              {{ $t('settings_name_zh') }}
             </label>
             <input 
               v-model="editForm.name_zh" 
@@ -515,13 +524,13 @@ const deleteCategory = async (cat: any) => {
 
           <div class="flex items-center justify-between pt-2">
             <button 
-              type="button"
+              type="button" 
               @click.prevent="translateCategory(true)"
               :disabled="isTranslatingEdit || !editForm.name_th"
               class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-700 rounded-xl text-xs font-bold"
             >
               <Sparkles class="w-3.5 h-3.5 text-purple-600" :class="isTranslatingEdit ? 'animate-spin' : ''" />
-              <span>แปลภาษา AI</span>
+              <span>{{ $t('cat_translate_ai') }}</span>
             </button>
 
             <div class="flex items-center gap-2">
@@ -530,14 +539,14 @@ const deleteCategory = async (cat: any) => {
                 @click="editingCategory = null"
                 class="px-4 py-2 bg-muted text-foreground font-bold text-xs rounded-xl"
               >
-                ยกเลิก
+                {{ $t('cat_btn_cancel') }}
               </button>
               <button 
                 type="submit" 
                 :disabled="isUpdating || !editForm.name_th.trim()"
                 class="px-5 py-2 bg-primary text-primary-foreground font-black text-xs rounded-xl shadow-xs"
               >
-                {{ isUpdating ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข' }}
+                {{ isUpdating ? $t('cat_btn_adding') : $t('cat_btn_save_edit') }}
               </button>
             </div>
           </div>

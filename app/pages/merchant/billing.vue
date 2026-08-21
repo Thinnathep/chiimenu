@@ -130,65 +130,76 @@ const downloadReceiptImage = async () => {
   }
 }
 
+const { locale, t } = useI18n()
+
 // Rich Packages Definition with distinct personalities
-const packages = computed(() => [
-  {
-    ...SUBSCRIPTION_PACKAGES['14d'],
-    unit: 'บาท / 14 วัน',
-    tagline: 'ทดสอบตลาด & เริ่มต้นอย่างมั่นใจ',
-    badge: 'เริ่มต้นง่าย',
-    isPopular: false,
-    isBestValue: false,
-    dailyRate: !store.value?.has_used_first_time_promo ? '5.3' : '10.6',
-    savings: !store.value?.has_used_first_time_promo ? 'ประหยัด ฿74' : null,
-    features: [
-      { text: 'รับออเดอร์ QR Code ไม่จำกัดโต๊ะ', highlight: true },
-      { text: 'ระบบแปลภาษา 3 ภาษา (ไทย, อังกฤษ, จีน)', highlight: true },
-      { text: 'แจ้งเตือนออเดอร์เข้า LINE ร้านค้าทันที', highlight: false },
-      { text: 'ปรับแต่งเมนูและราคาได้เรียลไทม์', highlight: false }
-    ],
-    ctaText: 'ต่ออายุ 14 วัน',
-    ctaClass: 'bg-muted text-foreground hover:bg-muted/80'
-  },
-  {
-    ...SUBSCRIPTION_PACKAGES['monthly'],
-    unit: 'บาท / เดือน',
-    tagline: 'ทางเลือกยอดนิยม คุ้มค่าที่สุดสำหรับร้านอาหาร',
-    badge: '🔥 ยอดนิยมสูงสุด',
-    isPopular: true,
-    isBestValue: false,
-    dailyRate: !store.value?.has_used_first_time_promo ? '4.3' : '8.6',
-    savings: !store.value?.has_used_first_time_promo ? 'ประหยัด ฿130' : null,
-    features: [
-      { text: 'รวมทุกฟีเจอร์ในแพ็กเกจ 14 วัน', highlight: true },
-      { text: 'แดชบอร์ดสรุปยอดและสถิติออเดอร์รายวัน', highlight: true },
-      { text: 'ป้าย QR Code สั่งอาหารความละเอียดสูง', highlight: false },
-      { text: 'ทีมงานให้คำปรึกษาตลอดการใช้งาน', highlight: false },
-      { text: 'เฉลี่ยเพียง ~8.6 บ./วัน (โปรครั้งแรก 4.3 บ.)', highlight: true }
-    ],
-    ctaText: 'เลือกแพ็กเกจ 1 เดือน',
-    ctaClass: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-rose-200'
-  },
-  {
-    ...SUBSCRIPTION_PACKAGES['yearly'],
-    unit: 'บาท / ปี',
-    tagline: 'ประหยัดสูงสุด ไร้กังวลเรื่องการต่ออายุตลอดปี',
-    badge: '👑 คุ้มค่าที่สุด (จ่าย 10 เดือน ฟรี 2 เดือน)',
-    isPopular: false,
-    isBestValue: true,
-    dailyRate: !store.value?.has_used_first_time_promo ? '3.5' : '7.1',
-    savings: !store.value?.has_used_first_time_promo ? 'ประหยัด ฿1,295' : 'ประหยัดค่าบริการ 2 เดือน',
-    features: [
-      { text: 'รวมทุกฟีเจอร์ระดับโปรทั้งหมด 365 วัน', highlight: true },
-      { text: 'สิทธิ์รับอัปเดตฟีเจอร์ใหม่ๆ ฟรีตลอดปี', highlight: true },
-      { text: 'ไม่ต้องกังวลเรื่องการต่ออายุทุกเดือน', highlight: false },
-      { text: 'ระบบดูแลและสำรองข้อมูลร้านค้าตลอดปี', highlight: false },
-      { text: 'เฉลี่ยถูกที่สุดเพียง 7.1 บ./วัน (โปร 3.5 บ.)', highlight: true }
-    ],
-    ctaText: 'ต่ออายุ 1 ปี คุ้มที่สุด',
-    ctaClass: 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
-  }
-])
+const packages = computed(() => {
+  const isZh = locale.value === 'zh'
+  const isEn = locale.value === 'en'
+  const isPromo = !store.value?.has_used_first_time_promo
+
+  return [
+    {
+      ...SUBSCRIPTION_PACKAGES['14d'],
+      name: isZh ? '14 天试用套餐' : (isEn ? '14 Days Plan' : '14 วัน'),
+      unit: isZh ? '泰铢 / 14 天' : (isEn ? 'THB / 14 Days' : 'บาท / 14 วัน'),
+      tagline: isZh ? '低成本测试市场，轻松开启智能点餐' : (isEn ? 'Test the market & get started with confidence' : 'ทดสอบตลาด & เริ่มต้นอย่างมั่นใจ'),
+      badge: isZh ? '轻松起步' : (isEn ? 'Easy Start' : 'เริ่มต้นง่าย'),
+      isPopular: false,
+      isBestValue: false,
+      dailyRate: isPromo ? '5.3' : '10.6',
+      savings: isPromo ? (isZh ? '节省 ฿74' : (isEn ? 'Save ฿74' : 'ประหยัด ฿74')) : null,
+      features: [
+        { text: isZh ? '无限制桌号扫码点餐' : (isEn ? 'Unlimited table QR Code ordering' : 'รับออเดอร์ QR Code ไม่จำกัดโต๊ะ'), highlight: true },
+        { text: isZh ? '泰/英/中三语智能翻译' : (isEn ? '3-Language AI translation (TH/EN/ZH)' : 'ระบบแปลภาษา 3 ภาษา (ไทย, อังกฤษ, จีน)'), highlight: true },
+        { text: isZh ? 'LINE OA 实时订单推送' : (isEn ? 'Instant LINE OA order alerts' : 'แจ้งเตือนออเดอร์เข้า LINE ร้านค้าทันที'), highlight: false },
+        { text: isZh ? '实时调整菜单与价格' : (isEn ? 'Real-time menu & price editing' : 'ปรับแต่งเมนูและราคาได้เรียลไทม์'), highlight: false }
+      ],
+      ctaText: isZh ? '续费 14 天' : (isEn ? 'Renew 14 Days' : 'ต่ออายุ 14 วัน'),
+      ctaClass: 'bg-muted text-foreground hover:bg-muted/80'
+    },
+    {
+      ...SUBSCRIPTION_PACKAGES['monthly'],
+      name: isZh ? '1 个月标准套餐' : (isEn ? '1 Month Plan' : '1 เดือน'),
+      unit: isZh ? '泰铢 / 月' : (isEn ? 'THB / Month' : 'บาท / เดือน'),
+      tagline: isZh ? '最受餐厅欢迎的超高性价比方案' : (isEn ? 'Most popular & best value for restaurants' : 'ทางเลือกยอดนิยม คุ้มค่าที่สุดสำหรับร้านอาหาร'),
+      badge: isZh ? '🔥 最受欢迎' : (isEn ? '🔥 Most Popular' : '🔥 ยอดนิยมสูงสุด'),
+      isPopular: true,
+      isBestValue: false,
+      dailyRate: isPromo ? '4.3' : '8.6',
+      savings: isPromo ? (isZh ? '节省 ฿130' : (isEn ? 'Save ฿130' : 'ประหยัด ฿130')) : null,
+      features: [
+        { text: isZh ? '包含 14 天方案的所有功能' : (isEn ? 'Includes all 14-day features' : 'รวมทุกฟีเจอร์ในแพ็กเกจ 14 วัน'), highlight: true },
+        { text: isZh ? '每日营业额与订单数据看板' : (isEn ? 'Daily sales & order analytics dashboard' : 'แดชบอร์ดสรุปยอดและสถิติออเดอร์รายวัน'), highlight: true },
+        { text: isZh ? '高清桌码海报设计模板' : (isEn ? 'High-resolution QR code signage template' : 'ป้าย QR Code สั่งอาหารความละเอียดสูง'), highlight: false },
+        { text: isZh ? '专属客服全程技术支持' : (isEn ? 'Dedicated support during entire period' : 'ทีมงานให้คำปรึกษาตลอดการใช้งาน'), highlight: false },
+        { text: isZh ? '折合每天仅 ~8.6 铢 (首充特惠 4.3 铢)' : (isEn ? 'Only ~8.6 THB/day (Promo 4.3 THB)' : 'เฉลี่ยเพียง ~8.6 บ./วัน (โปรครั้งแรก 4.3 บ.)'), highlight: true }
+      ],
+      ctaText: isZh ? '选择 1 个月套餐' : (isEn ? 'Select 1 Month' : 'เลือกแพ็กเกจ 1 เดือน'),
+      ctaClass: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-rose-200'
+    },
+    {
+      ...SUBSCRIPTION_PACKAGES['yearly'],
+      name: isZh ? '1 年旗舰套餐' : (isEn ? '1 Year Plan' : '1 ปี'),
+      unit: isZh ? '泰铢 / 年' : (isEn ? 'THB / Year' : 'บาท / ปี'),
+      tagline: isZh ? '省心一整年，尊享最大折扣' : (isEn ? 'Maximum savings & hassle-free for a full year' : 'ประหยัดสูงสุด ไร้กังวลเรื่องการต่ออายุตลอดปี'),
+      badge: isZh ? '👑 最划算 (付 10 个月送 2 个月)' : (isEn ? '👑 Best Value (Pay 10 Mo, Get 2 Free)' : '👑 คุ้มค่าที่สุด (จ่าย 10 เดือน ฟรี 2 เดือน)'),
+      isPopular: false,
+      isBestValue: true,
+      dailyRate: isPromo ? '3.5' : '7.1',
+      savings: isPromo ? (isZh ? '节省 ฿1,295' : (isEn ? 'Save ฿1,295' : 'ประหยัด ฿1,295')) : (isZh ? '免费赠送 2 个月' : (isEn ? '2 Months Free' : 'ประหยัดค่าบริการ 2 เดือน')),
+      features: [
+        { text: isZh ? '365 天无忧使用全套高级功能' : (isEn ? 'All pro features unlocked for 365 days' : 'รวมทุกฟีเจอร์ระดับโปรทั้งหมด 365 วัน'), highlight: true },
+        { text: isZh ? '全年免费优先更新最新功能' : (isEn ? 'Free access to new feature releases' : 'สิทธิ์รับอัปเดตฟีเจอร์ใหม่ๆ ฟรีตลอดปี'), highlight: true },
+        { text: isZh ? '无需每月重复续费，省时省力' : (isEn ? 'No monthly renewal hassle' : 'ไม่ต้องกังวลเรื่องการต่ออายุทุกเดือน'), highlight: false },
+        { text: isZh ? '全年度数据云端备份与运维' : (isEn ? 'Cloud data backup & priority maintenance' : 'ระบบดูแลและสำรองข้อมูลร้านค้าตลอดปี'), highlight: false },
+        { text: isZh ? '极致实惠每天仅 7.1 铢 (首充 3.5 铢)' : (isEn ? 'Best rate at only 7.1 THB/day (Promo 3.5 THB)' : 'เฉลี่ยถูกที่สุดเพียง 7.1 บ./วัน (โปร 3.5 บ.)'), highlight: true }
+      ],
+      ctaText: isZh ? '续费 1 年 (最超值)' : (isEn ? 'Renew 1 Year (Best Value)' : 'ต่ออายุ 1 ปี คุ้มที่สุด'),
+      ctaClass: 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
+    }
+  ]
+})
 </script>
 
 <template>
@@ -197,9 +208,9 @@ const packages = computed(() => [
     <!-- Page Header & Status Overview -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-foreground">แพ็กเกจและการต่ออายุสมาชิก</h1>
+        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-foreground">{{ $t('billing_title') }}</h1>
         <p class="text-muted-foreground mt-1 text-sm">
-          เลือกแพ็กเกจที่ลงตัวกับร้านของคุณ เพื่อให้ลูกค้านักท่องเที่ยวสามารถสแกนสั่งอาหารได้อย่างต่อเนื่อง
+          {{ $t('billing_desc') }}
         </p>
       </div>
 
@@ -211,7 +222,7 @@ const packages = computed(() => [
         class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-bold rounded-2xl shadow-sm hover:shadow-md transition-all text-xs shrink-0 self-start md:self-auto"
       >
         <MessageCircle class="w-4 h-4" />
-        <span>ติดต่อแอดมินผ่าน LINE OA</span>
+        <span>{{ $t('billing_btn_open_line') }}</span>
       </a>
     </div>
 
@@ -240,7 +251,7 @@ const packages = computed(() => [
       <div class="bg-card border rounded-3xl p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-card via-card to-primary/5">
         <div class="space-y-1.5">
           <div class="flex items-center gap-2.5">
-            <span class="text-xs font-semibold text-muted-foreground">ร้านของคุณ:</span>
+            <span class="text-xs font-semibold text-muted-foreground">{{ $t('billing_status_card_title') }}:</span>
             <strong class="text-base text-foreground font-black">{{ store.name }}</strong>
             
             <span 
@@ -248,35 +259,25 @@ const packages = computed(() => [
               :class="store.plan_status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200'"
             >
               <span class="w-1.5 h-1.5 rounded-full" :class="store.plan_status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
-              {{ store.plan_status === 'active' ? 'ใช้งานจริง (Active Plan)' : 'ทดลองใช้ (Trial Period)' }}
+              {{ store.plan_status === 'active' ? $t('billing_status_active') : $t('billing_status_trial') }}
             </span>
           </div>
 
           <div class="text-xs text-muted-foreground flex flex-wrap items-center gap-3">
             <div class="flex items-center gap-1.5">
               <CalendarRange class="w-4 h-4 text-primary" />
-              <span>วันหมดอายุ: <strong class="text-foreground">{{ formatDate(getActiveEndDate()) }}</strong></span>
+              <span>{{ $t('billing_expiry_label') }}: <strong class="text-foreground">{{ formatDate(getActiveEndDate()) }}</strong></span>
             </div>
 
             <span 
               class="px-2.5 py-0.5 rounded-md font-bold text-xs"
               :class="isExpired ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'"
             >
-              <span v-if="isExpired">หมดอายุแล้ว (กรุณาต่ออายุ)</span>
-              <span v-else>เหลือเวลาอีก {{ getDaysRemaining() }} วัน</span>
+              <span v-if="isExpired">{{ $t('billing_expired_badge') }}</span>
+              <span v-else>{{ $t('billing_days_remaining', { days: getDaysRemaining() }) }}</span>
             </span>
           </div>
         </div>
-
-        <!-- <a 
-          href="https://line.me/R/ti/p/@819wgrsj" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          class="px-5 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 shrink-0"
-        >
-          <Phone class="w-3.5 h-3.5" />
-          <span>แจ้งต่ออายุกับแอดมิน</span>
-        </a> -->
       </div>
 
       <!-- 2. First-Time 50% Special Promotion Callout Banner -->
@@ -291,12 +292,12 @@ const packages = computed(() => [
           <div>
             <div class="flex items-center justify-center md:justify-start gap-2">
               <span class="bg-white text-rose-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                Special Offer
+                {{ $t('billing_promo_badge') }}
               </span>
-              <h3 class="text-lg font-black tracking-tight">สิทธิ์ส่วนลดพิเศษ 50% สำหรับร้านค้าใหม่!</h3>
+              <h3 class="text-lg font-black tracking-tight">{{ $t('billing_promo_title') }}</h3>
             </div>
             <p class="text-xs text-rose-100 mt-1">
-              รับสิทธิ์ลดค่าบริการ 50% ทันทีในการต่ออายุครั้งแรก (ใช้ได้ 1 ครั้ง ต่อ 1 ร้านค้า เลือกแพ็กเกจใดก็ได้)
+              {{ $t('billing_promo_desc') }}
             </p>
           </div>
         </div>
@@ -304,7 +305,7 @@ const packages = computed(() => [
         <div class="shrink-0">
           <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/20 backdrop-blur-md text-white text-xs font-bold border border-white/30">
             <Sparkles class="w-4 h-4 text-yellow-300" />
-            ลดทันทีในราคานี้
+            {{ $t('billing_promo_instant') }}
           </span>
         </div>
       </div>
@@ -312,8 +313,8 @@ const packages = computed(() => [
       <!-- 3. Packages Grid (Distinct & Compelling) -->
       <div>
         <div class="text-center mb-8">
-          <h2 class="text-xl font-black text-foreground">เลือกแพ็กเกจที่เหมาะกับการดำเนินงานของร้านคุณ</h2>
-          <p class="text-xs text-muted-foreground mt-1">ไม่มีข้อผูกมัดระยะยาว ปรับเปลี่ยนและต่ออายุได้ตามความสะดวก</p>
+          <h2 class="text-xl font-black text-foreground">{{ $t('billing_packages_heading') }}</h2>
+          <p class="text-xs text-muted-foreground mt-1">{{ $t('billing_packages_subheading') }}</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
@@ -351,7 +352,7 @@ const packages = computed(() => [
                 
                 <!-- Daily Rate Pill -->
                 <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary mb-2">
-                  <span>ตกวันละเพียง ~{{ pkg.dailyRate }} บาท</span>
+                  <span>{{ $t('billing_daily_rate', { rate: pkg.dailyRate }) }}</span>
                 </div>
 
                 <!-- Price with Promo Strike-through -->
@@ -378,7 +379,7 @@ const packages = computed(() => [
 
               <!-- Feature Checklist -->
               <div class="mt-6 space-y-3">
-                <p class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">ฟีเจอร์เด่นที่จะได้รับ:</p>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{{ $t('billing_feature_heading') }}</p>
                 
                 <ul class="space-y-2.5">
                   <li 
@@ -419,7 +420,7 @@ const packages = computed(() => [
         </div>
 
         <p class="text-center text-xs text-muted-foreground mt-6">
-          * ราคาและโปรโมชั่นอาจมีการเปลี่ยนแปลง สามารถสอบถามรายละเอียดเพิ่มเติมได้ที่ LINE Official Account
+          {{ $t('billing_terms_note') }}
         </p>
       </div>
 
@@ -427,7 +428,7 @@ const packages = computed(() => [
       <div class="bg-card border rounded-3xl p-6 sm:p-8 shadow-xs">
         <h3 class="text-base font-bold text-foreground mb-6 flex items-center gap-2">
           <Sparkles class="w-4 h-4 text-primary" />
-          ขั้นตอนการต่ออายุสมาชิกง่ายๆ ใน 3 ขั้นตอน
+          {{ $t('billing_steps_title') }}
         </h3>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -436,8 +437,8 @@ const packages = computed(() => [
               1
             </div>
             <div>
-              <h4 class="text-xs font-bold text-foreground">เลือกแพ็กเกจที่ต้องการ</h4>
-              <p class="text-xs text-muted-foreground mt-0.5">เลือก 14 วัน, 1 เดือน หรือ 1 ปี ตามรอบการใช้งานของร้าน</p>
+              <h4 class="text-xs font-bold text-foreground">{{ $t('billing_step_1_title') }}</h4>
+              <p class="text-xs text-muted-foreground mt-0.5">{{ $t('billing_step_1_desc') }}</p>
             </div>
           </div>
 
@@ -446,8 +447,8 @@ const packages = computed(() => [
               2
             </div>
             <div>
-              <h4 class="text-xs font-bold text-foreground">ทัก LINE พร้อมส่งสลิป</h4>
-              <p class="text-xs text-muted-foreground mt-0.5">แจ้งชื่อร้านค้าและแนบสลิปโอนเงินมาที่ LINE: @819wgrsj</p>
+              <h4 class="text-xs font-bold text-foreground">{{ $t('billing_step_2_title') }}</h4>
+              <p class="text-xs text-muted-foreground mt-0.5">{{ $t('billing_step_2_desc') }}</p>
             </div>
           </div>
 
@@ -456,8 +457,8 @@ const packages = computed(() => [
               3
             </div>
             <div>
-              <h4 class="text-xs font-bold text-foreground">เปิดใช้งานต่อเนื่องทันที</h4>
-              <p class="text-xs text-muted-foreground mt-0.5">แอดมินดำเนินการปลดล็อกและออกใบเสร็จรับเงินให้ภายใน 5 นาที</p>
+              <h4 class="text-xs font-bold text-foreground">{{ $t('billing_step_3_title') }}</h4>
+              <p class="text-xs text-muted-foreground mt-0.5">{{ $t('billing_step_3_desc') }}</p>
             </div>
           </div>
         </div>
@@ -468,11 +469,11 @@ const packages = computed(() => [
         <div class="p-6 border-b flex items-center justify-between bg-muted/10">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <Receipt class="w-4 h-4" />
+              <FileText class="w-4 h-4" />
             </div>
             <div>
               <h3 class="text-base font-bold text-foreground">{{ $t('billing_history_title') }}</h3>
-              <p class="text-xs text-muted-foreground">ประวัติการชำระเงินและใบเสร็จทั้งหมดของร้านคุณ</p>
+              <p class="text-xs text-muted-foreground">{{ $t('billing_history_desc') }}</p>
             </div>
           </div>
           <span class="text-xs text-muted-foreground">{{ billingRecords.length }} รายการ</span>
@@ -480,19 +481,19 @@ const packages = computed(() => [
         
         <div v-if="billingRecords.length === 0" class="p-12 text-center text-muted-foreground">
           <FileText class="w-8 h-8 mx-auto mb-2 opacity-30" />
-          <p class="text-sm font-medium">{{ $t('billing_no_history') }}</p>
+          <p class="text-sm font-medium">{{ $t('billing_history_empty') }}</p>
+          <p class="text-xs mt-1">{{ $t('billing_history_empty_desc') }}</p>
         </div>
         
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead class="text-[11px] text-muted-foreground uppercase bg-muted/30 border-b font-semibold tracking-wider">
               <tr>
-                <th scope="col" class="px-6 py-3.5">{{ $t('billing_col_receipt') }}</th>
-                <th scope="col" class="px-6 py-3.5">{{ $t('billing_col_package') }}</th>
-                <th scope="col" class="px-6 py-3.5">{{ $t('billing_col_amount') }}</th>
-                <th scope="col" class="px-6 py-3.5">{{ $t('billing_col_paid_at') }}</th>
-                <th scope="col" class="px-6 py-3.5">{{ $t('billing_col_valid') }}</th>
-                <th scope="col" class="px-6 py-3.5 text-right">ใบเสร็จ</th>
+                <th scope="col" class="px-6 py-3.5">{{ $t('billing_receipt_col_date') }}</th>
+                <th scope="col" class="px-6 py-3.5">{{ $t('billing_receipt_col_pkg') }}</th>
+                <th scope="col" class="px-6 py-3.5">{{ $t('billing_receipt_col_amount') }}</th>
+                <th scope="col" class="px-6 py-3.5">{{ $t('billing_receipt_col_status') }}</th>
+                <th scope="col" class="px-6 py-3.5 text-right">{{ $t('billing_receipt_col_action') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border">
@@ -508,16 +509,13 @@ const packages = computed(() => [
                 </td>
                 <td class="px-6 py-4 font-black text-emerald-600">{{ formatCurrency(record.amount) }}</td>
                 <td class="px-6 py-4 text-xs text-muted-foreground whitespace-nowrap">{{ formatDateTime(record.paid_at) }}</td>
-                <td class="px-6 py-4 text-xs text-muted-foreground whitespace-nowrap">
-                  {{ formatDate(record.plan_start_at) }} - {{ formatDate(record.plan_end_at) }}
-                </td>
                 <td class="px-6 py-4 text-right whitespace-nowrap">
                   <button 
                     @click="openReceipt(record)" 
                     class="text-primary hover:text-primary/80 font-bold text-xs transition-colors px-3 py-1.5 rounded-lg hover:bg-primary/10 inline-flex items-center gap-1.5 border border-primary/20"
                   >
                     <Download class="w-3.5 h-3.5" />
-                    <span>{{ $t('billing_btn_download') }}</span>
+                    <span>{{ $t('billing_receipt_col_action') }}</span>
                   </button>
                 </td>
               </tr>
@@ -533,8 +531,8 @@ const packages = computed(() => [
       <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         <div class="p-5 border-b border-border flex justify-between items-center bg-muted/30">
           <div class="flex items-center gap-2">
-            <Receipt class="w-5 h-5 text-primary" />
-            <h3 class="font-bold text-base text-foreground">{{ $t('billing_receipt_title') }}</h3>
+            <FileText class="w-5 h-5 text-primary" />
+            <h3 class="font-bold text-base text-foreground">{{ $t('billing_history_title') }}</h3>
           </div>
           <button @click="showReceiptModal = false" class="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-muted transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -548,16 +546,16 @@ const packages = computed(() => [
             <div class="text-center mb-6 flex flex-col items-center">
               <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-xl object-contain mb-2 shadow-xs" crossorigin="anonymous">
               <h2 class="text-xl font-bold mb-0.5">ChiiMenu</h2>
-              <p class="text-xs text-gray-500">{{ $t('billing_receipt_title') }}</p>
+              <p class="text-xs text-gray-500">Official Receipt</p>
             </div>
             
             <div class="text-xs mb-6 space-y-1">
               <div class="flex justify-between">
-                <span class="text-gray-500">{{ $t('billing_col_receipt') }}:</span>
+                <span class="text-gray-500">{{ $t('billing_receipt_col_date') }}:</span>
                 <span class="font-medium">{{ selectedReceipt?.receipt_number }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-500">{{ $t('billing_col_paid_at') }}:</span>
+                <span class="text-gray-500">Paid at:</span>
                 <span>{{ formatDateTime(selectedReceipt?.paid_at) }}</span>
               </div>
             </div>
@@ -565,7 +563,7 @@ const packages = computed(() => [
             <!-- Customer Info -->
             <div class="text-xs mb-6 space-y-1 pb-4 border-b border-gray-200 border-dashed">
               <div class="flex flex-col">
-                <span class="text-gray-500 mb-1">{{ $t('billing_receipt_issued_to') }}:</span>
+                <span class="text-gray-500 mb-1">Issued to:</span>
                 <span class="font-bold text-sm">{{ store?.name }}</span>
                 <span>{{ store?.address || '-' }}</span>
               </div>
@@ -593,7 +591,7 @@ const packages = computed(() => [
                   </tr>
                   <tr v-if="selectedReceipt?.discount_amount">
                     <td class="py-1 text-rose-500 font-medium text-xs">
-                      ส่วนลดโปรโมชั่น ({{ selectedReceipt?.promotion_code }})
+                      Promotion ({{ selectedReceipt?.promotion_code }})
                     </td>
                     <td class="text-right align-top py-1 text-rose-500">
                       -{{ formatCurrency(selectedReceipt.discount_amount) }}
@@ -611,9 +609,9 @@ const packages = computed(() => [
             
             <!-- Footer -->
             <div class="text-center text-[10px] text-gray-500 space-y-1">
-              <p>{{ $t('billing_receipt_payment_method') }}: {{ $t('billing_receipt_bank_transfer') }}</p>
+              <p>Payment: PromptPay / Bank Transfer</p>
               <p v-if="selectedReceipt?.note">Ref: {{ selectedReceipt.note }}</p>
-              <p class="mt-4 pt-4 border-t border-gray-200">{{ $t('billing_receipt_footer') }}</p>
+              <p class="mt-4 pt-4 border-t border-gray-200">Thank you for choosing ChiiMenu</p>
               <p>LINE: @819wgrsj</p>
             </div>
           </div>
@@ -621,12 +619,12 @@ const packages = computed(() => [
         
         <div class="p-4 border-t border-border bg-muted/30 flex justify-end gap-3">
           <button @click="showReceiptModal = false" class="px-5 py-2.5 text-muted-foreground font-medium hover:bg-muted rounded-xl transition-colors text-xs">
-            ปิด
+            {{ $t('btn_cancel') }}
           </button>
           <button @click="downloadReceiptImage" :disabled="downloading" class="px-5 py-2.5 bg-primary text-primary-foreground font-bold hover:bg-primary/90 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 text-xs">
             <svg v-if="downloading" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
             <Download v-else class="w-4 h-4" />
-            <span>บันทึกเป็นรูปภาพ</span>
+            <span>Download</span>
           </button>
         </div>
       </div>

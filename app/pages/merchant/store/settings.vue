@@ -61,12 +61,18 @@ const form = ref({
   updated_at: ''
 })
 
-const storeTypes = [
-  { value: 'restaurant', label: '🍽️ ร้านอาหารทั่วไป (Restaurant)' },
-  { value: 'cafe', label: '☕ คาเฟ่ & เบเกอรี่ (Cafe & Bakery)' },
-  { value: 'street_food', label: '🍢 สตรีทฟู้ด & อาหารจานด่วน (Street Food)' },
-  { value: 'drink', label: '🧋 เครื่องดื่ม & ชานม (Drink & Dessert)' }
-]
+const { locale, t } = useI18n()
+
+const storeTypes = computed(() => {
+  const isZh = locale.value === 'zh'
+  const isEn = locale.value === 'en'
+  return [
+    { value: 'restaurant', label: isZh ? '🍽️ 餐厅 / 正餐 (Restaurant)' : (isEn ? '🍽️ Restaurant / Dining' : '🍽️ ร้านอาหารทั่วไป (Restaurant)') },
+    { value: 'cafe', label: isZh ? '☕ 咖啡厅与烘焙 (Cafe & Bakery)' : (isEn ? '☕ Cafe & Bakery' : '☕ คาเฟ่ & เบเกอรี่ (Cafe & Bakery)') },
+    { value: 'street_food', label: isZh ? '🍢 街头小吃与快餐 (Street Food)' : (isEn ? '🍢 Street Food & Fast Food' : '🍢 สตรีทฟู้ด & อาหารจานด่วน (Street Food)') },
+    { value: 'drink', label: isZh ? '🧋 饮品与奶茶 (Drinks & Bar)' : (isEn ? '🧋 Drink & Dessert Bar' : '🧋 เครื่องดื่ม & ชานม (Drink & Dessert)') }
+  ]
+})
 
 onMounted(async () => {
   try {
@@ -343,15 +349,15 @@ const submitForm = async () => {
     if (error) throw error
     
     setStore({ ...store.value, ...form.value })
-    useToast().success('บันทึกข้อมูลร้านค้าและการตั้งค่าเรียบร้อยแล้ว!')
-    successMsg.value = '✅ บันทึกข้อมูลร้านค้าและการตั้งค่าเรียบร้อยแล้ว!'
+    useToast().success($t('settings_save_success'))
+    successMsg.value = $t('settings_save_success')
     setTimeout(() => { successMsg.value = '' }, 4000)
   } catch (e: any) {
     if (e.code === '23505') {
-      errorMsg.value = '❌ ลิงก์ร้านค้านี้ถูกใช้งานแล้ว กรุณาเปลี่ยนใหม่อีกครั้ง'
-      useToast().error('ลิงก์ร้านค้านี้ถูกใช้งานแล้ว กรุณาเปลี่ยนใหม่อีกครั้ง')
+      errorMsg.value = $t('settings_error_slug_taken')
+      useToast().error($t('settings_error_slug_taken'))
     } else {
-      errorMsg.value = e.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+      errorMsg.value = e.message || $t('settings_error_generic')
       useToast().error(errorMsg.value)
     }
   } finally {
@@ -370,10 +376,10 @@ const submitForm = async () => {
           <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
             <Store class="w-5 h-5" />
           </div>
-          <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-foreground">ตั้งค่าและปรับแต่งร้านค้า</h1>
+          <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-foreground">{{ $t('settings_title') }}</h1>
         </div>
         <p class="text-xs sm:text-sm text-muted-foreground mt-1">
-          จัดการข้อมูลพื้นฐาน ภาพลักษณ์ร้าน ลิงก์เมนู และการเชื่อมต่อ LINE แจ้งเตือนออเดอร์
+          {{ $t('settings_subtitle') }}
         </p>
       </div>
 
@@ -384,7 +390,7 @@ const submitForm = async () => {
         target="_blank" 
         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground font-semibold text-xs transition-all border shrink-0"
       >
-        <span>เปิดดูหน้าร้านจริง</span>
+        <span>{{ $t('settings_view_live') }}</span>
         <ExternalLink class="w-3.5 h-3.5 opacity-60" />
       </a>
     </div>
@@ -392,16 +398,16 @@ const submitForm = async () => {
     <!-- Loading State -->
     <div v-if="loading" class="p-16 text-center bg-card rounded-3xl border shadow-xs">
       <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-      <p class="text-xs text-muted-foreground">กำลังโหลดข้อมูลร้านค้า...</p>
+      <p class="text-xs text-muted-foreground">{{ $t('loading') }}</p>
     </div>
 
     <!-- No Store Created -->
     <div v-else-if="!form.id" class="p-12 text-center bg-card rounded-3xl border shadow-xs">
       <div class="text-4xl mb-3">🏪</div>
-      <h2 class="text-lg font-bold text-foreground mb-1">ยังไม่พบข้อมูลร้านค้า</h2>
-      <p class="text-xs text-muted-foreground mb-6">คุณยังไม่ได้สร้างร้านค้าในระบบ</p>
+      <h2 class="text-lg font-bold text-foreground mb-1">{{ $t('settings_no_store_title') }}</h2>
+      <p class="text-xs text-muted-foreground mb-6">{{ $t('settings_no_store_desc') }}</p>
       <NuxtLink to="/merchant/store/create" class="px-6 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-xs">
-        สร้างร้านค้าทันที
+        {{ $t('settings_btn_create') }}
       </NuxtLink>
     </div>
 
@@ -423,7 +429,7 @@ const submitForm = async () => {
           <div>
             <div class="flex items-center gap-2">
               <h3 class="text-base font-black text-foreground">
-                สถานะร้าน: {{ form.is_active ? 'เปิดให้บริการ (Open)' : 'ปิดร้านชั่วคราว (Closed)' }}
+                {{ $t('settings_status_label') }}: {{ form.is_active ? $t('settings_status_open') : $t('settings_status_closed') }}
               </h3>
               <span 
                 class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
@@ -433,7 +439,7 @@ const submitForm = async () => {
               </span>
             </div>
             <p class="text-xs text-muted-foreground mt-0.5">
-              {{ form.is_active ? 'ลูกค้าสามารถสแกน QR Code และกดสั่งอาหารได้ตามปกติ' : 'หน้าร้านจะแสดงป้ายแจ้งว่าปิดให้บริการชั่วคราว และไม่อนุญาตให้สั่งอาหาร' }}
+              {{ form.is_active ? $t('settings_status_open_desc') : $t('settings_status_closed_desc') }}
             </p>
           </div>
         </div>
@@ -444,7 +450,7 @@ const submitForm = async () => {
           :disabled="isTogglingStatus" 
           class="relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50"
           :class="form.is_active ? 'bg-emerald-600' : 'bg-slate-300'"
-          :title="form.is_active ? 'กดเพื่อปิดร้านชั่วคราว' : 'กดเพื่อเปิดให้บริการ'"
+          :title="form.is_active ? $t('settings_status_close_btn') : $t('settings_status_open_btn')"
         >
           <span 
             class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out flex items-center justify-center text-[10px]"
@@ -460,36 +466,36 @@ const submitForm = async () => {
         <div class="border-b pb-4">
           <h2 class="text-base font-black text-foreground flex items-center gap-2">
             <ImageIcon class="w-4 h-4 text-primary" />
-            ภาพลักษณ์และแบรนด์ร้านค้า (Branding)
+            {{ $t('settings_branding_title') }}
           </h2>
-          <p class="text-xs text-muted-foreground mt-0.5">อัปโหลดโลโก้และภาพปกเพื่อสร้างความน่าเชื่อถือให้นักท่องเที่ยว</p>
+          <p class="text-xs text-muted-foreground mt-0.5">{{ $t('settings_branding_desc') }}</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           <div class="md:col-span-1">
-            <label class="block text-xs font-bold text-foreground mb-2">โลโก้ร้าน (สัดส่วน 1:1)</label>
+            <label class="block text-xs font-bold text-foreground mb-2">{{ $t('settings_logo_label') }}</label>
             <ImageUpload 
               v-if="user"
               bucket="store_assets" 
               :path="`${user.id}/logo`" 
               v-model="form.logo_url" 
-              label="อัปโหลดโลโก้" 
+              :label="$t('settings_logo_upload')" 
               aspect-ratio="1/1" 
             />
-            <p class="text-[11px] text-muted-foreground mt-2">แสดงบนหัวเมนูและตรงกลาง QR Code</p>
+            <p class="text-[11px] text-muted-foreground mt-2">{{ $t('settings_logo_hint') }}</p>
           </div>
 
           <div class="md:col-span-2">
-            <label class="block text-xs font-bold text-foreground mb-2">ภาพหน้าปกร้าน (สัดส่วน 16:9)</label>
+            <label class="block text-xs font-bold text-foreground mb-2">{{ $t('settings_cover_label') }}</label>
             <ImageUpload 
               v-if="user"
               bucket="store_assets" 
               :path="`${user.id}/cover`" 
               v-model="form.cover_url" 
-              label="อัปโหลดภาพปกหน้าร้าน" 
+              :label="$t('settings_cover_upload')" 
               aspect-ratio="16/9" 
             />
-            <p class="text-[11px] text-muted-foreground mt-2">แสดงเป็นแบนเนอร์ด้านบนสุดเมื่อลูกค้าเปิดดูเมนู</p>
+            <p class="text-[11px] text-muted-foreground mt-2">{{ $t('settings_cover_hint') }}</p>
           </div>
         </div>
       </div>
@@ -500,9 +506,9 @@ const submitForm = async () => {
           <div>
             <h2 class="text-base font-black text-foreground flex items-center gap-2">
               <Globe class="w-4 h-4 text-primary" />
-              ชื่อร้านค้าและ 3 ภาษา (Multi-Language)
+              {{ $t('settings_multi_title') }}
             </h2>
-            <p class="text-xs text-muted-foreground mt-0.5">แปลชื่อร้าน คำอธิบาย และที่อยู่เป็นภาษาอังกฤษและภาษาจีนเพื่อต้อนรับชาวต่างชาติ</p>
+            <p class="text-xs text-muted-foreground mt-0.5">{{ $t('settings_multi_desc') }}</p>
           </div>
 
           <button 
@@ -513,7 +519,7 @@ const submitForm = async () => {
           >
             <span v-if="isTranslating" class="w-3.5 h-3.5 border-2 border-purple-700 border-t-transparent rounded-full animate-spin"></span>
             <Sparkles v-else class="w-3.5 h-3.5" />
-            <span>{{ isTranslating ? 'กำลังแปลด้วย AI...' : '✨ แปลข้อมูลร้านอัตโนมัติ (AI)' }}</span>
+            <span>{{ isTranslating ? $t('settings_btn_translating') : $t('settings_btn_translate_ai') }}</span>
           </button>
         </div>
 
@@ -522,7 +528,7 @@ const submitForm = async () => {
           <!-- Thai Name -->
           <div>
             <label class="block text-xs font-bold text-foreground mb-1.5">
-              ชื่อร้านภาษาไทย <span class="text-rose-500">*</span>
+              {{ $t('settings_name_th') }} <span class="text-rose-500">*</span>
             </label>
             <input 
               v-model="form.name" 
@@ -536,7 +542,7 @@ const submitForm = async () => {
           <!-- English Name -->
           <div>
             <label class="block text-xs font-bold text-foreground mb-1.5">
-              ชื่อร้านภาษาอังกฤษ (English)
+              {{ $t('settings_name_en') }}
             </label>
             <input 
               v-model="form.name_en" 
@@ -549,7 +555,7 @@ const submitForm = async () => {
           <!-- Chinese Name -->
           <div>
             <label class="block text-xs font-bold text-foreground mb-1.5">
-              ชื่อร้านภาษาจีน (中文)
+              {{ $t('settings_name_zh') }}
             </label>
             <input 
               v-model="form.name_zh" 
@@ -563,7 +569,7 @@ const submitForm = async () => {
         <!-- 3.2 Store Type & Default Language -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
           <div>
-            <label class="block text-xs font-bold text-foreground mb-1.5">ประเภทธุรกิจ / ร้านอาหาร</label>
+            <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_store_type') }}</label>
             <select 
               v-model="form.store_type" 
               class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
@@ -573,13 +579,13 @@ const submitForm = async () => {
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-foreground mb-1.5">ภาษาเริ่มต้นของเมนู</label>
+            <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_default_lang') }}</label>
             <select 
               v-model="form.default_language" 
               class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
             >
-              <option value="th">🇹🇭 ภาษาไทย (เริ่มต้น)</option>
-              <option value="en">🇬🇧 English (Default for Tourists)</option>
+              <option value="th">🇹🇭 ภาษาไทย (TH)</option>
+              <option value="en">🇬🇧 English (EN)</option>
             </select>
           </div>
         </div>
@@ -588,12 +594,12 @@ const submitForm = async () => {
         <div class="space-y-4 pt-2 border-t border-border/40">
           <h3 class="text-xs font-black text-foreground flex items-center gap-1.5">
             <FileText class="w-3.5 h-3.5 text-primary" />
-            คำอธิบายหรือเรื่องราวของร้าน (Store Descriptions)
+            {{ $t('settings_desc_group_title') }}
           </h3>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
             <div>
-              <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายภาษาไทย</label>
+              <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_desc_th') }}</label>
               <textarea 
                 v-model="form.description" 
                 rows="3" 
@@ -603,7 +609,7 @@ const submitForm = async () => {
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายภาษาอังกฤษ (English)</label>
+              <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_desc_en') }}</label>
               <textarea 
                 v-model="form.description_en" 
                 rows="3" 
@@ -613,7 +619,7 @@ const submitForm = async () => {
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-foreground mb-1.5">คำอธิบายภาษาจีน (中文简介)</label>
+              <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_desc_zh') }}</label>
               <textarea 
                 v-model="form.description_zh" 
                 rows="3" 
@@ -630,15 +636,15 @@ const submitForm = async () => {
         <div class="border-b pb-4">
           <h2 class="text-base font-black text-foreground flex items-center gap-2">
             <MapPin class="w-4 h-4 text-primary" />
-            ลิงก์ร้านค้าและที่ตั้ง (URL & Address)
+            {{ $t('settings_url_address_title') }}
           </h2>
-          <p class="text-xs text-muted-foreground mt-0.5">กำหนด URL เฉพาะของร้านคุณ และที่ตั้งสำหรับแนะนำนักท่องเที่ยว</p>
+          <p class="text-xs text-muted-foreground mt-0.5">{{ $t('settings_url_address_desc') }}</p>
         </div>
 
         <!-- Slug URL -->
         <div class="space-y-2">
           <label class="block text-xs font-bold text-foreground">
-            ลิงก์เมนูร้านค้า (Custom URL Slug) <span class="text-rose-500">*</span>
+            {{ $t('settings_slug_label') }} <span class="text-rose-500">*</span>
           </label>
           
           <div class="flex rounded-xl border overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
@@ -658,12 +664,12 @@ const submitForm = async () => {
 
           <div class="flex items-center justify-between text-xs pt-0.5">
             <span class="text-[11px] text-muted-foreground">
-              🔤 ระบบปรับเป็น <strong>ตัวพิมพ์เล็ก (a-z)</strong> ตัวเลข และ <strong>-</strong> อัตโนมัติ
+              {{ $t('settings_slug_hint') }}
             </span>
             <div>
-              <span v-if="slugStatus === 'checking'" class="text-amber-600 animate-pulse text-[11px] font-bold">กำลังตรวจสอบ...</span>
-              <span v-else-if="slugStatus === 'taken'" class="text-rose-600 text-[11px] font-bold">❌ ลิงก์นี้มีร้านอื่นใช้งานแล้ว</span>
-              <span v-else-if="slugStatus === 'available'" class="text-emerald-600 text-[11px] font-bold">✅ ลิงก์นี้สามารถใช้งานได้</span>
+              <span v-if="slugStatus === 'checking'" class="text-amber-600 animate-pulse text-[11px] font-bold">{{ $t('settings_slug_checking') }}</span>
+              <span v-else-if="slugStatus === 'taken'" class="text-rose-600 text-[11px] font-bold">❌ {{ $t('settings_slug_taken') }}</span>
+              <span v-else-if="slugStatus === 'available'" class="text-emerald-600 text-[11px] font-bold">✅ {{ $t('settings_slug_available') }}</span>
             </div>
           </div>
 
@@ -676,7 +682,7 @@ const submitForm = async () => {
               title="คัดลอกคำสั่งไปวางใน LINE"
             >
               <MessageCircle class="w-3.5 h-3.5 text-emerald-600" />
-              <span>📋 คัดลอกคำสั่งผูก LINE: <code class="font-mono bg-emerald-200/50 dark:bg-emerald-900/50 px-1 rounded">link {{ form.slug }}</code></span>
+              <span>{{ $t('settings_btn_copy_line_cmd') }}: <code class="font-mono bg-emerald-200/50 dark:bg-emerald-900/50 px-1 rounded">link {{ form.slug }}</code></span>
             </button>
 
             <button 
@@ -685,7 +691,7 @@ const submitForm = async () => {
               class="px-3.5 py-1.5 bg-muted hover:bg-muted/80 text-foreground font-semibold text-xs rounded-xl border transition-all inline-flex items-center gap-1.5"
             >
               <Copy class="w-3.5 h-3.5 text-muted-foreground" />
-              <span>คัดลอกลิงก์ร้าน (/m/{{ form.slug }})</span>
+              <span>{{ $t('settings_btn_copy_link') }}</span>
             </button>
           </div>
         </div>
@@ -695,7 +701,7 @@ const submitForm = async () => {
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
             <!-- Thai Address -->
             <div>
-              <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้านภาษาไทย</label>
+              <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_address_th') }}</label>
               <input 
                 v-model="form.address" 
                 type="text" 
@@ -706,7 +712,7 @@ const submitForm = async () => {
 
             <!-- English Address -->
             <div>
-              <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้านภาษาอังกฤษ (English)</label>
+              <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_address_en') }}</label>
               <input 
                 v-model="form.address_en" 
                 type="text" 
@@ -717,7 +723,7 @@ const submitForm = async () => {
 
             <!-- Chinese Address -->
             <div>
-              <label class="block text-xs font-bold text-foreground mb-1.5">ที่อยู่ร้านภาษาจีน (中文地址)</label>
+              <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_address_zh') }}</label>
               <input 
                 v-model="form.address_zh" 
                 type="text" 
@@ -729,19 +735,19 @@ const submitForm = async () => {
 
           <!-- Phone Number -->
           <div>
-            <label class="block text-xs font-bold text-foreground mb-1.5">เบอร์โทรศัพท์ติดต่อร้าน</label>
+            <label class="block text-xs font-bold text-foreground mb-1.5">{{ $t('settings_phone_label') }}</label>
             <input 
               v-model="form.phone" 
               type="text" 
               placeholder="เช่น 081-234-5678" 
               class="w-full max-w-sm px-3.5 py-2.5 bg-background border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
             />
-            <p class="text-[11px] text-muted-foreground mt-1.5">เบอร์โทรสำหรับให้ลูกค้าหรือทีมงานติดต่อกรณีฉุกเฉิน</p>
+            <p class="text-[11px] text-muted-foreground mt-1.5">{{ $t('settings_phone_hint') }}</p>
           </div>
         </div>
       </div>
 
-      <!-- 5. LINE OA Notification Integration Card (Clean, Frictionless, No Raw Code) -->
+      <!-- 5. LINE OA Notification Integration Card -->
       <div class="bg-gradient-to-br from-emerald-500/5 via-card to-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         
         <!-- Header with Status Badge -->
@@ -752,35 +758,35 @@ const submitForm = async () => {
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-base font-black text-foreground">การแจ้งเตือนออเดอร์ผ่าน LINE OA</h2>
+                <h2 class="text-base font-black text-foreground">{{ $t('settings_line_title') }}</h2>
                 <span 
                   class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
                   :class="form.line_user_id ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600'"
                 >
-                  {{ form.line_user_id ? '🟢 เปิดใช้งานแล้ว (Active)' : '⚪ ยังไม่เปิดใช้งาน' }}
+                  {{ form.line_user_id ? $t('settings_line_active') : $t('settings_line_inactive') }}
                 </span>
               </div>
               <p class="text-xs text-muted-foreground mt-0.5">
-                เมื่อนักท่องเที่ยวสั่งอาหารผ่าน QR Code รายการออเดอร์จะเด้งเข้าแชท LINE เจ้าของร้านทันที
+                {{ $t('settings_line_desc') }}
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Connected State (Clean & Professional) -->
+        <!-- Connected State -->
         <div v-if="form.line_user_id" class="p-5 rounded-2xl bg-white/90 dark:bg-card/90 border border-emerald-200 space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="space-y-1.5">
               <div class="flex items-center gap-2 text-xs font-bold text-emerald-800">
                 <CheckCircle2 class="w-4 h-4 text-emerald-600" />
-                <span>ระบบพร้อมส่งออเดอร์เข้า LINE ของคุณแล้ว</span>
+                <span>{{ $t('settings_line_status_ok') }}</span>
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                   <ShieldCheck class="w-3 h-3 text-emerald-700" />
-                  <span>ล็อกสิทธิ์เฉพาะเจ้าของร้าน (Protected)</span>
+                  <span>{{ $t('settings_line_protected') }}</span>
                 </span>
               </div>
               <p class="text-[11px] text-muted-foreground">
-                LINE Official Account: <strong>@946vhuev (ChiiMenu Alert)</strong>
+                LINE Official Account: <strong>@946vhuev</strong>
               </p>
               <p class="text-[11px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md inline-block">
                 User ID: {{ form.line_user_id }}
@@ -795,7 +801,7 @@ const submitForm = async () => {
                 class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all inline-flex items-center gap-1.5"
               >
                 <MessageCircle class="w-3.5 h-3.5" />
-                <span>เปิดดูแชท LINE OA</span>
+                <span>{{ $t('settings_btn_line_chat') }}</span>
               </a>
 
               <button 
@@ -803,16 +809,15 @@ const submitForm = async () => {
                 @click="showManualLineId = !showManualLineId"
                 class="px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl transition-colors"
               >
-                {{ showManualLineId ? 'ซ่อนการแก้ไข' : 'แก้ไขรหัส' }}
+                {{ showManualLineId ? $t('settings_btn_hide') : $t('settings_btn_edit') }}
               </button>
 
               <button 
                 type="button" 
                 @click="disconnectLine"
                 class="px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                title="ปิดการแจ้งเตือน"
               >
-                ปิดการเชื่อมต่อ
+                {{ $t('settings_btn_disconnect') }}
               </button>
             </div>
           </div>
@@ -831,32 +836,31 @@ const submitForm = async () => {
               :disabled="isSavingLine"
               class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shrink-0"
             >
-              {{ isSavingLine ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข' }}
+              {{ isSavingLine ? $t('settings_btn_saving') : $t('settings_btn_save_edit') }}
             </button>
           </div>
         </div>
 
-        <!-- Disconnected State (Step-by-Step Guide) -->
+        <!-- Disconnected State -->
         <div v-else class="p-6 rounded-2xl bg-white/90 dark:bg-card/90 border border-slate-200 space-y-5">
           <div class="space-y-1">
             <h3 class="text-sm font-bold text-foreground flex items-center gap-2">
               <MessageCircle class="w-4 h-4 text-emerald-600" />
-              <span>วิธีเชื่อมต่อรับแจ้งเตือนออเดอร์ผ่าน LINE (@946vhuev)</span>
+              <span>{{ $t('settings_line_step_title') }}</span>
             </h3>
             <p class="text-xs text-muted-foreground">
-              ทำตาม 2 ขั้นตอนง่ายๆ ด้านล่าง เพื่อให้ระบบส่งออเดอร์เข้าแชท LINE ของคุณโดยตรง:
+              {{ $t('settings_line_step_desc') }}
             </p>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Option 1: Auto Link via Chat -->
             <div class="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 rounded-2xl space-y-3">
               <div class="flex items-center gap-2">
                 <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-                <h4 class="text-xs font-bold text-emerald-950 dark:text-emerald-300">แอดเพื่อน & รับรหัสประจำตัว</h4>
+                <h4 class="text-xs font-bold text-emerald-950 dark:text-emerald-300">{{ $t('settings_line_step1') }}</h4>
               </div>
               <p class="text-xs text-muted-foreground leading-relaxed">
-                กดปุ่มด้านล่างเพื่อแอด LINE OA: <strong>@946vhuev</strong> แล้วทักแชท บอทจะตอบกลับ <strong>รหัส LINE User ID</strong> ของคุณทันที
+                {{ $t('settings_line_step1_desc') }}
               </p>
               <button 
                 type="button" 
@@ -864,24 +868,23 @@ const submitForm = async () => {
                 class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2"
               >
                 <MessageCircle class="w-4 h-4" />
-                <span>แอดไลน์ & เปิดแชท @946vhuev</span>
+                <span>{{ $t('settings_btn_add_line') }}</span>
               </button>
             </div>
 
-            <!-- Option 2: Enter User ID & Save -->
             <div class="p-4 bg-muted/30 border rounded-2xl space-y-3">
               <div class="flex items-center gap-2">
                 <span class="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</span>
-                <h4 class="text-xs font-bold text-foreground">กรอกรหัส LINE User ID ของคุณ</h4>
+                <h4 class="text-xs font-bold text-foreground">{{ $t('settings_line_step2') }}</h4>
               </div>
               <p class="text-xs text-muted-foreground leading-relaxed">
-                นำรหัส <code class="font-mono text-primary font-bold">U...</code> ที่ได้จากบอทมากรอกลงในช่องนี้ แล้วกดบันทึก:
+                {{ $t('settings_line_step2_desc') }}
               </p>
               <div class="flex flex-col sm:flex-row gap-2">
                 <input 
                   v-model="form.line_user_id" 
                   type="text" 
-                  placeholder="เช่น U3cfe1457fc5f6d1c6939e..."
+                  placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   class="flex-1 px-3 py-2 bg-background border rounded-xl font-mono text-xs text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden"
                 />
                 <button 
@@ -890,7 +893,7 @@ const submitForm = async () => {
                   :disabled="isSavingLine"
                   class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl text-xs transition-all shrink-0 shadow-xs"
                 >
-                  {{ isSavingLine ? 'กำลังบันทึก...' : '🟢 บันทึกเชื่อมต่อ' }}
+                  {{ isSavingLine ? $t('settings_btn_saving') : $t('settings_btn_save_connect') }}
                 </button>
               </div>
             </div>
@@ -906,8 +909,8 @@ const submitForm = async () => {
             <Type class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm font-bold text-foreground">ขนาดตัวอักษรของระบบ (Font Size & Display)</h2>
-            <p class="text-xs text-muted-foreground">ปรับขนาดตัวอักษรทั้งเว็บไซต์ให้พอดีกับสายตาของคุณ (ระบบจะจำค่านี้ไว้ตลอด)</p>
+            <h2 class="text-sm font-bold text-foreground">{{ $t('settings_font_title') }}</h2>
+            <p class="text-xs text-muted-foreground">{{ $t('settings_font_desc') }}</p>
           </div>
         </div>
 
@@ -932,7 +935,7 @@ const submitForm = async () => {
             class="px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors inline-flex items-center gap-1 self-start sm:self-auto"
           >
             <RotateCcw class="w-3.5 h-3.5" />
-            <span>รีเซ็ตค่าเริ่มต้น (100%)</span>
+            <span>{{ $t('settings_btn_reset_font') }}</span>
           </button>
         </div>
       </div>
@@ -951,7 +954,7 @@ const submitForm = async () => {
       <!-- Sticky / Fixed Bottom Submit Bar -->
       <div class="bg-card border rounded-3xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row justify-between items-center gap-4 sticky bottom-4 z-20 backdrop-blur-md bg-card/95">
         <div class="text-xs text-muted-foreground text-center sm:text-left">
-          <span>อัปเดตล่าสุดเมื่อ: </span>
+          <span>{{ $t('settings_last_updated') }}: </span>
           <strong class="text-foreground font-semibold">{{ new Date(form.updated_at || Date.now()).toLocaleDateString('th-TH') }}</strong>
         </div>
 
@@ -962,7 +965,7 @@ const submitForm = async () => {
         >
           <span v-if="saving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
           <Check class="w-4 h-4" v-else />
-          <span>{{ saving ? 'กำลังบันทึกข้อมูล...' : 'บันทึกการเปลี่ยนแปลงทั้งหมด' }}</span>
+          <span>{{ saving ? $t('settings_btn_saving') : $t('settings_btn_save_all') }}</span>
         </button>
       </div>
 

@@ -232,8 +232,46 @@ const stats = computed(() => {
   const total = menuItems.value.length
   const available = menuItems.value.filter(i => i.is_available).length
   const soldout = total - available
-  return { total, available, soldout, categoriesCount: categories.value.length }
+  return {
+    total,
+    available,
+    soldout,
+    categoriesCount: categories.value.length
+  }
 })
+
+const { locale, t } = useI18n()
+
+const getCategoryDisplayName = (cat: any) => {
+  if (!cat) return ''
+  const l = locale.value
+  if (l === 'en' && cat.name_en) return cat.name_en
+  if (l === 'zh' && cat.name_zh) return cat.name_zh
+  return cat.name_th || cat.name_en || cat.name_zh || ''
+}
+
+const getItemDisplayName = (item: any) => {
+  if (!item) return ''
+  const l = locale.value
+  if (l === 'en' && item.name_en) return item.name_en
+  if (l === 'zh' && item.name_zh) return item.name_zh
+  return item.name_th || item.name_en || item.name_zh || ''
+}
+
+const getItemSubName = (item: any) => {
+  if (!item) return ''
+  const l = locale.value
+  if (l === 'th') return item.name_en || ''
+  return item.name_th || ''
+}
+
+const getItemDesc = (item: any) => {
+  if (!item) return ''
+  const l = locale.value
+  if (l === 'en' && item.description_en) return item.description_en
+  if (l === 'zh' && item.description_zh) return item.description_zh
+  return item.description_th || item.description_en || ''
+}
 
 const formatPrice = (price: any) => {
   return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 0 }).format(Number(price || 0))
@@ -251,8 +289,8 @@ const formatPrice = (price: any) => {
             <UtensilsCrossed class="w-5 h-5" />
           </div>
           <div>
-            <h1 class="text-xl font-bold text-foreground">จัดการเมนูอาหาร (Menu Management)</h1>
-            <p class="text-xs text-muted-foreground">จัดหมวดหมู่ เพิ่ม ลบ แก้ไข และเปิด/ปิดการจำหน่ายอาหารในร้านของคุณ</p>
+            <h1 class="text-xl font-bold text-foreground">{{ $t('menu_title') }}</h1>
+            <p class="text-xs text-muted-foreground">{{ $t('menu_subtitle') }}</p>
           </div>
         </div>
       </div>
@@ -266,7 +304,7 @@ const formatPrice = (price: any) => {
           class="px-3.5 py-2.5 bg-muted/60 hover:bg-muted text-foreground font-semibold text-xs rounded-2xl border transition-all inline-flex items-center gap-1.5"
         >
           <FolderPlus class="w-4 h-4 text-primary" />
-          <span>+ สร้างหมวดหมู่ใหม่</span>
+          <span>{{ $t('menu_btn_create_cat') }}</span>
         </button>
 
         <NuxtLink 
@@ -274,7 +312,7 @@ const formatPrice = (price: any) => {
           class="px-3.5 py-2.5 bg-muted/60 hover:bg-muted text-foreground font-semibold text-xs rounded-2xl border transition-all inline-flex items-center gap-1.5"
         >
           <Layers class="w-4 h-4 text-muted-foreground" />
-          <span>จัดการหมวดหมู่</span>
+          <span>{{ $t('menu_btn_manage_cats') }}</span>
         </NuxtLink>
 
         <NuxtLink 
@@ -282,7 +320,7 @@ const formatPrice = (price: any) => {
           class="px-3.5 py-2.5 bg-muted/60 hover:bg-muted text-foreground font-semibold text-xs rounded-2xl border transition-all inline-flex items-center gap-1.5"
         >
           <Sliders class="w-4 h-4 text-muted-foreground" />
-          <span>ตัวเลือกพิเศษ (Add-ons)</span>
+          <span>{{ $t('menu_btn_addons') }}</span>
         </NuxtLink>
 
         <NuxtLink 
@@ -290,7 +328,7 @@ const formatPrice = (price: any) => {
           class="px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs rounded-2xl shadow-sm transition-all inline-flex items-center gap-1.5 shrink-0"
         >
           <Plus class="w-4 h-4" />
-          <span>+ เพิ่มเมนูอาหาร</span>
+          <span>{{ $t('menu_btn_add_item') }}</span>
         </NuxtLink>
       </div>
     </div>
@@ -302,8 +340,8 @@ const formatPrice = (price: any) => {
           {{ stats.total }}
         </div>
         <div>
-          <p class="text-[11px] text-muted-foreground font-medium">เมนูทั้งหมด</p>
-          <p class="text-sm font-bold text-foreground">{{ stats.total }} รายการ</p>
+          <p class="text-[11px] text-muted-foreground font-medium">{{ $t('menu_stat_total') }}</p>
+          <p class="text-sm font-bold text-foreground">{{ $t('menu_unit_items', { count: stats.total }) }}</p>
         </div>
       </div>
 
@@ -312,8 +350,8 @@ const formatPrice = (price: any) => {
           {{ stats.available }}
         </div>
         <div>
-          <p class="text-[11px] text-muted-foreground font-medium">พร้อมขาย (Active)</p>
-          <p class="text-sm font-bold text-emerald-600">{{ stats.available }} รายการ</p>
+          <p class="text-[11px] text-muted-foreground font-medium">{{ $t('menu_stat_available') }}</p>
+          <p class="text-sm font-bold text-emerald-600">{{ $t('menu_unit_items', { count: stats.available }) }}</p>
         </div>
       </div>
 
@@ -322,8 +360,8 @@ const formatPrice = (price: any) => {
           {{ stats.soldout }}
         </div>
         <div>
-          <p class="text-[11px] text-muted-foreground font-medium">สินค้าหมด (Sold out)</p>
-          <p class="text-sm font-bold text-rose-600">{{ stats.soldout }} รายการ</p>
+          <p class="text-[11px] text-muted-foreground font-medium">{{ $t('menu_stat_soldout') }}</p>
+          <p class="text-sm font-bold text-rose-600">{{ $t('menu_unit_items', { count: stats.soldout }) }}</p>
         </div>
       </div>
 
@@ -332,8 +370,8 @@ const formatPrice = (price: any) => {
           {{ stats.categoriesCount }}
         </div>
         <div>
-          <p class="text-[11px] text-muted-foreground font-medium">หมวดหมู่อาหาร</p>
-          <p class="text-sm font-bold text-amber-600">{{ stats.categoriesCount }} หมวด</p>
+          <p class="text-[11px] text-muted-foreground font-medium">{{ $t('menu_stat_categories') }}</p>
+          <p class="text-sm font-bold text-amber-600">{{ $t('menu_unit_categories', { count: stats.categoriesCount }) }}</p>
         </div>
       </div>
     </div>
@@ -347,7 +385,7 @@ const formatPrice = (price: any) => {
           <input 
             v-model="searchQuery" 
             type="text" 
-            placeholder="ค้นหาชื่อเมนู (ไทย / English / 中文)..." 
+            :placeholder="$t('menu_search_placeholder')" 
             class="w-full pl-9 pr-4 py-2 bg-muted/40 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden"
           />
         </div>
@@ -359,21 +397,21 @@ const formatPrice = (price: any) => {
             class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 sm:flex-none"
             :class="statusFilter === 'all' ? 'bg-background text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground'"
           >
-            ทั้งหมด
+            {{ $t('menu_filter_all') }}
           </button>
           <button 
             @click="statusFilter = 'available'" 
             class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 sm:flex-none"
             :class="statusFilter === 'available' ? 'bg-background text-emerald-600 shadow-2xs' : 'text-muted-foreground hover:text-foreground'"
           >
-            มีขาย
+            {{ $t('menu_filter_available') }}
           </button>
           <button 
             @click="statusFilter = 'soldout'" 
             class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 sm:flex-none"
             :class="statusFilter === 'soldout' ? 'bg-background text-rose-600 shadow-2xs' : 'text-muted-foreground hover:text-foreground'"
           >
-            หมด
+            {{ $t('menu_filter_soldout') }}
           </button>
         </div>
       </div>
@@ -385,7 +423,7 @@ const formatPrice = (price: any) => {
           class="px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0"
           :class="selectedCategoryFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:text-foreground'"
         >
-          🌟 ทุกหมวดหมู่ ({{ stats.total }})
+          {{ $t('menu_filter_all_cats', { count: stats.total }) }}
         </button>
 
         <button 
@@ -395,7 +433,7 @@ const formatPrice = (price: any) => {
           class="px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0"
           :class="selectedCategoryFilter === cat.id ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:text-foreground'"
         >
-          {{ cat.name_th }} ({{ menuItems.filter(i => i.category_id === cat.id).length }})
+          {{ getCategoryDisplayName(cat) }} ({{ menuItems.filter(i => i.category_id === cat.id).length }})
         </button>
       </div>
     </div>
@@ -403,7 +441,7 @@ const formatPrice = (price: any) => {
     <!-- 4. Loading State -->
     <div v-if="loading" class="py-20 text-center space-y-3 bg-card border rounded-3xl">
       <div class="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-      <p class="text-xs font-bold text-muted-foreground animate-pulse">กำลังโหลดรายการอาหาร...</p>
+      <p class="text-xs font-bold text-muted-foreground animate-pulse">{{ $t('menu_loading') }}</p>
     </div>
 
     <!-- 5. Empty State (No Categories & No Items) -->
@@ -412,15 +450,15 @@ const formatPrice = (price: any) => {
         🍲
       </div>
       <div>
-        <h3 class="text-base font-bold text-foreground">ยังไม่มีรายการอาหารในร้าน</h3>
-        <p class="text-xs text-muted-foreground mt-1">เริ่มต้นง่ายๆ โดยการสร้างหมวดหมู่แรกของคุณ แล้วเพิ่มรายการอาหารลงในระบบ</p>
+        <h3 class="text-base font-bold text-foreground">{{ $t('menu_empty_title') }}</h3>
+        <p class="text-xs text-muted-foreground mt-1">{{ $t('menu_empty_desc') }}</p>
       </div>
       <button 
         @click="isAddCategoryModalOpen = true" 
         class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-xs"
       >
         <FolderPlus class="w-4 h-4" />
-        <span>+ สร้างหมวดหมู่แรกของร้าน</span>
+        <span>{{ $t('menu_btn_create_first_cat') }}</span>
       </button>
     </div>
 
@@ -439,19 +477,22 @@ const formatPrice = (price: any) => {
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-base font-bold text-foreground">{{ sec.category.name_th }}</h2>
+                <h2 class="text-base font-bold text-foreground">{{ getCategoryDisplayName(sec.category) }}</h2>
                 <span class="px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
-                  {{ sec.items.length }} รายการ
+                  {{ $t('menu_unit_items', { count: sec.items.length }) }}
                 </span>
                 <span 
                   v-if="sec.category.is_active === false"
                   class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold"
                 >
-                  ซ่อนหมวดนี้
+                  {{ $t('menu_cat_hidden') }}
                 </span>
               </div>
-              <p v-if="sec.category.name_en" class="text-xs text-muted-foreground mt-0.5 font-medium">
+              <p v-if="sec.category.name_en && locale === 'th'" class="text-xs text-muted-foreground mt-0.5 font-medium">
                 {{ sec.category.name_en }} <span v-if="sec.category.name_zh">• {{ sec.category.name_zh }}</span>
+              </p>
+              <p v-else-if="sec.category.name_th && locale !== 'th'" class="text-xs text-muted-foreground mt-0.5 font-medium">
+                {{ sec.category.name_th }}
               </p>
             </div>
           </div>
@@ -465,14 +506,14 @@ const formatPrice = (price: any) => {
               class="px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground font-semibold text-xs rounded-xl transition-all inline-flex items-center gap-1"
             >
               <Plus class="w-3.5 h-3.5" />
-              <span>+ เพิ่มเมนูในหมวดนี้</span>
+              <span>+ {{ $t('menu_btn_add_item') }}</span>
             </NuxtLink>
 
             <NuxtLink 
               v-if="sec.category.id !== 'uncategorized'"
               to="/merchant/menu/categories"
               class="p-1.5 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-colors"
-              title="จัดการหมวดหมู่นี้"
+              :title="$t('menu_btn_manage_cats')"
             >
               <Edit class="w-3.5 h-3.5" />
             </NuxtLink>
@@ -481,13 +522,13 @@ const formatPrice = (price: any) => {
 
         <!-- Category Items Grid -->
         <div v-if="sec.items.length === 0" class="py-8 text-center bg-muted/20 border border-dashed rounded-2xl text-xs text-muted-foreground">
-          ยังไม่มีเมนูในหมวดหมู่นี้ 
+          {{ $t('menu_empty_title') }}
           <NuxtLink 
             v-if="sec.category.id !== 'uncategorized'"
             :to="`/merchant/menu/items/create?category_id=${sec.category.id}`" 
             class="text-primary font-bold ml-1 hover:underline inline-flex items-center gap-0.5"
           >
-            <span>+ เพิ่มเมนูเลย</span>
+            <span>+ {{ $t('menu_btn_add_item') }}</span>
           </NuxtLink>
         </div>
 
@@ -521,11 +562,11 @@ const formatPrice = (price: any) => {
               <!-- Titles -->
               <div class="flex-1 min-w-0">
                 <h3 class="font-bold text-foreground text-sm truncate leading-tight">
-                  {{ item.name_th }}
+                  {{ getItemDisplayName(item) }}
                 </h3>
                 
-                <p v-if="item.name_en" class="text-[11px] text-muted-foreground truncate mt-0.5 font-medium">
-                  {{ item.name_en }}
+                <p v-if="getItemSubName(item)" class="text-[11px] text-muted-foreground truncate mt-0.5 font-medium">
+                  {{ getItemSubName(item) }}
                 </p>
 
                 <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -533,15 +574,15 @@ const formatPrice = (price: any) => {
                     class="px-2 py-0.5 rounded-md text-[10px] font-bold"
                     :class="item.is_available ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
                   >
-                    {{ item.is_available ? '● มีขาย' : '○ หมด' }}
+                    {{ item.is_available ? `● ${$t('menu_item_status_on')}` : `○ ${$t('menu_item_status_off')}` }}
                   </span>
                 </div>
               </div>
             </div>
 
             <!-- Description (if any) -->
-            <p v-if="item.description_th" class="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
-              {{ item.description_th }}
+            <p v-if="getItemDesc(item)" class="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+              {{ getItemDesc(item) }}
             </p>
 
             <!-- Bottom Action Bar (Price, Toggle, Edit, Delete) -->
@@ -557,18 +598,18 @@ const formatPrice = (price: any) => {
                   @click="toggleAvailability(item)"
                   class="px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
                   :class="item.is_available ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'"
-                  :title="item.is_available ? 'กดเพื่อตั้งเป็นสินค้าหมด' : 'กดเพื่อเปิดขาย'"
+                  :title="$t('menu_item_toggle_avail_title')"
                 >
                   <EyeOff v-if="item.is_available" class="w-3 h-3 text-muted-foreground" />
                   <Eye v-else class="w-3 h-3 text-emerald-600" />
-                  <span>{{ item.is_available ? 'ปิดขาย' : 'เปิดขาย' }}</span>
+                  <span>{{ item.is_available ? $t('menu_item_status_off') : $t('menu_item_status_on') }}</span>
                 </button>
 
                 <!-- Edit Button -->
                 <NuxtLink 
                   :to="`/merchant/menu/items/${item.id}`" 
                   class="p-1.5 bg-muted/60 hover:bg-primary hover:text-white rounded-xl text-muted-foreground transition-colors"
-                  title="แก้ไขเมนู"
+                  :title="$t('menu_item_btn_edit')"
                 >
                   <Edit class="w-3.5 h-3.5" />
                 </NuxtLink>
@@ -578,7 +619,7 @@ const formatPrice = (price: any) => {
                   type="button"
                   @click="deleteMenuItem(item)"
                   class="p-1.5 bg-muted/60 hover:bg-rose-600 hover:text-white rounded-xl text-muted-foreground transition-colors"
-                  title="ลบเมนู"
+                  :title="$t('menu_item_btn_del')"
                 >
                   <Trash2 class="w-3.5 h-3.5" />
                 </button>
@@ -600,7 +641,7 @@ const formatPrice = (price: any) => {
         <div class="flex items-center justify-between border-b pb-3">
           <div class="flex items-center gap-2">
             <FolderPlus class="w-5 h-5 text-primary" />
-            <h3 class="text-sm font-bold text-foreground">สร้างหมวดหมู่ใหม่</h3>
+            <h3 class="text-sm font-bold text-foreground">{{ $t('menu_modal_quick_cat_title') }}</h3>
           </div>
           <button @click="isAddCategoryModalOpen = false" class="p-1 rounded-lg hover:bg-muted text-muted-foreground">
             <X class="w-4 h-4" />
@@ -610,7 +651,7 @@ const formatPrice = (price: any) => {
         <form @submit.prevent="saveQuickCategory" class="space-y-3">
           <div>
             <label class="block text-xs font-semibold text-foreground mb-1">
-              ชื่อหมวดหมู่ (ภาษาไทย) <span class="text-rose-500">*</span>
+              {{ $t('cat_name_th') }} <span class="text-rose-500">*</span>
             </label>
             <input 
               v-model="newCatNameTh" 
@@ -623,7 +664,7 @@ const formatPrice = (price: any) => {
 
           <div>
             <label class="block text-xs font-semibold text-foreground mb-1">
-              ชื่อภาษาอังกฤษ (English)
+              {{ $t('cat_name_en') }}
             </label>
             <input 
               v-model="newCatNameEn" 
@@ -635,7 +676,7 @@ const formatPrice = (price: any) => {
 
           <div>
             <label class="block text-xs font-semibold text-foreground mb-1">
-              ชื่อภาษาจีน (中文)
+              {{ $t('cat_name_zh') }}
             </label>
             <input 
               v-model="newCatNameZh" 
@@ -653,7 +694,7 @@ const formatPrice = (price: any) => {
               class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-700 rounded-xl text-xs font-semibold"
             >
               <Sparkles class="w-3.5 h-3.5 text-purple-600" :class="isTranslatingCat ? 'animate-spin' : ''" />
-              <span>แปลภาษา AI</span>
+              <span>{{ isTranslatingCat ? $t('menu_modal_btn_translating') : $t('menu_modal_btn_translate_ai') }}</span>
             </button>
 
             <div class="flex items-center gap-2">
@@ -662,14 +703,14 @@ const formatPrice = (price: any) => {
                 @click="isAddCategoryModalOpen = false"
                 class="px-4 py-2 bg-muted text-foreground font-semibold text-xs rounded-xl"
               >
-                ยกเลิก
+                {{ $t('menu_modal_btn_cancel') }}
               </button>
               <button 
                 type="submit" 
                 :disabled="isAddingCat || !newCatNameTh.trim()"
                 class="px-5 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-xs"
               >
-                {{ isAddingCat ? 'กำลังสร้าง...' : 'สร้างหมวดหมู่' }}
+                {{ isAddingCat ? $t('menu_modal_btn_saving') : $t('menu_modal_btn_save') }}
               </button>
             </div>
           </div>
