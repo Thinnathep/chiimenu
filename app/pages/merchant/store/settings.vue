@@ -42,15 +42,24 @@ const {
   pushEnabled,
   notificationPermission,
   isSubscribed,
+  isSubscribing,
   toggleSound,
   togglePushNotification,
+  testPushNotification,
   playOrderSound,
-  subscribeToWebPush,
-  unsubscribeFromWebPush,
-  installPWA,
-  isIOS,
-  isIOSPWA
+  openInstallModal
 } = useOrderNotification()
+
+const handleFontLevelChange = (key: any) => {
+  setFontLevel(key)
+  const match = fontLevels.find(f => f.key === key)
+  useToast().success(`บันทึกขนาดตัวอักษรเป็น "${match?.label || key}" เรียบร้อยแล้ว`)
+}
+
+const handleResetFontSize = () => {
+  resetFontSize()
+  useToast().info('รีเซ็ตขนาดตัวอักษรกลับเป็นปกติ (100%) เรียบร้อยแล้ว')
+}
 
 const loading = ref(true)
 const saving = ref(false)
@@ -867,7 +876,8 @@ const submitForm = async () => {
               <button 
                 type="button" 
                 @click="togglePushNotification"
-                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
+                :disabled="isSubscribing"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50"
                 :class="pushEnabled ? 'bg-primary' : 'bg-muted'"
                 role="switch"
                 :aria-checked="pushEnabled"
@@ -881,19 +891,36 @@ const submitForm = async () => {
 
             <div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-border/50 text-xs">
               <span class="text-muted-foreground text-[11px]">
-                สถานะ: <strong :class="pushEnabled ? 'text-emerald-600' : 'text-muted-foreground'">{{ pushEnabled ? 'เปิดรับแจ้งเตือนแล้ว' : 'ปิดอยู่ (Default)' }}</strong>
+                สถานะ: <strong :class="pushEnabled ? 'text-emerald-600 font-bold' : 'text-muted-foreground'">{{ pushEnabled ? 'เปิดรับแจ้งเตือนแล้ว' : 'ปิดอยู่ (Default)' }}</strong>
               </span>
 
-              <button 
-                type="button" 
-                @click="togglePushNotification"
-                class="px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                :class="pushEnabled ? 'bg-muted hover:bg-muted/80 text-foreground border border-border' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
-              >
-                <BellOff v-if="pushEnabled" class="w-3.5 h-3.5 text-muted-foreground" />
-                <Bell v-else class="w-3.5 h-3.5" />
-                <span>{{ pushEnabled ? 'ปิดการแจ้งเตือน' : 'เปิดการแจ้งเตือน' }}</span>
-              </button>
+              <div class="flex items-center gap-2">
+                <!-- Test Push Button -->
+                <button
+                  v-if="pushEnabled"
+                  type="button"
+                  @click="testPushNotification"
+                  class="px-2.5 py-1.5 bg-muted hover:bg-muted/80 text-foreground font-semibold text-[11px] rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer border shadow-2xs"
+                  title="ทดสอบส่งการแจ้งเตือน"
+                >
+                  <Bell class="w-3 h-3 text-primary" />
+                  <span>ทดสอบแจ้งเตือน</span>
+                </button>
+
+                <!-- Toggle Action Button -->
+                <button 
+                  type="button" 
+                  @click="togglePushNotification"
+                  :disabled="isSubscribing"
+                  class="px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-60"
+                  :class="pushEnabled ? 'bg-muted hover:bg-muted/80 text-foreground border border-border' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+                >
+                  <span v-if="isSubscribing" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                  <BellOff v-else-if="pushEnabled" class="w-3.5 h-3.5 text-muted-foreground" />
+                  <Bell v-else class="w-3.5 h-3.5" />
+                  <span>{{ isSubscribing ? 'กำลังดำเนินการ...' : (pushEnabled ? 'ปิดการแจ้งเตือน' : 'เปิดการแจ้งเตือน') }}</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -904,20 +931,20 @@ const submitForm = async () => {
                 <Smartphone class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="text-xs font-bold text-foreground">ติดตั้ง ChiiMenu เป็นแอปบนมือถือ (PWA)</h3>
+                <h3 class="text-xs font-bold text-foreground">วิธีติดตั้ง ChiiMenu เป็นแอปบนมือถือ (Android & iOS)</h3>
                 <p class="text-[11px] text-muted-foreground mt-0.5">
-                  ติดตั้งลงหน้าจอหลักเพื่อเปิดใช้งานแบบเต็มจอ ทำงานได้รวดเร็ว และรับแจ้งเตือนเมื่อหน้าจอล็อกได้เสถียรยิ่งขึ้น
+                  คู่มือขั้นตอนการติดตั้งแบบละเอียด สำหรับทั้งมือถือ Android และ iPhone / iPad
                 </p>
               </div>
             </div>
 
             <button 
               type="button" 
-              @click="installPWA"
+              @click="openInstallModal()"
               class="px-5 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-xs hover:bg-primary/90 transition-all inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer"
             >
               <Smartphone class="w-4 h-4" />
-              <span>ติดตั้งแอปลงมือถือ</span>
+              <span>ดูวิธีติดตั้งแอปลงมือถือ</span>
             </button>
           </div>
 
@@ -1098,8 +1125,8 @@ const submitForm = async () => {
               v-for="lvl in fontLevels" 
               :key="lvl.key"
               type="button"
-              @click="setFontLevel(lvl.key)"
-              class="px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border"
+              @click="handleFontLevelChange(lvl.key)"
+              class="px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border cursor-pointer"
               :class="currentFontLevel === lvl.key ? 'bg-primary text-primary-foreground border-primary shadow-xs' : 'bg-muted/40 hover:bg-muted text-foreground border-border'"
             >
               {{ lvl.label }}
@@ -1109,8 +1136,8 @@ const submitForm = async () => {
           <button 
             v-if="currentFontLevel !== 'md'"
             type="button"
-            @click="resetFontSize"
-            class="px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors inline-flex items-center gap-1 self-start sm:self-auto"
+            @click="handleResetFontSize"
+            class="px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors inline-flex items-center gap-1 self-start sm:self-auto cursor-pointer"
           >
             <RotateCcw class="w-3.5 h-3.5" />
             <span>{{ $t('settings_btn_reset_font') }}</span>
@@ -1148,6 +1175,9 @@ const submitForm = async () => {
       </div>
 
     </form>
+
+    <!-- Comprehensive Android / iOS PWA Install Modal -->
+    <PwaInstallModal />
 
   </div>
 </template>

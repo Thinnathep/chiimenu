@@ -39,11 +39,10 @@ const {
   notificationPermission,
   isSubscribed,
   showInstallBanner,
-  showIOSGuide,
   toggleSound,
   subscribeToWebPush,
   stopRealtimeListener,
-  installPWA,
+  openInstallModal,
   dismissInstallBanner,
   initialize: initNotifications
 } = useOrderNotification()
@@ -420,7 +419,7 @@ const handleLocaleChange = (e: Event) => {
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <button @click="installPWA" class="bg-white text-primary text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-white/90 transition-colors cursor-pointer">
+            <button @click="openInstallModal()" class="bg-white text-primary text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-white/90 transition-colors cursor-pointer shadow-xs">
               ติดตั้ง
             </button>
             <button @click="dismissInstallBanner" class="text-white/70 hover:text-white p-1 cursor-pointer">
@@ -671,62 +670,8 @@ const handleLocaleChange = (e: Event) => {
     </Transition>
 
 
-    <!-- iOS Install Guide Modal -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition ease-out duration-300"
-        enter-from-class="opacity-0 scale-95"
-        enter-to-class="opacity-100 scale-100"
-        leave-active-class="transition ease-in duration-200"
-        leave-from-class="opacity-100 scale-100"
-        leave-to-class="opacity-0 scale-95"
-      >
-        <div v-if="showIOSGuide" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showIOSGuide = false">
-          <div class="w-full max-w-sm bg-card rounded-3xl shadow-2xl p-6 border border-border">
-            <div class="text-center mb-5">
-              <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3">་️</div>
-              <h3 class="text-lg font-black text-foreground">ติดตั้ง ChiiMenu บน iPhone</h3>
-              <p class="text-xs text-muted-foreground mt-1">ติดตั้งเพื่อรับแจ้งเตือนออเดอร์แม้หน้าจอล็อก</p>
-            </div>
-
-            <div class="space-y-3">
-              <div class="flex items-start gap-3 p-3 bg-muted/50 rounded-2xl">
-                <span class="text-xl shrink-0">1️⃣</span>
-                <div>
-                  <p class="text-xs font-bold text-foreground">เปิด Safari บน iPhone</p>
-                  <p class="text-[11px] text-muted-foreground">เข้าเว็บ chiimenu.com ผ่าน Safari (ไม่ใช่ Chrome)</p>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 p-3 bg-muted/50 rounded-2xl">
-                <span class="text-xl shrink-0">2️⃣</span>
-                <div>
-                  <p class="text-xs font-bold text-foreground">กดปุ่ม Share <span class="font-mono bg-muted px-1 rounded">↑</span></p>
-                  <p class="text-[11px] text-muted-foreground">กดปุ่ม Share (แถบลูกศร) ด้านล่างหน้าจอ</p>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 p-3 bg-muted/50 rounded-2xl">
-                <span class="text-xl shrink-0">3️⃣</span>
-                <div>
-                  <p class="text-xs font-bold text-foreground">เลือก &ldquo;Add to Home Screen&rdquo;</p>
-                  <p class="text-[11px] text-muted-foreground">เลือก “เพิ่มในหน้าจอหลัก” แล้วกด “เพิ่ม”</p>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800">
-                <span class="text-xl shrink-0">✅</span>
-                <div>
-                  <p class="text-xs font-bold text-emerald-800 dark:text-emerald-300">เปิดแอป และเปิดการแจ้งเตือน</p>
-                  <p class="text-[11px] text-emerald-700 dark:text-emerald-400">เปิดแอปที่ติดตั้งแล้ว เข้า merchant/orders และอนุญาต Notification</p>
-                </div>
-              </div>
-            </div>
-
-            <button @click="showIOSGuide = false" class="w-full mt-4 py-3 bg-primary text-primary-foreground font-bold text-sm rounded-2xl hover:bg-primary/90 transition-colors cursor-pointer">
-              เข้าใจแล้ว
-            </button>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- Comprehensive Android / iOS PWA Install Modal -->
+    <PwaInstallModal />
 
   </div>
 </template>

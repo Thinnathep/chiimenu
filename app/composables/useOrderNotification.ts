@@ -3,34 +3,44 @@
  *
  * Features:
  * 1. Default OFF for both Sound and Web Push Notification (Merchant can turn ON in Settings)
- * 2. Service Worker registration (public/sw.js)
- * 3. Web Push API subscription (VAPID) → native OS notification
- * 4. Sound via Web Audio API (ding-dong bell, no external file required)
+ * 2. Reliable Web Push state management & toggle ON/OFF
+ * 3. Sound via Web Audio API (ding-dong bell, no external file required)
+ * 4. Test Notification & Test Sound triggers
  * 5. Supabase Realtime fallback → in-app notification when tab is open
- * 6. PWA Install prompt (Android Chrome auto-prompt + manual trigger for iOS)
+ * 6. Detailed Android & iOS Installation Modal controls
  */
 
 const VAPID_PUBLIC_KEY = 'BDWwbOf0y6djUnn7A7jGLx49-2IOpAf0_0xs5afrlWfYdRq3shGhFc4zv8fSJarVr2MR5_3aN03HiunMq_fVadk'
 
-// ─── Detect iOS ───────────────────────────────────────────────────────────────
-const isIOS = () =>
+// ─── Device Detection ─────────────────────────────────────────────────────────
+export const isIOS = () =>
   process.client &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
-const isIOSPWA = () =>
+export const isAndroid = () =>
+  process.client && /Android/i.test(navigator.userAgent)
+
+export const isIOSPWA = () =>
   isIOS() && window.matchMedia('(display-mode: standalone)').matches
+
+export const isStandalone = () =>
+  process.client && window.matchMedia('(display-mode: standalone)').matches
 
 // ─── Composable ───────────────────────────────────────────────────────────────
 export const useOrderNotification = () => {
-  // Persisted states shared across components (Defaults to FALSE / OFF)
+  // Persisted states shared across Nuxt components (Defaults to FALSE / OFF)
   const soundEnabled = useState<boolean>('notif_sound_enabled', () => false)
   const pushEnabled = useState<boolean>('notif_push_enabled', () => false)
   const notificationPermission = useState<NotificationPermission>('notif_permission', () => 'default')
   const isSubscribed = useState<boolean>('notif_subscribed', () => false)
+  const isSubscribing = useState<boolean>('notif_is_subscribing', () => false)
+  
+  // PWA Install States & Modal
   const deferredInstallPrompt = useState<any>('pwa_install_prompt', () => null)
   const showInstallBanner = useState<boolean>('pwa_install_banner', () => false)
-  const showIOSGuide = useState<boolean>('pwa_ios_guide', () => false)
+  const showInstallModal = useState<boolean>('pwa_install_modal', () => false)
+  const activeInstallTab = useState<'android' | 'ios'>('pwa_active_install_tab', () => isIOS() ? 'ios' : 'android')
 
   const realtimeChannel = ref<any>(null)
   const client = useSupabaseClient()
@@ -44,7 +54,7 @@ export const useOrderNotification = () => {
       if (!AudioCtx) return
       const ctx = new AudioCtx()
 
-      const note = (freq: number, t: number, dur: number, vol = 0.4) => {
+      const note = (freq: number, t: number, dur: number, vol = 0.45) => {
         const osc = ctx.createOscillator()
         const g = ctx.createGain()
         osc.connect(g)
@@ -77,12 +87,16 @@ export const useOrderNotification = () => {
     }
     if (soundEnabled.value) {
       playOrderSound()
+      useToast().success('เปิดเสียงกระดิ่งแจ้งเตือนแล้ว')
+    } else {
+      useToast().info('ปิดเสียงกระดิ่งแจ้งเตือนแล้ว')
     }
   }
 
   // ─── Restore persisted preferences (Defaults to OFF) ───────────────────────
   const restorePreferences = () => {
     if (!process.client) return
+    
     // Sound: Default OFF unless saved 'on'
     const savedSound = localStorage.getItem('chiimenu_sound')
     soundEnabled.value = savedSound === 'on'
@@ -90,6 +104,15 @@ export const useOrderNotification = () => {
     // Push: Default OFF unless saved 'on'
     const savedPush = localStorage.getItem('chiimenu_push_enabled')
     pushEnabled.value = savedPush === 'on'
+
+    // Current Notification Permission
+    if ('Notification' in window) {
+      notificationPermission.value = Notification.permission
+      // If browser permission is denied, ensure pushEnabled is false
+      if (Notification.permission === 'denied') {
+        pushEnabled.value = false
+      }
+    }
   }
 
   // ─── Service Worker ───────────────────────────────────────────────────────
@@ -108,17 +131,25 @@ export const useOrderNotification = () => {
   // ─── Notification Permission ──────────────────────────────────────────────
   const requestPermission = async (): Promise<boolean> => {
     if (!process.client || !('Notification' in window)) return false
+    
     if (Notification.permission === 'granted') {
       notificationPermission.value = 'granted'
       return true
     }
+    
     if (Notification.permission === 'denied') {
       notificationPermission.value = 'denied'
       return false
     }
-    const result = await Notification.requestPermission()
-    notificationPermission.value = result
-    return result === 'granted'
+
+    try {
+      const result = await Notification.requestPermission()
+      notificationPermission.value = result
+      return result === 'granted'
+    } catch (e) {
+      console.error('[ChiiMenu] Request permission error:', e)
+      return false
+    }
   }
 
   // ─── VAPID key converter ──────────────────────────────────────────────────
@@ -135,45 +166,87 @@ export const useOrderNotification = () => {
 
   // ─── Subscribe to Web Push ─────────────────────────────────────────────────
   const subscribeToWebPush = async (): Promise<boolean> => {
-    if (!store.value?.id) return false
+    if (!process.client) return false
 
     // iOS: need to be in PWA mode to use push
     if (isIOS() && !isIOSPWA()) {
-      showIOSGuide.value = true
+      openInstallModal('ios')
       return false
     }
 
-    const reg = await registerSW()
-    if (!reg) return false
-
-    const granted = await requestPermission()
-    if (!granted) return false
+    isSubscribing.value = true
 
     try {
-      let sub = await reg.pushManager.getSubscription()
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as BufferSource
-        })
+      const granted = await requestPermission()
+      if (!granted) {
+        pushEnabled.value = false
+        if (process.client) {
+          localStorage.setItem('chiimenu_push_enabled', 'off')
+        }
+        if (notificationPermission.value === 'denied') {
+          useToast().error('การแจ้งเตือนถูกปิดกั้นในเบราว์เซอร์ กรุณาเปิดอนุญาตในการตั้งค่าเบราว์เซอร์')
+        }
+        return false
       }
 
-      // Store subscription in DB
-      await $fetch('/api/push/subscribe', {
-        method: 'POST',
-        body: { subscription: sub.toJSON(), storeId: store.value.id }
-      })
-
-      isSubscribed.value = true
+      // Permission is granted! Enable push immediately
       pushEnabled.value = true
       notificationPermission.value = 'granted'
-      if (process.client) {
-        localStorage.setItem('chiimenu_push_enabled', 'on')
+      localStorage.setItem('chiimenu_push_enabled', 'on')
+
+      // Background register Service Worker & VAPID subscription
+      const reg = await registerSW()
+      if (reg && 'pushManager' in reg && store.value?.id) {
+        try {
+          let sub = await reg.pushManager.getSubscription()
+          if (!sub) {
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as BufferSource
+            })
+          }
+
+          if (sub) {
+            const subJson = sub.toJSON()
+            // 1. Direct client-side upsert with active authenticated session
+            try {
+              await (client as any)
+                .from('push_subscriptions')
+                .upsert({
+                  store_id: store.value.id,
+                  endpoint: sub.endpoint,
+                  p256dh: subJson.keys?.p256dh || '',
+                  auth: subJson.keys?.auth || ''
+                }, { onConflict: 'endpoint' })
+            } catch (dbErr) {
+              console.warn('[ChiiMenu] Client direct upsert note:', dbErr)
+            }
+
+            // 2. Also notify server endpoint
+            try {
+              await $fetch('/api/push/subscribe', {
+                method: 'POST',
+                body: { subscription: subJson, storeId: store.value.id }
+              })
+            } catch (apiErr) {
+              console.warn('[ChiiMenu] Server API subscribe note:', apiErr)
+            }
+
+            isSubscribed.value = true
+          }
+        } catch (subErr) {
+          console.warn('[ChiiMenu] VAPID push subscribe background warning (local notifications still active):', subErr)
+        }
       }
+
+      useToast().success('เปิดการแจ้งเตือนเรียบร้อยแล้ว')
       return true
-    } catch (e) {
+    } catch (e: any) {
       console.error('[ChiiMenu] Push subscribe error:', e)
+      useToast().error(e.message || 'ไม่สามารถเปิดการแจ้งเตือนได้')
       return false
+    } finally {
+      isSubscribing.value = false
     }
   }
 
@@ -181,9 +254,15 @@ export const useOrderNotification = () => {
   const unsubscribeFromWebPush = async (): Promise<boolean> => {
     try {
       const reg = await navigator.serviceWorker?.ready
-      if (reg) {
+      if (reg && 'pushManager' in reg) {
         const sub = await reg.pushManager.getSubscription()
         if (sub) {
+          try {
+            await (client as any)
+              .from('push_subscriptions')
+              .delete()
+              .eq('endpoint', sub.endpoint)
+          } catch (_) {}
           await sub.unsubscribe()
         }
       }
@@ -192,9 +271,14 @@ export const useOrderNotification = () => {
       if (process.client) {
         localStorage.setItem('chiimenu_push_enabled', 'off')
       }
+      useToast().info('ปิดการแจ้งเตือนเรียบร้อยแล้ว')
       return true
     } catch (e) {
       console.error('[ChiiMenu] Push unsubscribe error:', e)
+      pushEnabled.value = false
+      if (process.client) {
+        localStorage.setItem('chiimenu_push_enabled', 'off')
+      }
       return false
     }
   }
@@ -208,7 +292,47 @@ export const useOrderNotification = () => {
     }
   }
 
-  // ─── Show Notification (in-app & OS) ─────────────────────────────────────
+  // ─── Test Notification Trigger ───────────────────────────────────────────
+  const testPushNotification = async () => {
+    // 1. Play sound
+    playOrderSound()
+
+    // 2. Trigger notification
+    const title = '🍜 ทดสอบการแจ้งเตือน ChiiMenu'
+    const body = 'ระบบแจ้งเตือนออเดอร์พร้อมใช้งานแล้ว! (โต๊ะ 1 - ฿250)'
+
+    const notifOptions: any = {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'test-order',
+      renotify: true,
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+      data: { url: '/merchant/orders' }
+    }
+
+    try {
+      const swReg = await navigator.serviceWorker?.ready
+      if (swReg) {
+        await swReg.showNotification(title, notifOptions)
+        useToast().success('ส่งการแจ้งเตือนทดสอบแล้ว!')
+        return
+      }
+    } catch (_) { /* fallthrough */ }
+
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(title, { body, icon: '/icon-192.png' })
+        useToast().success('ส่งการแจ้งเตือนทดสอบแล้ว!')
+        return
+      } catch (_) { /* ignore */ }
+    }
+
+    useToast().success('ทดสอบเล่นเสียงกระดิ่งเรียบร้อยแล้ว!')
+  }
+
+  // ─── Show Notification on incoming order ─────────────────────────────────
   const showOrderNotification = async (order: any) => {
     const tableLabel = order.table_number
       ? `โต๊ะ ${order.table_number}`
@@ -246,7 +370,6 @@ export const useOrderNotification = () => {
         }
       } catch (_) { /* fallthrough */ }
 
-      // Fallback: standard Notification API
       try {
         new Notification(title, { body, icon: '/icon-192.png', tag: `order-${order.id}` })
       } catch (_) { /* ignore */ }
@@ -281,54 +404,53 @@ export const useOrderNotification = () => {
     }
   }
 
-  // ─── PWA Install ──────────────────────────────────────────────────────────
+  // ─── PWA Install Controls & Modal ────────────────────────────────────────
   const initInstallPrompt = () => {
     if (!process.client) return
 
-    // Android Chrome: listen for beforeinstallprompt
     window.addEventListener('beforeinstallprompt', (e: any) => {
       e.preventDefault()
       deferredInstallPrompt.value = e
-      if (!window.matchMedia('(display-mode: standalone)').matches) {
+      if (!isStandalone()) {
         showInstallBanner.value = true
       }
     })
 
     window.addEventListener('appinstalled', () => {
       showInstallBanner.value = false
-      showIOSGuide.value = false
+      showInstallModal.value = false
       deferredInstallPrompt.value = null
+      useToast().success('ติดตั้ง ChiiMenu บนหน้าจอหลักเรียบร้อยแล้ว!')
     })
 
-    // iOS: show guide if not already installed as PWA
-    if (isIOS() && !isIOSPWA()) {
-      setTimeout(() => {
-        const dismissed = localStorage.getItem('chiimenu_ios_guide_dismissed')
-        if (!dismissed) {
-          showInstallBanner.value = true
-        }
-      }, 3000)
-    }
-
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (isStandalone()) {
       showInstallBanner.value = false
     }
   }
 
-  const installPWA = async () => {
-    if (isIOS()) {
-      showIOSGuide.value = true
-      if (process.client) {
-        localStorage.setItem('chiimenu_ios_guide_dismissed', 'true')
-      }
-      showInstallBanner.value = false
+  const openInstallModal = (tab?: 'android' | 'ios') => {
+    if (tab) {
+      activeInstallTab.value = tab
+    } else {
+      activeInstallTab.value = isIOS() ? 'ios' : 'android'
+    }
+    showInstallModal.value = true
+  }
+
+  const closeInstallModal = () => {
+    showInstallModal.value = false
+  }
+
+  const promptAndroidInstall = async () => {
+    if (!deferredInstallPrompt.value) {
+      openInstallModal('android')
       return
     }
-    if (!deferredInstallPrompt.value) return
     deferredInstallPrompt.value.prompt()
     const { outcome } = await deferredInstallPrompt.value.userChoice
     if (outcome === 'accepted') {
       showInstallBanner.value = false
+      showInstallModal.value = false
       deferredInstallPrompt.value = null
     }
   }
@@ -336,7 +458,7 @@ export const useOrderNotification = () => {
   const dismissInstallBanner = () => {
     showInstallBanner.value = false
     if (process.client) {
-      localStorage.setItem('chiimenu_ios_guide_dismissed', 'true')
+      localStorage.setItem('chiimenu_install_banner_dismissed', 'true')
     }
   }
 
@@ -345,15 +467,10 @@ export const useOrderNotification = () => {
     if (!process.client) return
 
     restorePreferences()
-
-    if ('Notification' in window) {
-      notificationPermission.value = Notification.permission
-    }
-
     await registerSW()
     initInstallPrompt()
 
-    // If merchant had explicitly enabled push previously, verify subscription
+    // If merchant had explicitly enabled push previously, refresh subscription in background
     if (pushEnabled.value && Notification.permission === 'granted' && store.value?.id) {
       await subscribeToWebPush()
     }
@@ -367,22 +484,30 @@ export const useOrderNotification = () => {
     pushEnabled,
     notificationPermission,
     isSubscribed,
+    isSubscribing,
     showInstallBanner,
-    showIOSGuide,
+    showInstallModal,
+    activeInstallTab,
+    deferredInstallPrompt,
     // Actions
     toggleSound,
     togglePushNotification,
+    testPushNotification,
     playOrderSound,
     requestPermission,
     subscribeToWebPush,
     unsubscribeFromWebPush,
     startRealtimeListener,
     stopRealtimeListener,
-    installPWA,
+    openInstallModal,
+    closeInstallModal,
+    promptAndroidInstall,
     dismissInstallBanner,
     initialize,
     // Helpers
     isIOS,
-    isIOSPWA
+    isAndroid,
+    isIOSPWA,
+    isStandalone
   }
 }

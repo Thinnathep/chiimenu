@@ -1,42 +1,54 @@
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 
 export type FontSizeLevel = 'sm' | 'md' | 'lg' | 'xl'
 
-const FONT_LEVELS: { key: FontSizeLevel; label: string; scale: number; percentage: string }[] = [
+export interface FontSizeOption {
+  key: FontSizeLevel
+  label: string
+  scale: number
+  percentage: string
+}
+
+export const FONT_LEVELS: FontSizeOption[] = [
   { key: 'sm', label: 'กะทัดรัด (90%)', scale: 0.90, percentage: '90%' },
   { key: 'md', label: 'ปกติ (100%)', scale: 1.00, percentage: '100%' },
   { key: 'lg', label: 'ใหญ่ (115%)', scale: 1.15, percentage: '115%' },
   { key: 'xl', label: 'ใหญ่พิเศษ (130%)', scale: 1.30, percentage: '130%' }
 ]
 
-const currentLevel = ref<FontSizeLevel>('md')
-const isInitialized = ref(false)
-
 export const useFontSize = () => {
+  // Shared reactive state across Nuxt app
+  const currentLevel = useState<FontSizeLevel>('app_font_size_level', () => 'md')
+  const isInitialized = useState<boolean>('app_font_size_initialized', () => false)
+
+  const applyScale = (level: FontSizeLevel) => {
+    if (typeof document === 'undefined') return
+    const match = FONT_LEVELS.find(f => f.key === level) || FONT_LEVELS[1]!
+
+    document.documentElement.style.setProperty('--font-scale', match.scale.toString())
+    document.documentElement.setAttribute('data-font-size', level)
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('chiimenu_font_level', level)
+    }
+  }
+
   const initFontSize = () => {
-    if (isInitialized.value || typeof window === 'undefined') return
-    
+    if (typeof window === 'undefined') return
+    if (isInitialized.value) {
+      applyScale(currentLevel.value)
+      return
+    }
+
     const saved = localStorage.getItem('chiimenu_font_level') as FontSizeLevel | null
     if (saved && FONT_LEVELS.some(f => f.key === saved)) {
       currentLevel.value = saved
     } else {
       currentLevel.value = 'md'
     }
-    
+
     applyScale(currentLevel.value)
     isInitialized.value = true
-  }
-
-  const applyScale = (level: FontSizeLevel) => {
-    if (typeof document === 'undefined') return
-    const match = FONT_LEVELS.find(f => f.key === level) || FONT_LEVELS[1]!
-    
-    document.documentElement.style.setProperty('--font-scale', match.scale.toString())
-    document.documentElement.setAttribute('data-font-size', level)
-    
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('chiimenu_font_level', level)
-    }
   }
 
   const setLevel = (level: FontSizeLevel) => {
