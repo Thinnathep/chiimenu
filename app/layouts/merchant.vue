@@ -17,8 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut, 
-  User,
-  MoreHorizontal
+  User
 } from 'lucide-vue-next'
 
 const user = useSupabaseUser()
@@ -385,7 +384,7 @@ const handleLocaleChange = (e: Event) => {
       </header>
 
       <!-- Scrollable Main Content Container -->
-      <main class="flex-1 overflow-y-auto bg-muted/20 pb-20 md:pb-8">
+      <main class="flex-1 overflow-y-auto bg-muted/20 pb-8">
         <div class="p-4 sm:p-6 lg:p-8 w-full max-w-[1600px] mx-auto">
           
           <!-- Loading State -->
@@ -419,6 +418,33 @@ const handleLocaleChange = (e: Event) => {
 
           <!-- Normal Page Content Slot -->
           <slot v-else />
+
+          <!-- App System Footer (Clean, Responsive, Support & Privacy Links) -->
+          <footer class="mt-16 pt-6 pb-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+            <div class="flex items-center gap-2">
+              <img src="/logo-icon.png" alt="ChiiMenu" class="w-5 h-5 rounded-md object-contain">
+              <span class="font-bold text-foreground">ChiiMenu</span>
+              <span>•</span>
+              <span>&copy; {{ new Date().getFullYear() }} All rights reserved.</span>
+            </div>
+
+            <div class="flex items-center gap-4 flex-wrap justify-center font-medium">
+              <NuxtLink to="/merchant/guide" class="hover:text-primary transition-colors">{{ $t('nav_guide') }}</NuxtLink>
+              <span>•</span>
+              <NuxtLink to="/merchant/billing" class="hover:text-primary transition-colors">{{ $t('nav_billing') }}</NuxtLink>
+              <span>•</span>
+              <NuxtLink to="/privacy" class="hover:text-primary transition-colors">นโยบายความเป็นส่วนตัว</NuxtLink>
+              <span>•</span>
+              <a 
+                href="https://line.me/R/ti/p/@819wgrsj" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="hover:text-emerald-700 font-bold transition-colors inline-flex items-center gap-1 text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800"
+              >
+                <span>💬 ติดต่อช่วยเหลือ LINE: @819wgrsj</span>
+              </a>
+            </div>
+          </footer>
 
         </div>
       </main>
@@ -596,57 +622,6 @@ const handleLocaleChange = (e: Event) => {
         </div>
       </div>
     </Transition>
-
-    <!-- MOBILE BOTTOM NAVIGATION BAR (Quick Access for Mobile Phone Operations) -->
-    <nav 
-      v-if="!isTrialExpired"
-      class="md:hidden fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur-md border-t border-border z-30 flex items-center justify-around px-2 py-2 shadow-lg select-none"
-    >
-      <NuxtLink 
-        to="/merchant/dashboard" 
-        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
-        active-class="!text-primary !font-bold bg-primary/10"
-      >
-        <LayoutDashboard class="w-5 h-5" />
-        <span>{{ $t('nav_dashboard') }}</span>
-      </NuxtLink>
-
-      <NuxtLink 
-        to="/merchant/orders" 
-        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
-        active-class="!text-primary !font-bold bg-primary/10"
-      >
-        <ClipboardList class="w-5 h-5" />
-        <span>{{ $t('nav_orders') }}</span>
-      </NuxtLink>
-
-      <NuxtLink 
-        to="/merchant/menu" 
-        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
-        active-class="!text-primary !font-bold bg-primary/10"
-      >
-        <Utensils class="w-5 h-5" />
-        <span>{{ $t('nav_menu_manage') }}</span>
-      </NuxtLink>
-
-      <NuxtLink 
-        to="/merchant/analytics" 
-        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors"
-        active-class="!text-primary !font-bold bg-primary/10"
-      >
-        <BarChart3 class="w-5 h-5" />
-        <span>{{ $t('nav_analytics') }}</span>
-      </NuxtLink>
-
-      <button 
-        type="button"
-        @click="mobileMenuOpen = true" 
-        class="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground py-1 px-2.5 rounded-xl transition-colors cursor-pointer"
-      >
-        <MoreHorizontal class="w-5 h-5" />
-        <span>เมนูอื่น</span>
-      </button>
-    </nav>
 
   </div>
 </template>
