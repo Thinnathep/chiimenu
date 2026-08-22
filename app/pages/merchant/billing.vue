@@ -27,7 +27,7 @@ definePageMeta({
 })
 
 const client = useSupabaseClient()
-const { store, fetchStore } = useCurrentStore()
+const { store, setStore } = useCurrentStore()
 const loading = ref(true)
 const billingRecords = ref<any[]>([])
 const selectedReceipt = ref<any>(null)
@@ -49,10 +49,27 @@ const fetchBillingRecords = async () => {
   }
 }
 
+const refreshStoreDirectly = async () => {
+  // Refresh store data directly without touching shared loading state in layout
+  const { data: authData } = await client.auth.getUser()
+  if (!authData?.user?.id) return
+
+  const { data: storeData } = await client
+    .from('stores')
+    .select('*')
+    .eq('owner_id', authData.user.id)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+
+  if (storeData?.[0]) {
+    setStore(storeData[0])
+  }
+}
+
 onMounted(async () => {
   try {
-    // Force refresh store data so newly approved plans / promo status are up to date
-    await fetchStore(true)
+    // Force refresh store data without blocking the layout slot
+    await refreshStoreDirectly()
     await fetchBillingRecords()
   } catch (err) {
     console.error('Error fetching billing info:', err)
