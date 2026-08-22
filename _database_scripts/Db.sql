@@ -226,4 +226,14 @@ CREATE TABLE public.rate_limits (
   request_count integer NOT NULL DEFAULT 1,
   reset_at bigint NOT NULL,
   CONSTRAINT rate_limits_pkey PRIMARY KEY (ip)
-)
+);
+CREATE TABLE public.push_subscriptions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  store_id uuid,
+  endpoint text NOT NULL UNIQUE,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT push_subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT push_subscriptions_store_id_fkey FOREIGN KEY (store_id) REFERENCES public.stores(id)
+);

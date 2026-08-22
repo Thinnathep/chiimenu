@@ -17,7 +17,12 @@ import {
   Phone,
   Type,
   RotateCcw,
-  ShieldCheck
+  ShieldCheck,
+  Bell,
+  BellOff,
+  Volume2,
+  VolumeX,
+  Smartphone
 } from 'lucide-vue-next'
 
 definePageMeta({
@@ -30,6 +35,22 @@ const { levels: fontLevels, currentLevel: currentFontLevel, setLevel: setFontLev
 const user = useSupabaseUser()
 const client = useSupabaseClient()
 const { store, fetchStore, setStore } = useCurrentStore()
+
+// Order Notification & Sound Engine
+const {
+  soundEnabled,
+  pushEnabled,
+  notificationPermission,
+  isSubscribed,
+  toggleSound,
+  togglePushNotification,
+  playOrderSound,
+  subscribeToWebPush,
+  unsubscribeFromWebPush,
+  installPWA,
+  isIOS,
+  isIOSPWA
+} = useOrderNotification()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -747,7 +768,164 @@ const submitForm = async () => {
         </div>
       </div>
 
-      <!-- 5. LINE OA Notification Integration Card -->
+      <!-- 5. Order Sound & Web Push Notification Card -->
+      <div class="bg-card border-2 border-primary/20 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 bg-gradient-to-br from-primary/5 via-card to-rose-500/5">
+        
+        <!-- Header with Title & Summary Badge -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl shadow-sm shadow-primary/20 shrink-0">
+              <Bell class="w-6 h-6" />
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-base font-black text-foreground">ระบบแจ้งเตือนออเดอร์ & เสียงเตือน</h2>
+                <span 
+                  class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
+                  :class="soundEnabled ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600'"
+                >
+                  {{ soundEnabled ? 'เปิดเสียงเตือน' : 'ปิดเสียงเตือน' }}
+                </span>
+                <span 
+                  v-if="notificationPermission === 'granted'"
+                  class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200"
+                >
+                  🔔 Web Push พร้อมใช้งาน
+                </span>
+              </div>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                ตั้งค่าเสียงกระดิ่งเตือนและข้อความแจ้งเตือนเมื่อมีออเดอร์ใหม่จากลูกค้า
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Sound Control Card -->
+          <div class="p-5 bg-card border rounded-2xl space-y-4 shadow-xs">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Volume2 v-if="soundEnabled" class="w-5 h-5" />
+                  <VolumeX v-else class="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 class="text-xs font-bold text-foreground">เสียงกระดิ่งเตือนออเดอร์</h3>
+                  <p class="text-[11px] text-muted-foreground mt-0.5">
+                    เล่นเสียง Ding-Dong อัตโนมัติเมื่อมีออเดอร์ใหม่เข้ามา
+                  </p>
+                </div>
+              </div>
+
+              <!-- Switch -->
+              <button 
+                type="button" 
+                @click="toggleSound"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
+                :class="soundEnabled ? 'bg-primary' : 'bg-muted'"
+                role="switch"
+                :aria-checked="soundEnabled"
+              >
+                <span 
+                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                  :class="soundEnabled ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
+            <div class="pt-2 flex items-center justify-between border-t border-border/50 text-xs">
+              <span class="text-muted-foreground text-[11px]">สถานะ: <strong :class="soundEnabled ? 'text-emerald-600' : 'text-muted-foreground'">{{ soundEnabled ? 'เปิดเสียงอยู่' : 'ปิดเสียงอยู่' }}</strong></span>
+              <button 
+                type="button" 
+                @click="playOrderSound"
+                class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground font-semibold text-xs rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Volume2 class="w-3.5 h-3.5 text-primary" />
+                <span>ทดสอบเสียงกระดิ่ง</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Web Push Notification Control Card -->
+          <div class="p-5 bg-card border rounded-2xl space-y-4 shadow-xs">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+                  <Bell v-if="pushEnabled" class="w-5 h-5 text-primary" />
+                  <BellOff v-else class="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 class="text-xs font-bold text-foreground">แจ้งเตือนบนหน้าจอมือถือ (Web Push)</h3>
+                  <p class="text-[11px] text-muted-foreground mt-0.5">
+                    รับแจ้งเตือนข้อความเด้ง แม้ล็อกหน้าจอหรือเปิดแอปอื่นอยู่
+                  </p>
+                </div>
+              </div>
+
+              <!-- Switch -->
+              <button 
+                type="button" 
+                @click="togglePushNotification"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
+                :class="pushEnabled ? 'bg-primary' : 'bg-muted'"
+                role="switch"
+                :aria-checked="pushEnabled"
+              >
+                <span 
+                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out"
+                  :class="pushEnabled ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
+            <div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-border/50 text-xs">
+              <span class="text-muted-foreground text-[11px]">
+                สถานะ: <strong :class="pushEnabled ? 'text-emerald-600' : 'text-muted-foreground'">{{ pushEnabled ? 'เปิดรับแจ้งเตือนแล้ว' : 'ปิดอยู่ (Default)' }}</strong>
+              </span>
+
+              <button 
+                type="button" 
+                @click="togglePushNotification"
+                class="px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                :class="pushEnabled ? 'bg-muted hover:bg-muted/80 text-foreground border border-border' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+              >
+                <BellOff v-if="pushEnabled" class="w-3.5 h-3.5 text-muted-foreground" />
+                <Bell v-else class="w-3.5 h-3.5" />
+                <span>{{ pushEnabled ? 'ปิดการแจ้งเตือน' : 'เปิดการแจ้งเตือน' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- PWA Mobile App Card -->
+          <div class="md:col-span-2 p-5 bg-gradient-to-r from-primary/10 via-card to-rose-500/10 border border-primary/20 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+              <div class="w-11 h-11 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-sm">
+                <Smartphone class="w-5 h-5" />
+              </div>
+              <div>
+                <h3 class="text-xs font-bold text-foreground">ติดตั้ง ChiiMenu เป็นแอปบนมือถือ (PWA)</h3>
+                <p class="text-[11px] text-muted-foreground mt-0.5">
+                  ติดตั้งลงหน้าจอหลักเพื่อเปิดใช้งานแบบเต็มจอ ทำงานได้รวดเร็ว และรับแจ้งเตือนเมื่อหน้าจอล็อกได้เสถียรยิ่งขึ้น
+                </p>
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              @click="installPWA"
+              class="px-5 py-2.5 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-xs hover:bg-primary/90 transition-all inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Smartphone class="w-4 h-4" />
+              <span>ติดตั้งแอปลงมือถือ</span>
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- 6. LINE OA Notification Integration Card -->
       <div class="bg-gradient-to-br from-emerald-500/5 via-card to-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         
         <!-- Header with Status Badge -->

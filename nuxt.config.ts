@@ -46,8 +46,14 @@ export default defineNuxtConfig({
     cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
     cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
     lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
+    vapidEmail: process.env.VAPID_EMAIL || 'mailto:admin@chiimenu.com',
+    webhookSecret: process.env.WEBHOOK_SECRET || 'chiimenu_push_webhook_secret_2026',
     public: {
-      adminEmails: process.env.ADMIN_EMAILS || ''
+      adminEmails: process.env.ADMIN_EMAILS || '',
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY || 'BDWwbOf0y6djUnn7A7jGLx49-2IOpAf0_0xs5afrlWfYdRq3shGhFc4zv8fSJarVr2MR5_3aN03HiunMq_fVadk',
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
     }
   },
 

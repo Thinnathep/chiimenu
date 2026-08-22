@@ -17,7 +17,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut, 
-  User
+  User,
+  Smartphone
 } from 'lucide-vue-next'
 
 const user = useSupabaseUser()
@@ -32,6 +33,21 @@ const isCollapsed = ref(false)
 
 const { store, isAdmin, loading, fetchStore, clearStore } = useCurrentStore()
 
+// ── Order Notification & PWA ────────────────────────────────────────────────
+const {
+  soundEnabled,
+  notificationPermission,
+  isSubscribed,
+  showInstallBanner,
+  showIOSGuide,
+  toggleSound,
+  subscribeToWebPush,
+  stopRealtimeListener,
+  installPWA,
+  dismissInstallBanner,
+  initialize: initNotifications
+} = useOrderNotification()
+
 onMounted(async () => {
   // Load persisted sidebar state from localStorage
   if (typeof window !== 'undefined') {
@@ -41,6 +57,13 @@ onMounted(async () => {
     }
   }
   await fetchStore()
+  // Initialize push notifications & PWA after store is loaded
+  await nextTick()
+  await initNotifications()
+})
+
+onUnmounted(() => {
+  stopRealtimeListener()
 })
 
 const toggleSidebar = () => {
@@ -383,6 +406,30 @@ const handleLocaleChange = (e: Event) => {
         </div>
       </header>
 
+      <!-- PWA Install Banner -->
+      <Transition enter-active-class="transition ease-out duration-300" enter-from-class="-translate-y-full opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition ease-in duration-200" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-full opacity-0">
+        <div
+          v-if="showInstallBanner"
+          class="bg-gradient-to-r from-primary to-rose-600 text-white px-4 py-3 flex items-center justify-between gap-3 shrink-0"
+        >
+          <div class="flex items-center gap-3">
+            <Smartphone class="w-5 h-5 shrink-0" />
+            <div>
+              <p class="text-xs font-bold">ติดตั้ง ChiiMenu บนมือถือ</p>
+              <p class="text-[11px] text-white/80">ลงแอปเพื่อรับออเดอร์แบบ offline และแจ้งเตือนเมื่อหน้าจอล็อก</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button @click="installPWA" class="bg-white text-primary text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-white/90 transition-colors cursor-pointer">
+              ติดตั้ง
+            </button>
+            <button @click="dismissInstallBanner" class="text-white/70 hover:text-white p-1 cursor-pointer">
+              <X class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </Transition>
+
       <!-- Scrollable Main Content Container -->
       <main class="flex-1 overflow-y-auto bg-muted/20 pb-8">
         <div class="p-4 sm:p-6 lg:p-8 w-full max-w-[1600px] mx-auto">
@@ -622,6 +669,64 @@ const handleLocaleChange = (e: Event) => {
         </div>
       </div>
     </Transition>
+
+
+    <!-- iOS Install Guide Modal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-300"
+        enter-from-class="opacity-0 scale-95"
+        enter-to-class="opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-200"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="opacity-0 scale-95"
+      >
+        <div v-if="showIOSGuide" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showIOSGuide = false">
+          <div class="w-full max-w-sm bg-card rounded-3xl shadow-2xl p-6 border border-border">
+            <div class="text-center mb-5">
+              <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3">་️</div>
+              <h3 class="text-lg font-black text-foreground">ติดตั้ง ChiiMenu บน iPhone</h3>
+              <p class="text-xs text-muted-foreground mt-1">ติดตั้งเพื่อรับแจ้งเตือนออเดอร์แม้หน้าจอล็อก</p>
+            </div>
+
+            <div class="space-y-3">
+              <div class="flex items-start gap-3 p-3 bg-muted/50 rounded-2xl">
+                <span class="text-xl shrink-0">1️⃣</span>
+                <div>
+                  <p class="text-xs font-bold text-foreground">เปิด Safari บน iPhone</p>
+                  <p class="text-[11px] text-muted-foreground">เข้าเว็บ chiimenu.com ผ่าน Safari (ไม่ใช่ Chrome)</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 p-3 bg-muted/50 rounded-2xl">
+                <span class="text-xl shrink-0">2️⃣</span>
+                <div>
+                  <p class="text-xs font-bold text-foreground">กดปุ่ม Share <span class="font-mono bg-muted px-1 rounded">↑</span></p>
+                  <p class="text-[11px] text-muted-foreground">กดปุ่ม Share (แถบลูกศร) ด้านล่างหน้าจอ</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 p-3 bg-muted/50 rounded-2xl">
+                <span class="text-xl shrink-0">3️⃣</span>
+                <div>
+                  <p class="text-xs font-bold text-foreground">เลือก &ldquo;Add to Home Screen&rdquo;</p>
+                  <p class="text-[11px] text-muted-foreground">เลือก “เพิ่มในหน้าจอหลัก” แล้วกด “เพิ่ม”</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800">
+                <span class="text-xl shrink-0">✅</span>
+                <div>
+                  <p class="text-xs font-bold text-emerald-800 dark:text-emerald-300">เปิดแอป และเปิดการแจ้งเตือน</p>
+                  <p class="text-[11px] text-emerald-700 dark:text-emerald-400">เปิดแอปที่ติดตั้งแล้ว เข้า merchant/orders และอนุญาต Notification</p>
+                </div>
+              </div>
+            </div>
+
+            <button @click="showIOSGuide = false" class="w-full mt-4 py-3 bg-primary text-primary-foreground font-bold text-sm rounded-2xl hover:bg-primary/90 transition-colors cursor-pointer">
+              เข้าใจแล้ว
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
   </div>
 </template>

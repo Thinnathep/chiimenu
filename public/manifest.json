@@ -1,15 +1,36 @@
-{
+﻿{
   "name": "ChiiMenu - ระบบเมนูอาหารและสั่งอาหาร",
   "short_name": "ChiiMenu",
   "description": "ChiiMenu - ระบบจัดการเมนูอาหาร 3 ภาษา และสั่งอาหารออนไลน์ผ่าน QR Code",
-  "start_url": "/",
+  "start_url": "/merchant/dashboard",
   "scope": "/",
   "id": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait",
   "background_color": "#FFFFFF",
   "theme_color": "#D41244",
   "categories": ["food", "business", "productivity"],
+  "lang": "th",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "ดูออเดอร์",
+      "short_name": "ออเดอร์",
+      "description": "เข้าดูออเดอร์ใหม่ทันที",
+      "url": "/merchant/orders",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "จัดการเมนู",
+      "short_name": "เมนู",
+      "description": "แก้ไขเมนูร้านค้า",
+      "url": "/merchant/menu",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/favicon.png",
