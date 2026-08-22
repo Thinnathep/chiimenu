@@ -91,9 +91,11 @@ const textLayerStyle = computed(() => ({
         <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-2xl object-contain shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
         <span class="text-2xl font-black tracking-tight text-foreground bg-clip-text">ChiiMenu</span>
       </NuxtLink>
-      <div v-if="user">
-        <NuxtLink to="/merchant/dashboard" class="text-sm font-bold text-primary hover:text-primary/80 transition-colors">เข้าสู่แดชบอร์ด &rarr;</NuxtLink>
-      </div>
+      <ClientOnly>
+        <div v-if="user">
+          <NuxtLink to="/merchant/dashboard" class="text-sm font-bold text-primary hover:text-primary/80 transition-colors">เข้าสู่แดชบอร์ด &rarr;</NuxtLink>
+        </div>
+      </ClientOnly>
     </nav>
 
     <!-- Hero Section (Full-screen Edge-to-Edge) -->
@@ -118,29 +120,42 @@ const textLayerStyle = computed(() => ({
         
         <!-- CTA Action Area -->
         <div class="w-full sm:max-w-md mx-auto lg:mx-0 animate-fade-in-up" style="animation-delay: 0.3s;">
-          <div v-if="user" class="p-6 sm:p-8 bg-card/80 backdrop-blur-xl rounded-3xl border border-border shadow-2xl shadow-black/5">
-            <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto lg:mx-0 mb-4 text-primary">
-              <Store class="w-8 h-8" />
+          <ClientOnly>
+            <div v-if="user" class="p-6 sm:p-8 bg-card/80 backdrop-blur-xl rounded-3xl border border-border shadow-2xl shadow-black/5">
+              <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto lg:mx-0 mb-4 text-primary">
+                <Store class="w-8 h-8" />
+              </div>
+              <p class="mb-6 text-foreground font-bold">เข้าสู่ระบบในชื่อ <br/><span class="text-primary font-normal">{{ user.email }}</span></p>
+              <div class="flex flex-col sm:flex-row gap-3">
+                <NuxtLink to="/merchant/dashboard" class="flex-1 flex justify-center py-3.5 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:-translate-y-0.5 whitespace-nowrap">
+                  เข้าสู่แดชบอร์ด
+                </NuxtLink>
+                <button @click="logout" class="flex-1 py-3.5 bg-muted text-muted-foreground font-bold rounded-xl hover:bg-muted/80 transition-all whitespace-nowrap">
+                  ออกจากระบบ
+                </button>
+              </div>
             </div>
-            <p class="mb-6 text-foreground font-bold">เข้าสู่ระบบในชื่อ <br/><span class="text-primary font-normal">{{ user.email }}</span></p>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <NuxtLink to="/merchant/dashboard" class="flex-1 flex justify-center py-3.5 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:-translate-y-0.5 whitespace-nowrap">
-                เข้าสู่แดชบอร์ด
+            
+            <div v-else class="flex flex-col sm:flex-row gap-4 w-full">
+              <NuxtLink to="/register" class="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 hover:-translate-y-0.5 text-base flex justify-center items-center">
+                ทดลองใช้งานฟรี 7 วัน
               </NuxtLink>
-              <button @click="logout" class="flex-1 py-3.5 bg-muted text-muted-foreground font-bold rounded-xl hover:bg-muted/80 transition-all whitespace-nowrap">
-                ออกจากระบบ
-              </button>
+              <NuxtLink to="/login" class="flex-1 py-4 bg-card text-foreground font-bold rounded-2xl border border-input hover:bg-muted transition-all text-base shadow-sm flex justify-center items-center">
+                เข้าสู่ระบบร้านค้า
+              </NuxtLink>
             </div>
-          </div>
-          
-          <div v-else class="flex flex-col sm:flex-row gap-4 w-full">
-            <NuxtLink to="/register" class="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 hover:-translate-y-0.5 text-base flex justify-center items-center">
-              ทดลองใช้งานฟรี 7 วัน
-            </NuxtLink>
-            <NuxtLink to="/login" class="flex-1 py-4 bg-card text-foreground font-bold rounded-2xl border border-input hover:bg-muted transition-all text-base shadow-sm flex justify-center items-center">
-              เข้าสู่ระบบร้านค้า
-            </NuxtLink>
-          </div>
+
+            <template #fallback>
+              <div class="flex flex-col sm:flex-row gap-4 w-full">
+                <NuxtLink to="/register" class="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/25 hover:-translate-y-0.5 text-base flex justify-center items-center">
+                  ทดลองใช้งานฟรี 7 วัน
+                </NuxtLink>
+                <NuxtLink to="/login" class="flex-1 py-4 bg-card text-foreground font-bold rounded-2xl border border-input hover:bg-muted transition-all text-base shadow-sm flex justify-center items-center">
+                  เข้าสู่ระบบร้านค้า
+                </NuxtLink>
+              </div>
+            </template>
+          </ClientOnly>
         </div>
         
         <!-- Features List -->

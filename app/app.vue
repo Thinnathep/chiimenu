@@ -14,7 +14,9 @@ useHead({
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
-    <GlobalAlert />
-    <ToastContainer />
+    <ClientOnly>
+      <GlobalAlert />
+      <ToastContainer />
+    </ClientOnly>
   </div>
 </template>

@@ -3,6 +3,10 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false }, // ปิด DevTools ไว้เพื่อลดเวลา Startup (เร็วขึ้น ~5 วินาที)
   css: ['~/assets/css/tailwind.css'],
+  routeRules: {
+    '/merchant/**': { ssr: false },
+    '/admin/**': { ssr: false }
+  },
   app: {
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
