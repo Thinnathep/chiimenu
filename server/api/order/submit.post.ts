@@ -16,11 +16,13 @@ function sanitizeText(input: any, maxLength = 100): string {
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig(event)
     const rawUrl = (config.public as any)?.supabaseUrl || (config.public as any)?.supabase?.url || process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL || ''
-    const secretKey = (config as any)?.supabase?.secretKey || process.env.SUPABASE_SECRET_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || ''
+    const secretKey = (config as any)?.supabaseServiceKey || (config as any)?.supabase?.secretKey || process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || ''
 
     let supabase: any;
     if (secretKey && rawUrl) {
-        supabase = createClient(String(rawUrl), String(secretKey))
+        supabase = createClient(String(rawUrl), String(secretKey), {
+            auth: { persistSession: false, autoRefreshToken: false }
+        })
     } else {
         try {
             supabase = await serverSupabaseServiceRole(event);

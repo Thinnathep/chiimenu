@@ -615,7 +615,7 @@ const submitForm = async () => {
               class="w-full px-3.5 py-2.5 bg-background border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden transition-all"
             >
               <option value="th">🇹🇭 ภาษาไทย (TH)</option>
-              <option value="en">🇬🇧 English (EN)</option>
+              <option value="en">🇺🇸 English (EN)</option>
             </select>
           </div>
         </div>

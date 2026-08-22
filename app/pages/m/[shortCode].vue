@@ -716,7 +716,7 @@ const getCategoryEmoji = (name: string) => {
           :class="locale === l.code ? 'shadow-xs font-black' : 'text-muted-foreground hover:text-foreground'"
           :style="locale === l.code ? { backgroundColor: palette.primary, color: palette.primaryContrast } : {}"
         >
-          {{ l.code === 'th' ? '🇹🇭 TH' : (l.code === 'en' ? '🇬🇧 EN' : '🇨🇳 中文') }}
+          {{ l.code === 'th' ? '🇹🇭 TH' : (l.code === 'en' ? '🇺🇸 EN' : '🇨🇳 中文') }}
         </button>
       </div>
     </div>
@@ -785,7 +785,7 @@ const getCategoryEmoji = (name: string) => {
                 :class="locale === l.code ? 'shadow-xs font-black' : 'text-muted-foreground hover:text-foreground'"
                 :style="locale === l.code ? { backgroundColor: palette.primary, color: palette.primaryContrast } : {}"
               >
-                {{ l.code === 'th' ? '🇹🇭 TH' : (l.code === 'en' ? '🇬🇧 EN' : '🇨🇳 中文') }}
+                {{ l.code === 'th' ? '🇹🇭 TH' : (l.code === 'en' ? '🇺🇸 EN' : '🇨🇳 中文') }}
               </button>
             </div>
           </div>

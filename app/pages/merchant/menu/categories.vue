@@ -37,7 +37,8 @@ const statusFilter = ref<'all' | 'active' | 'hidden'>('all')
 const isTranslating = ref(false)
 const addingCategory = ref(false)
 
-// New Category Form State
+// New Category Form State (Collapsible)
+const isAddCategoryOpen = ref(false)
 const newCategory = ref({
   name_th: '',
   name_en: '',
@@ -403,76 +404,92 @@ const getCategoryDisplayName = (cat: any) => {
       </div>
     </div>
 
-    <!-- 3. Add Category Card -->
-    <div class="bg-card border rounded-3xl p-6 shadow-xs space-y-4">
-      <div class="flex items-center justify-between border-b pb-3">
-        <h2 class="text-sm font-black text-foreground flex items-center gap-1.5">
-          <Plus class="w-4 h-4 text-primary" />
+    <!-- 3. Add Category Card (Collapsible) -->
+    <div class="bg-card border rounded-3xl p-4 sm:p-5 shadow-xs space-y-4">
+      <div 
+        @click="isAddCategoryOpen = !isAddCategoryOpen"
+        class="flex items-center justify-between cursor-pointer select-none"
+      >
+        <h2 class="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+          <span class="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <Plus class="w-4 h-4" />
+          </span>
           <span>{{ $t('cat_add_new') }}</span>
         </h2>
         
-        <button 
-          type="button"
-          @click.prevent="translateCategory(false)"
-          :disabled="isTranslating || !newCategory.name_th"
-          class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
-        >
-          <Sparkles class="w-3.5 h-3.5 text-purple-600" :class="isTranslating ? 'animate-spin' : ''" />
-          <span>{{ isTranslating ? $t('cat_translating') : $t('cat_translate_ai') }}</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-primary">
+            {{ isAddCategoryOpen ? 'ย่อแบบฟอร์ม' : '+ ขยายเพื่อเพิ่มหมวดหมู่' }}
+          </span>
+          <ChevronDown class="w-4 h-4 text-muted-foreground transition-transform duration-200" :class="isAddCategoryOpen ? 'rotate-180' : ''" />
+        </div>
       </div>
 
-      <form @submit.prevent="addCategory" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-foreground mb-1">
-              {{ $t('settings_name_th') }} <span class="text-rose-500">*</span>
-            </label>
-            <input 
-              v-model="newCategory.name_th" 
-              type="text" 
-              placeholder="เช่น อาหารจานเดียว, ต้ม/แกง" 
-              required
-              class="w-full px-3.5 py-2 bg-muted/40 border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden font-medium"
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-foreground mb-1">
-              {{ $t('settings_name_en') }}
-            </label>
-            <input 
-              v-model="newCategory.name_en" 
-              type="text" 
-              placeholder="e.g. Single Dish, Soups"
-              class="w-full px-3.5 py-2 bg-muted/40 border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden font-medium"
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-foreground mb-1">
-              {{ $t('settings_name_zh') }}
-            </label>
-            <input 
-              v-model="newCategory.name_zh" 
-              type="text" 
-              placeholder="例如 单碟菜, 汤类"
-              class="w-full px-3.5 py-2 bg-muted/40 border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden font-medium"
-            />
-          </div>
-        </div>
-
-        <div class="flex justify-end pt-2">
+      <div v-show="isAddCategoryOpen" class="pt-3 border-t space-y-4 animate-in fade-in-50 duration-200">
+        <div class="flex items-center justify-end">
           <button 
-            type="submit" 
-            :disabled="addingCategory || !newCategory.name_th.trim()"
-            class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs rounded-xl shadow-xs disabled:opacity-50 transition-all flex items-center gap-1.5"
+            type="button"
+            @click.prevent="translateCategory(false)"
+            :disabled="isTranslating || !newCategory.name_th"
+            class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
           >
-            <Plus class="w-4 h-4" />
-            <span>{{ addingCategory ? $t('cat_btn_adding') : $t('cat_btn_add') }}</span>
+            <Sparkles class="w-3.5 h-3.5 text-purple-600" :class="isTranslating ? 'animate-spin' : ''" />
+            <span>{{ isTranslating ? $t('cat_translating') : $t('cat_translate_ai') }}</span>
           </button>
         </div>
-      </form>
+
+        <form @submit.prevent="addCategory" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1">
+                {{ $t('settings_name_th') }} <span class="text-rose-500">*</span>
+              </label>
+              <input 
+                v-model="newCategory.name_th" 
+                type="text" 
+                placeholder="เช่น อาหารจานเดียว, ต้ม/แกง" 
+                required
+                class="w-full px-3.5 py-2 bg-muted/40 border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden font-medium"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1">
+                {{ $t('settings_name_en') }}
+              </label>
+              <input 
+                v-model="newCategory.name_en" 
+                type="text" 
+                placeholder="e.g. Single Dish, Soups"
+                class="w-full px-3.5 py-2 bg-muted/40 border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden font-medium"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-foreground mb-1">
+                {{ $t('settings_name_zh') }}
+              </label>
+              <input 
+                v-model="newCategory.name_zh" 
+                type="text" 
+                placeholder="例如 单碟菜, 汤类"
+                class="w-full px-3.5 py-2 bg-muted/40 border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-hidden font-medium"
+              />
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-2">
+            <button 
+              type="submit" 
+              :disabled="addingCategory || !newCategory.name_th.trim()"
+              class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs rounded-xl shadow-xs disabled:opacity-50 transition-all flex items-center gap-1.5"
+            >
+              <Plus class="w-4 h-4" />
+              <span>{{ addingCategory ? $t('cat_btn_adding') : $t('cat_btn_add') }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- 4. Categories List -->
@@ -504,7 +521,7 @@ const getCategoryDisplayName = (cat: any) => {
         </button>
       </div>
 
-      <ul v-else class="divide-y">
+      <ul v-else class="divide-y divide-border/40">
         <li 
           v-for="(cat, index) in filteredCategories" 
           :key="cat.id" 
@@ -512,27 +529,27 @@ const getCategoryDisplayName = (cat: any) => {
           :class="cat.is_active === false ? 'opacity-60 bg-slate-50/50 dark:bg-neutral-900/50' : ''"
         >
           <!-- Category Info -->
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 min-w-0">
             <!-- Sort Order Number Badge -->
-            <div class="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-xs font-black text-muted-foreground shrink-0 border border-border/40">
+            <div class="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0 border border-border/40">
               {{ index + 1 }}
             </div>
 
-            <div>
+            <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-black text-sm text-foreground">{{ getCategoryDisplayName(cat) }}</span>
+                <span class="font-semibold text-sm text-foreground">{{ getCategoryDisplayName(cat) }}</span>
                 <span 
-                  class="px-2 py-0.5 rounded-full text-[10px] font-black"
+                  class="px-2 py-0.5 rounded-full text-[10px] font-medium"
                   :class="cat.is_active !== false ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'"
                 >
                   {{ cat.is_active !== false ? $t('cat_status_active') : $t('cat_status_hidden') }}
                 </span>
-                <span class="px-2 py-0.5 bg-muted rounded-md text-[10px] font-bold text-muted-foreground">
+                <span class="px-2 py-0.5 bg-muted rounded-md text-[10px] font-normal text-muted-foreground">
                   {{ cat.menu_items?.[0]?.count || 0 }} {{ $t('cat_item_unit') }}
                 </span>
               </div>
 
-              <p class="text-xs text-muted-foreground mt-0.5">
+              <p class="text-xs text-muted-foreground mt-0.5 font-normal">
                 <span v-if="cat.name_en">{{ cat.name_en }}</span>
                 <span v-if="cat.name_en && cat.name_zh"> • </span>
                 <span v-if="cat.name_zh">{{ cat.name_zh }}</span>
@@ -541,13 +558,13 @@ const getCategoryDisplayName = (cat: any) => {
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex items-center gap-1.5 self-end sm:self-auto">
+          <div class="flex items-center gap-1.5 self-end sm:self-auto shrink-0 flex-wrap">
             <!-- Sort Up -->
             <button 
               type="button" 
               @click="moveCategory(index, 'up')" 
               :disabled="index === 0"
-              class="p-1.5 rounded-lg border bg-background hover:bg-muted disabled:opacity-30 transition-colors"
+              class="p-1.5 rounded-xl border bg-background hover:bg-muted disabled:opacity-30 transition-colors cursor-pointer"
               title="Move Up"
             >
               <ArrowUp class="w-3.5 h-3.5" />
@@ -558,7 +575,7 @@ const getCategoryDisplayName = (cat: any) => {
               type="button" 
               @click="moveCategory(index, 'down')" 
               :disabled="index === filteredCategories.length - 1"
-              class="p-1.5 rounded-lg border bg-background hover:bg-muted disabled:opacity-30 transition-colors"
+              class="p-1.5 rounded-xl border bg-background hover:bg-muted disabled:opacity-30 transition-colors cursor-pointer"
               title="Move Down"
             >
               <ArrowDown class="w-3.5 h-3.5" />
@@ -568,7 +585,7 @@ const getCategoryDisplayName = (cat: any) => {
             <button 
               type="button" 
               @click="toggleCategoryActive(cat)"
-              class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1 ml-1"
+              class="px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors inline-flex items-center gap-1 cursor-pointer"
               :class="cat.is_active !== false ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-neutral-800 dark:text-neutral-300' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'"
             >
               <EyeOff v-if="cat.is_active !== false" class="w-3.5 h-3.5 text-muted-foreground" />
@@ -580,7 +597,7 @@ const getCategoryDisplayName = (cat: any) => {
             <button 
               type="button" 
               @click="openEditModal(cat)"
-              class="p-1.5 rounded-xl border bg-background hover:bg-muted text-foreground transition-colors ml-1"
+              class="p-1.5 rounded-xl border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
               title="Edit Category"
             >
               <Edit class="w-3.5 h-3.5" />
@@ -590,7 +607,7 @@ const getCategoryDisplayName = (cat: any) => {
             <button 
               type="button" 
               @click="deleteCategory(cat)"
-              class="p-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
+              class="p-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
               title="Delete Category"
             >
               <Trash2 class="w-3.5 h-3.5" />

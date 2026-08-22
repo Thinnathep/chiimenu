@@ -334,7 +334,7 @@ const drawCompositeCard = (qrDataUrl: string, qr: any, style: string): Promise<s
 
         ctx.fillStyle = '#4B5563'
         ctx.font = '28px sans-serif'
-        ctx.fillText('🇹🇭 เมนูไทย  •  🇬🇧 English Menu  •  🇨🇳 中文菜单', canvas.width / 2, 1600)
+        ctx.fillText('🇹🇭 เมนูไทย  •  🇺🇸 English Menu  •  🇨🇳 中文菜单', canvas.width / 2, 1600)
 
         ctx.fillStyle = '#9CA3AF'
         ctx.font = '22px sans-serif'

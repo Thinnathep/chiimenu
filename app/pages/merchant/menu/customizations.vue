@@ -41,7 +41,8 @@ const selectedFilter = ref<'all' | 'required' | 'optional' | 'paid' | 'free'>('a
 // Accordion (Expand / Collapse) State
 const collapsedGroups = ref<Record<string, boolean>>({})
 
-// New Group Form State
+// New Group Form State (Collapsible)
+const isAddGroupOpen = ref(false)
 const newGroup = ref({
   name_th: '',
   name_en: '',
@@ -136,9 +137,9 @@ const fetchGroups = async () => {
   groups.value = data || []
 }
 
-// === Accordion Toggle Helpers ===
+// === Accordion Toggle Helpers (Default: Collapsed for Clean Screen) ===
 const toggleGroupCollapse = (groupId: string) => {
-  collapsedGroups.value[groupId] = !collapsedGroups.value[groupId]
+  collapsedGroups.value[groupId] = !isGroupCollapsed(groupId)
 }
 
 const expandAllGroups = () => {
@@ -157,8 +158,8 @@ const collapseAllGroups = () => {
   collapsedGroups.value = next
 }
 
-const isGroupCollapsed = (groupId: string) => {
-  return !!collapsedGroups.value[groupId]
+const isGroupCollapsed = (groupId: string): boolean => {
+  return collapsedGroups.value[groupId] !== false
 }
 
 // === AI Translation Helper ===
@@ -577,27 +578,42 @@ const formatPrice = (price: any) => {
       </div>
     </div>
 
-    <!-- 3. Add Group Card -->
-    <div class="bg-card border rounded-3xl p-6 shadow-xs space-y-4">
-      <div class="flex items-center justify-between border-b pb-3">
-        <h2 class="text-sm font-black text-foreground flex items-center gap-1.5">
-          <Plus class="w-4 h-4 text-primary" />
+    <!-- 3. Add Group Card (Collapsible) -->
+    <div class="bg-card border rounded-3xl p-4 sm:p-5 shadow-xs space-y-4">
+      <div 
+        @click="isAddGroupOpen = !isAddGroupOpen"
+        class="flex items-center justify-between cursor-pointer select-none"
+      >
+        <h2 class="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+          <span class="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <Plus class="w-4 h-4" />
+          </span>
           <span>สร้างกลุ่มตัวเลือกใหม่ (เช่น เลือกประเภทเนื้อสัตว์, ระดับความหวาน)</span>
         </h2>
         
-        <button 
-          type="button"
-          @click.prevent="translateNewGroup"
-          :disabled="isTranslatingGroup || !newGroup.name_th"
-          class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
-        >
-          <Sparkles class="w-3.5 h-3.5 text-purple-600" :class="isTranslatingGroup ? 'animate-spin' : ''" />
-          <span>{{ isTranslatingGroup ? $t('cat_translating') : $t('cat_translate_ai') }}</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-primary">
+            {{ isAddGroupOpen ? 'ย่อแบบฟอร์ม' : '+ ขยายเพื่อเพิ่มกลุ่ม' }}
+          </span>
+          <ChevronDown class="w-4 h-4 text-muted-foreground transition-transform duration-200" :class="isAddGroupOpen ? 'rotate-180' : ''" />
+        </div>
       </div>
 
-      <form @submit.prevent="addGroup" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div v-show="isAddGroupOpen" class="pt-3 border-t space-y-4 animate-in fade-in-50 duration-200">
+        <div class="flex items-center justify-end">
+          <button 
+            type="button"
+            @click.prevent="translateNewGroup"
+            :disabled="isTranslatingGroup || !newGroup.name_th"
+            class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            <Sparkles class="w-3.5 h-3.5 text-purple-600" :class="isTranslatingGroup ? 'animate-spin' : ''" />
+            <span>{{ isTranslatingGroup ? $t('cat_translating') : $t('cat_translate_ai') }}</span>
+          </button>
+        </div>
+
+        <form @submit.prevent="addGroup" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-xs font-bold text-foreground mb-1">
               ชื่อกลุ่ม (ภาษาไทย) <span class="text-rose-500">*</span>
@@ -658,6 +674,7 @@ const formatPrice = (price: any) => {
           </button>
         </div>
       </form>
+      </div>
     </div>
 
     <!-- 4. Groups & Options List (Accordion Style) -->
@@ -697,7 +714,7 @@ const formatPrice = (price: any) => {
         >
           <div class="flex items-center gap-3">
             <div 
-              class="w-10 h-10 rounded-2xl flex items-center justify-center font-black transition-transform"
+              class="w-10 h-10 rounded-2xl flex items-center justify-center font-bold transition-transform"
               :class="group.is_required ? 'bg-rose-500/10 text-rose-600' : 'bg-primary/10 text-primary'"
             >
               <Tag class="w-5 h-5" />
@@ -705,23 +722,23 @@ const formatPrice = (price: any) => {
 
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="font-black text-sm text-foreground">{{ getGroupDisplayName(group) }}</h3>
+                <h3 class="font-semibold text-sm text-foreground">{{ getGroupDisplayName(group) }}</h3>
                 
                 <span 
-                  class="px-2 py-0.5 rounded-full text-[10px] font-black"
+                  class="px-2 py-0.5 rounded-full text-[10px] font-medium"
                   :class="group.is_required ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200' : 'bg-slate-100 text-slate-700 dark:bg-neutral-800 dark:text-neutral-300'"
                 >
                   {{ group.is_required ? '★ บังคับเลือก' : 'เลือกหรือไม่ก็ได้' }}
                 </span>
 
-                <span class="px-2 py-0.5 bg-muted rounded-full text-[10px] font-bold text-muted-foreground">
+                <span class="px-2 py-0.5 bg-muted rounded-full text-[10px] font-normal text-muted-foreground">
                   {{ group.customization_options?.length || 0 }} ตัวเลือก
                 </span>
               </div>
 
               <!-- Collapsed Summary Description -->
-              <p class="text-xs text-muted-foreground mt-0.5 truncate max-w-xl">
-                <span v-if="isGroupCollapsed(group.id)" class="text-foreground/80 font-medium">
+              <p class="text-xs text-muted-foreground mt-0.5 truncate max-w-xl font-normal">
+                <span v-if="isGroupCollapsed(group.id)" class="text-foreground/80 font-normal">
                   {{ getOptionSummaryText(group) }}
                 </span>
                 <span v-else>
