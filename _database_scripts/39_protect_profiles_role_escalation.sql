@@ -1,54 +1,102 @@
--- ============================================================
--- ChiiMenu RLS Fix Script
--- แก้ไข 3 ปัญหาที่พบจากการ Audit
--- ⚠️ อ่านทำความเข้าใจก่อนรัน — บอสต้องรันเองใน Supabase SQL Editor
--- ============================================================
+-- ==============================================================================
+-- 39_protect_profiles_role_escalation.sql
+-- ChiiMenu Master Security Hardening:
+-- 1. [Protect Profiles Role Escalation]: Trigger to block non-admins from self-assigning admin role
+-- 2. [Enforce 12-Param admin_update_store_plan]: Clean up obsolete overloads and guarantee 12-parameter RPC
+-- ==============================================================================
 
--- ==========================================================
--- FIX 1: แก้ Hardcoded Email → ใช้ admins table แทน
--- (แก้ใน admin_action_logs, orders, stores)
--- ==========================================================
+-- ==============================================================================
+-- 0. SHARED HELPERS (Guaranteed Definition & Search Path Hardening)
+-- ==============================================================================
 
--- 1A. admin_action_logs — ลบ email-based policy, ใช้ admins table
-DROP POLICY IF EXISTS "Admins can manage logs" ON public.admin_action_logs;
-CREATE POLICY "Admins can manage logs"
-ON public.admin_action_logs FOR ALL
-USING (EXISTS (SELECT 1 FROM public.admins WHERE id = auth.uid()));
+-- Ensure is_admin() exists and is protected with SET search_path = public
+CREATE OR REPLACE FUNCTION public.is_admin(user_id uuid DEFAULT auth.uid())
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT (
+    EXISTS (SELECT 1 FROM public.admins WHERE id = COALESCE(user_id, auth.uid()))
+    OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = COALESCE(user_id, auth.uid()) AND role = 'admin')
+  );
+$$;
 
--- 1B. orders — ลบ email-based admin policy
-DROP POLICY IF EXISTS "Admins can view all orders" ON public.orders;
-CREATE POLICY "Admins can view all orders"
-ON public.orders FOR SELECT
-USING (EXISTS (SELECT 1 FROM public.admins WHERE id = auth.uid()));
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated, anon, service_role;
 
--- 1C. stores — ลบ email-based admin policies
-DROP POLICY IF EXISTS "Admins can view all stores" ON public.stores;
-CREATE POLICY "Admins can view all stores"
-ON public.stores FOR SELECT
-USING (EXISTS (SELECT 1 FROM public.admins WHERE id = auth.uid()));
+-- Ensure generate_receipt_number() exists for billing generation
+CREATE OR REPLACE FUNCTION public.generate_receipt_number()
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_today TEXT := TO_CHAR(NOW() AT TIME ZONE 'Asia/Bangkok', 'YYYYMMDD');
+  v_prefix TEXT := 'CR-' || v_today || '-';
+  v_seq INTEGER;
+BEGIN
+  SELECT COALESCE(MAX(CAST(SPLIT_PART(receipt_number, '-', 3) AS INTEGER)), 0) + 1
+  INTO v_seq
+  FROM public.billing_records
+  WHERE receipt_number LIKE v_prefix || '%';
 
-DROP POLICY IF EXISTS "Admins can update all stores" ON public.stores;
-CREATE POLICY "Admins can update all stores"
-ON public.stores FOR UPDATE
-USING (EXISTS (SELECT 1 FROM public.admins WHERE id = auth.uid()));
+  RETURN v_prefix || LPAD(v_seq::TEXT, 4, '0');
+END;
+$$;
 
--- ==========================================================
--- FIX 2: ลบ Duplicate customization_options policies
--- (มี 2 policy ที่ทำหน้าที่เดียวกัน)
--- ==========================================================
+GRANT EXECUTE ON FUNCTION public.generate_receipt_number() TO authenticated, service_role;
 
-DROP POLICY IF EXISTS "Public can view customization options" ON public.customization_options;
--- เก็บแค่ "Public can view custom options" ไว้อันเดียว
 
-DROP POLICY IF EXISTS "Public can view customization groups" ON public.customization_groups;
--- เก็บแค่ "Public can view custom groups" ไว้อันเดียว
+-- ==============================================================================
+-- 1. PREVENT PROFILES ROLE ESCALATION TRIGGER
+-- ==============================================================================
+-- Goal: Prevent unauthorized privilege escalation where an authenticated user 
+-- updates their own profile row to role = 'admin', which would cause public.is_admin()
+-- to return true and compromise the entire system.
 
--- ==========================================================
--- FIX 3: ลบ Duplicate admin_update_store_plan function
--- (มี 2 ตัว ทำให้เรียกไม่ได้โดยไม่ระบุ signature)
--- ==========================================================
+CREATE OR REPLACE FUNCTION public.prevent_role_escalation()
+RETURNS trigger AS $$
+BEGIN
+  -- 1. If role is unchanged, allow immediately (safe for NULLs and benign updates like merchant/profile.vue)
+  IF NEW.role IS NOT DISTINCT FROM OLD.role THEN
+    RETURN NEW;
+  END IF;
 
--- ลบทุก overload ก่อน แล้วสร้างใหม่ครั้งเดียว
+  -- 2. Allow PostgreSQL superusers, supabase admin, or backend service_role (e.g. migrations / SQL editor)
+  IF (current_user IN ('postgres', 'supabase_admin', 'service_role'))
+     OR (coalesce(current_setting('request.jwt.claim.role', true), '') = 'service_role') THEN
+    RETURN NEW;
+  END IF;
+
+  -- 3. Allow if caller is an authorized admin
+  IF public.is_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  -- 4. Otherwise block regular users from escalating their own role
+  RAISE EXCEPTION 'ไม่อนุญาตให้แก้ไขสิทธิ์ role ด้วยตนเอง';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS tr_prevent_role_escalation ON public.profiles;
+CREATE TRIGGER tr_prevent_role_escalation
+  BEFORE UPDATE OF role ON public.profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.prevent_role_escalation();
+
+GRANT EXECUTE ON FUNCTION public.prevent_role_escalation() TO authenticated, service_role;
+
+
+-- ==============================================================================
+-- 2. CLEAN UP & ENFORCE 12-PARAMETER admin_update_store_plan RPC
+-- ==============================================================================
+-- Goal: Ensure no duplicate signatures or obsolete 9-parameter overloads exist
+-- that cause PostgREST ambiguity errors ("Could not choose a best candidate function")
+-- or signature mismatch errors when called from app/pages/admin/stores.vue.
+
+-- A. Drop all prior variations/overloads dynamically to avoid conflicts
 DO $$
 DECLARE
   r RECORD;
@@ -63,14 +111,15 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Also explicitly drop known historical signatures for safety
+DROP FUNCTION IF EXISTS public.admin_update_store_plan(uuid, varchar, timestamptz, varchar, jsonb);
 DROP FUNCTION IF EXISTS public.admin_update_store_plan(uuid, text, timestamptz, text, jsonb);
 DROP FUNCTION IF EXISTS public.admin_update_store_plan(uuid, text, timestamptz, text, jsonb, numeric, text, integer, text);
-DROP FUNCTION IF EXISTS public.admin_update_store_plan(uuid, varchar, timestamptz, varchar, jsonb);
 DROP FUNCTION IF EXISTS public.admin_update_store_plan(uuid, text, integer, numeric, text, text);
 DROP FUNCTION IF EXISTS public.admin_update_store_plan(uuid, text, integer, numeric, text, text, text, text, text, numeric, numeric);
 DROP FUNCTION IF EXISTS public.admin_update_store_plan(uuid, text, timestamptz, text, jsonb, numeric, text, integer, text, numeric, numeric, text);
 
--- สร้างใหม่ version เดียว (version ล่าสุด 12 parameters รองรับ Promotion และ Billing สมบูรณ์แบบ)
+-- B. Create the canonical 12-parameter stored procedure (with promotion support & validation)
 CREATE OR REPLACE FUNCTION public.admin_update_store_plan(
   p_store_id        UUID,
   p_plan_status     TEXT,
@@ -222,20 +271,27 @@ BEGIN
 END;
 $$;
 
+-- C. Enforce function execution permissions
 REVOKE EXECUTE ON FUNCTION public.admin_update_store_plan(uuid, text, timestamptz, text, jsonb, numeric, text, integer, text, numeric, numeric, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_update_store_plan(uuid, text, timestamptz, text, jsonb, numeric, text, integer, text, numeric, numeric, text) TO authenticated, service_role;
 
--- ==========================================================
--- ตรวจสอบว่าแก้ถูกต้อง
--- ==========================================================
 
--- ควรเหลือแค่ 1 ตัว
-SELECT routine_name, security_type 
-FROM information_schema.routines 
-WHERE routine_schema = 'public' AND routine_name = 'admin_update_store_plan';
+-- ==============================================================================
+-- 3. VERIFICATION QUERIES (Audit after execution)
+-- ==============================================================================
+-- Check triggers on profiles
+SELECT trigger_name, event_manipulation, action_statement, action_timing
+FROM information_schema.triggers
+WHERE event_object_schema = 'public' 
+  AND event_object_table = 'profiles'
+  AND trigger_name = 'tr_prevent_role_escalation';
 
--- ควรไม่มี email hardcode แล้ว
-SELECT tablename, policyname, LEFT(qual, 100) as condition
-FROM pg_policies 
-WHERE schemaname = 'public' 
-  AND qual LIKE '%gmail%';
+-- Check routine signatures for admin_update_store_plan (must be exactly 1 row with 12 params)
+SELECT 
+  p.proname AS function_name,
+  pg_get_function_identity_arguments(p.oid) AS argument_types,
+  p.prosecdef AS is_security_definer
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname = 'admin_update_store_plan';

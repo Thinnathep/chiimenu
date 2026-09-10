@@ -159,6 +159,10 @@ const submitForm = async () => {
     
     if (error) throw error
     
+    // Update the store state so dashboard doesn't show "You have no store"
+    const { setStore } = useCurrentStore()
+    setStore(data)
+    
     // Redirect to dashboard
     router.push('/merchant/dashboard')
   } catch (e: any) {

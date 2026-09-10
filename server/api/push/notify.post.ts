@@ -18,7 +18,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!config.vapidPublicKey || !config.vapidPrivateKey) {
-    throw createError({ statusCode: 500, message: 'VAPID keys not configured' })
+    console.warn('[push/notify] VAPID keys not configured, skipping web push')
+    return { success: false, skipped: true, message: 'VAPID keys not configured' }
   }
 
   webpush.setVapidDetails(
@@ -27,14 +28,16 @@ export default defineEventHandler(async (event) => {
     config.vapidPrivateKey
   )
 
-  const supabaseUrl = process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-  const supabaseKey = process.env.NUXT_SUPABASE_SECRET_KEY || process.env.SUPABASE_KEY || ''
+  const supabaseUrl = (config.public as any)?.supabaseUrl || (config.public as any)?.supabase?.url || process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+  const supabaseKey = (config as any)?.supabaseServiceKey || (config as any)?.supabase?.secretKey || process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_KEY || ''
 
   if (!supabaseUrl || !supabaseKey) {
     throw createError({ statusCode: 500, message: 'Supabase config missing' })
   }
 
-  const db = createClient(supabaseUrl, supabaseKey)
+  const db = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  })
 
   // Get all push subscriptions for this store
   const { data: subs, error: fetchErr } = await db

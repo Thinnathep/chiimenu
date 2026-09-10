@@ -1,4 +1,9 @@
 <script setup lang="ts">
+definePageMeta({
+  auth: false
+})
+
+import { MessageCircle } from 'lucide-vue-next'
 const { auth } = useSupabaseClient()
 const router = useRouter()
 import { isValidEmail, isValidPhone } from '~/utils/validation'
@@ -79,8 +84,12 @@ const handleReset = async () => {
             กรุณาติดต่อแอดมินผ่าน LINE OA: <strong class="text-foreground">@819wgrsj</strong><br>
             เพื่อขอรหัสผ่านใหม่สำหรับเบอร์ <strong>{{ loginId }}</strong> ค่ะ
           </p>
-          <div class="mt-6">
-            <NuxtLink to="/login" class="inline-flex w-full justify-center rounded-md border border-input bg-background py-2 px-4 text-sm font-medium text-foreground shadow-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
+          <div class="mt-6 space-y-3">
+            <a href="https://line.me/R/ti/p/@819wgrsj" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#06C755] py-2.5 px-4 text-sm font-bold text-white shadow-md hover:bg-[#05b34c] transition-colors">
+              <MessageCircle class="w-4 h-4" />
+              ติดต่อแอดมินทาง LINE (@819wgrsj)
+            </a>
+            <NuxtLink to="/login" class="inline-flex w-full justify-center rounded-xl border border-input bg-background py-2 px-4 text-sm font-medium text-foreground shadow-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors">
               กลับหน้าเข้าสู่ระบบ
             </NuxtLink>
           </div>

@@ -16,7 +16,13 @@ import {
   Check, 
   Download, 
   FileText,
-  CreditCard
+  CreditCard,
+  QrCode,
+  UploadCloud,
+  AlertCircle,
+  Copy,
+  X,
+  RefreshCw
 } from 'lucide-vue-next'
 import { computed, ref, onMounted } from 'vue'
 import { SUBSCRIPTION_PACKAGES } from '~/utils/pricing'
@@ -35,6 +41,210 @@ const showReceiptModal = ref(false)
 const receiptContentRef = ref(null)
 const downloading = ref(false)
 
+// PromptPay SlipOK Payment States
+const selectedPackage = ref<any>(null)
+const showPaymentModal = ref(false)
+const isGeneratingQr = ref(false)
+const qrData = ref<any>(null)
+const slipFile = ref<File | null>(null)
+const slipPreviewUrl = ref<string | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const isVerifying = ref(false)
+const verifyError = ref<string | null>(null)
+const copiedPromptpay = ref(false)
+const copiedAmount = ref(false)
+
+// Celebration Modal State
+const showSuccessModal = ref(false)
+const successData = ref<any>(null)
+
+const openPaymentModal = async (pkg: any) => {
+  selectedPackage.value = pkg
+  slipFile.value = null
+  if (slipPreviewUrl.value) {
+    URL.revokeObjectURL(slipPreviewUrl.value)
+    slipPreviewUrl.value = null
+  }
+  verifyError.value = null
+  qrData.value = null
+  showPaymentModal.value = true
+  isGeneratingQr.value = true
+
+  if (!store.value?.id) {
+    verifyError.value = 'ไม่พบข้อมูลร้านค้า กรุณารีเฟรชหน้าเว็บแล้วลองใหม่อีกครั้ง'
+    isGeneratingQr.value = false
+    return
+  }
+
+  try {
+    const { data: sessionData } = await client.auth.getSession()
+    const token = sessionData?.session?.access_token
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const res = await $fetch<any>('/api/billing/create-qr', {
+      method: 'POST',
+      headers,
+      body: {
+        storeId: store.value.id,
+        packageId: pkg.id
+      }
+    })
+    qrData.value = res
+  } catch (err: any) {
+    verifyError.value = err?.data?.message || err?.message || 'ไม่สามารถสร้าง QR Code สำหรับชำระเงินได้'
+  } finally {
+    isGeneratingQr.value = false
+  }
+}
+
+const closePaymentModal = () => {
+  showPaymentModal.value = false
+  slipFile.value = null
+  if (slipPreviewUrl.value) {
+    URL.revokeObjectURL(slipPreviewUrl.value)
+    slipPreviewUrl.value = null
+  }
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+const triggerFileInput = () => {
+  fileInputRef.value?.click()
+}
+
+const onFileSelected = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    handleSlipFile(input.files[0])
+  }
+}
+
+const onFileDrop = (event: DragEvent) => {
+  event.preventDefault()
+  if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
+    handleSlipFile(event.dataTransfer.files[0])
+  }
+}
+
+const handleSlipFile = (file: File) => {
+  if (!file.type.startsWith('image/')) {
+    verifyError.value = 'กรุณาอัปโหลดไฟล์รูปภาพเท่านั้น (JPG, PNG, WEBP)'
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    verifyError.value = 'ขนาดไฟล์ภาพใหญ่เกิน 10MB กรุณาเลือกรูปภาพขนาดเล็กลง'
+    return
+  }
+  verifyError.value = null
+  slipFile.value = file
+  if (slipPreviewUrl.value) {
+    URL.revokeObjectURL(slipPreviewUrl.value)
+  }
+  slipPreviewUrl.value = URL.createObjectURL(file)
+}
+
+const removeSlipFile = () => {
+  slipFile.value = null
+  if (slipPreviewUrl.value) {
+    URL.revokeObjectURL(slipPreviewUrl.value)
+    slipPreviewUrl.value = null
+  }
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+const copyToClipboard = async (text?: string, type: 'id' | 'amount' = 'id') => {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    if (type === 'id') {
+      copiedPromptpay.value = true
+      setTimeout(() => { copiedPromptpay.value = false }, 2000)
+    } else {
+      copiedAmount.value = true
+      setTimeout(() => { copiedAmount.value = false }, 2000)
+    }
+  } catch (err) {
+    console.error('Failed to copy to clipboard:', err)
+  }
+}
+
+const submitSlipVerification = async () => {
+  if (!slipFile.value || !selectedPackage.value || !store.value?.id) return
+
+  isVerifying.value = true
+  verifyError.value = null
+
+  try {
+    const { data: sessionData } = await client.auth.getSession()
+    const token = sessionData?.session?.access_token
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const formData = new FormData()
+    formData.append('slip', slipFile.value)
+    formData.append('storeId', store.value.id)
+    formData.append('packageId', selectedPackage.value.id)
+
+    const res = await $fetch<any>('/api/billing/verify-slip', {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    if (res?.success) {
+      closePaymentModal()
+      successData.value = res
+      showSuccessModal.value = true
+
+      // Refresh store data and billing records
+      await refreshStoreDirectly()
+      await fetchBillingRecords()
+    } else {
+      throw new Error(res?.message || 'การตรวจสอบสลิปล้มเหลว')
+    }
+  } catch (err: any) {
+    console.error('Slip verification error:', err)
+    verifyError.value = err?.data?.message || err?.message || 'เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง'
+  } finally {
+    isVerifying.value = false
+  }
+}
+
+const viewNewlyCreatedReceipt = () => {
+  showSuccessModal.value = false
+  if (successData.value?.receiptNumber) {
+    const rec = billingRecords.value.find(r => r.receipt_number === successData.value.receiptNumber)
+    if (rec) {
+      openReceipt(rec)
+      return
+    }
+    // Fallback: construct receipt preview from successData if DB fetch has slight delay
+    openReceipt({
+      receipt_number: successData.value.receiptNumber,
+      package_name: successData.value.packageName,
+      package_days: successData.value.packageDays,
+      amount: successData.value.amount,
+      paid_at: new Date().toISOString(),
+      plan_start_at: new Date().toISOString(),
+      plan_end_at: successData.value.newExpiryDate,
+      payment_method: 'promptpay_slipok',
+      slip_trans_ref: successData.value.transRef
+    })
+    return
+  }
+  if (billingRecords.value.length > 0) {
+    openReceipt(billingRecords.value[0])
+  }
+}
+
 const fetchBillingRecords = async () => {
   if (!store.value?.id) return
   
@@ -51,6 +261,19 @@ const fetchBillingRecords = async () => {
 
 const refreshStoreDirectly = async () => {
   // Refresh store data directly without touching shared loading state in layout
+  if (store.value?.id) {
+    const { data: storeData } = await client
+      .from('stores')
+      .select('*')
+      .eq('id', store.value.id)
+      .maybeSingle()
+
+    if (storeData) {
+      setStore(storeData)
+      return
+    }
+  }
+
   const { data: authData } = await client.auth.getUser()
   if (!authData?.user?.id) return
 
@@ -418,17 +641,26 @@ const packages = computed(() => {
               </div>
             </div>
 
-            <!-- CTA Button -->
-            <div class="mt-8 pt-4 border-t">
-              <a 
-                :href="`https://line.me/R/ti/p/@819wgrsj`" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                class="w-full py-3 px-4 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 transition-all block"
+            <!-- CTA Buttons (Auto PromptPay + LINE) -->
+            <div class="mt-8 pt-4 border-t space-y-2">
+              <button 
+                @click="openPaymentModal(pkg)"
+                type="button"
+                class="w-full py-3 px-4 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md cursor-pointer"
                 :class="pkg.ctaClass"
               >
-                <span>{{ pkg.ctaText }}</span>
-                <ArrowRight class="w-3.5 h-3.5" />
+                <QrCode class="w-4 h-4" />
+                <span>สแกนจ่ายทันที (PromptPay Auto)</span>
+              </button>
+
+              <a 
+                href="https://line.me/R/ti/p/@819wgrsj" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="w-full py-2 px-3 rounded-xl text-[11px] font-semibold text-center flex items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border border-dashed border-border"
+              >
+                <MessageCircle class="w-3.5 h-3.5 text-emerald-600" />
+                <span>ติดต่อแอดมินทาง LINE</span>
               </a>
             </div>
 
@@ -521,6 +753,9 @@ const packages = computed(() => {
                     <span class="font-medium text-foreground">{{ record.package_name }}</span>
                     <span v-if="record.promotion_code === 'FIRST_TIME_50'" class="inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
                       ลด 50%
+                    </span>
+                    <span v-if="record.payment_method === 'promptpay_slipok'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      Auto
                     </span>
                   </div>
                 </td>
@@ -626,8 +861,9 @@ const packages = computed(() => {
             
             <!-- Footer -->
             <div class="text-center text-[10px] text-gray-500 space-y-1">
-              <p>Payment: PromptPay / Bank Transfer</p>
-              <p v-if="selectedReceipt?.note">Ref: {{ selectedReceipt.note }}</p>
+              <p>Payment: {{ selectedReceipt?.payment_method === 'promptpay_slipok' ? 'PromptPay (SlipOK Auto)' : 'PromptPay / Bank Transfer' }}</p>
+              <p v-if="selectedReceipt?.slip_trans_ref">Slip Ref: {{ selectedReceipt.slip_trans_ref }}</p>
+              <p v-else-if="selectedReceipt?.note">Ref: {{ selectedReceipt.note }}</p>
               <p class="mt-4 pt-4 border-t border-gray-200">Thank you for choosing ChiiMenu</p>
               <p>LINE: @819wgrsj</p>
             </div>
@@ -644,6 +880,259 @@ const packages = computed(() => {
             <span>Download</span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- 6. Payment & Slip Verification Modal (SlipOK PromptPay Auto) -->
+    <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto">
+      <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in-95 duration-200">
+        
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-border flex justify-between items-center bg-muted/30">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+              <QrCode class="w-5 h-5" />
+            </div>
+            <div>
+              <h3 class="font-black text-base text-foreground flex items-center gap-2">
+                ชำระเงินอัตโนมัติด้วย PromptPay
+                <span v-if="qrData?.isPromo" class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold border border-rose-200">
+                  ลด 50%
+                </span>
+              </h3>
+              <p class="text-xs text-muted-foreground">สแกน QR Code โอนเงิน และแนบสลิปเพื่อเปิดใช้งานทันที 24 ชม.</p>
+            </div>
+          </div>
+          <button 
+            @click="closePaymentModal" 
+            class="text-muted-foreground hover:text-foreground p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer"
+          >
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 overflow-y-auto max-h-[calc(85vh-130px)] space-y-6">
+          
+          <!-- Loading State for QR generation -->
+          <div v-if="isGeneratingQr" class="py-16 text-center space-y-3">
+            <div class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p class="text-xs font-medium text-muted-foreground">กำลังสร้าง QR Code พร้อมเพย์ตามยอดเงินของคุณ...</p>
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            
+            <!-- Left: QR Code Display & Payment Details -->
+            <div class="bg-muted/20 border rounded-2xl p-5 flex flex-col items-center text-center space-y-4">
+              <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 inline-block relative">
+                <img 
+                  v-if="qrData?.qrDataUrl" 
+                  :src="qrData.qrDataUrl" 
+                  alt="PromptPay QR Code" 
+                  class="w-52 h-52 object-contain rounded-lg"
+                />
+                <div v-else class="w-52 h-52 flex items-center justify-center bg-muted/40 rounded-lg text-xs text-muted-foreground">
+                  ไม่สามารถโหลด QR Code
+                </div>
+              </div>
+
+              <!-- Package & Price Summary -->
+              <div class="w-full bg-card border rounded-xl p-3.5 space-y-1.5 text-left text-xs">
+                <div class="flex justify-between items-center text-muted-foreground">
+                  <span>แพ็กเกจที่เลือก:</span>
+                  <span class="font-bold text-foreground">{{ qrData?.package?.name }} ({{ qrData?.package?.days }} วัน)</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-muted-foreground">ยอดเงินที่ต้องโอน:</span>
+                  <div class="flex items-center gap-1.5">
+                    <span v-if="qrData?.isPromo" class="line-through text-muted-foreground text-[11px]">฿{{ qrData?.standardAmount }}</span>
+                    <strong class="text-base text-rose-600 font-black">฿{{ qrData?.amount }}</strong>
+                    <button 
+                      @click="copyToClipboard(String(qrData?.amount), 'amount')" 
+                      type="button"
+                      class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted cursor-pointer"
+                      title="คัดลอกยอดเงิน"
+                    >
+                      <Check v-if="copiedAmount" class="w-3.5 h-3.5 text-emerald-600" />
+                      <Copy v-else class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div class="flex justify-between items-center text-muted-foreground pt-1 border-t border-dashed">
+                  <span>บัญชีรับเงิน (PromptPay):</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-mono font-bold text-foreground">{{ qrData?.promptpayId }}</span>
+                    <button 
+                      @click="copyToClipboard(qrData?.promptpayId, 'id')" 
+                      type="button"
+                      class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted cursor-pointer"
+                      title="คัดลอกเลขพร้อมเพย์"
+                    >
+                      <Check v-if="copiedPromptpay" class="w-3.5 h-3.5 text-emerald-600" />
+                      <Copy v-else class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div v-if="qrData?.accountName" class="flex justify-between items-center text-muted-foreground text-[11px]">
+                  <span>ชื่อบัญชี:</span>
+                  <span class="font-medium text-foreground">{{ qrData.accountName }}</span>
+                </div>
+              </div>
+
+              <p class="text-[11px] text-muted-foreground leading-relaxed">
+                💡 สแกนผ่านแอปธนาคารใดก็ได้ ยอดเงินจะถูกระบุให้อัตโนมัติ จากนั้นบันทึกรูปสลิปและแนบในช่องขวามือ
+              </p>
+            </div>
+
+            <!-- Right: Slip Upload & AI Verification -->
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-foreground mb-1.5">
+                  แนบรูปภาพสลิปการโอนเงิน <span class="text-rose-500">*</span>
+                </label>
+
+                <!-- Drag & Drop / File Input Box -->
+                <div 
+                  @dragover.prevent 
+                  @dragenter.prevent 
+                  @drop="onFileDrop"
+                  class="border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all hover:bg-muted/30 relative"
+                  :class="slipFile ? 'border-emerald-400 bg-emerald-50/20' : 'border-border hover:border-primary/50'"
+                  @click="triggerFileInput"
+                >
+                  <input 
+                    ref="fileInputRef" 
+                    type="file" 
+                    accept="image/*" 
+                    class="hidden" 
+                    @change="onFileSelected"
+                  />
+
+                  <!-- Preview when file selected -->
+                  <div v-if="slipPreviewUrl" class="space-y-3">
+                    <div class="relative inline-block mx-auto">
+                      <img 
+                        :src="slipPreviewUrl" 
+                        alt="Slip Preview" 
+                        class="max-h-48 max-w-full rounded-xl object-contain shadow-xs border"
+                      />
+                      <button 
+                        @click.stop="removeSlipFile" 
+                        type="button"
+                        class="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 shadow-sm cursor-pointer"
+                        title="ลบรูป"
+                      >
+                        <X class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p class="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
+                      <CheckCircle2 class="w-4 h-4 text-emerald-600" />
+                      {{ slipFile?.name }} ({{ (slipFile?.size ? (slipFile.size / 1024).toFixed(0) : 0) }} KB)
+                    </p>
+                    <p class="text-[11px] text-muted-foreground">คลิกหรือลากรูปใหม่มาวางหากต้องการเปลี่ยนรูปสลิป</p>
+                  </div>
+
+                  <!-- Empty Placeholder -->
+                  <div v-else class="py-6 space-y-2">
+                    <div class="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                      <UploadCloud class="w-6 h-6" />
+                    </div>
+                    <p class="text-xs font-bold text-foreground">คลิกเพื่อเลือกสลิป หรือลากไฟล์มาวางที่นี่</p>
+                    <p class="text-[11px] text-muted-foreground">รองรับ JPG, PNG, WEBP หรือถ่ายรูปสลิป (สูงสุด 10MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Error Alert Banner -->
+              <div v-if="verifyError" class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+                <AlertCircle class="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div class="flex-1">
+                  <strong class="font-bold block mb-0.5">การตรวจสอบไม่สำเร็จ:</strong>
+                  <p class="leading-relaxed">{{ verifyError }}</p>
+                </div>
+              </div>
+
+              <!-- Security Badges -->
+              <div class="p-3 bg-muted/30 rounded-xl text-[11px] text-muted-foreground space-y-1">
+                <div class="flex items-center gap-1.5 font-bold text-foreground">
+                  <ShieldCheck class="w-4 h-4 text-emerald-600" />
+                  <span>ระบบตรวจสลิปอัตโนมัติ SlipOK Real-time 24 ชม.</span>
+                </div>
+                <p>ระบบจะอ่าน QR Code บนสลิป ตรวจสอบยอดเงิน และขยายวันหมดอายุของร้านค้าให้ทันทีแบบเรียลไทม์</p>
+              </div>
+
+              <!-- Verification Action Button -->
+              <button 
+                @click="submitSlipVerification" 
+                :disabled="!slipFile || isVerifying" 
+                type="button"
+                class="w-full py-3.5 px-5 rounded-xl font-black text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <RefreshCw v-if="isVerifying" class="w-4 h-4 animate-spin" />
+                <Sparkles v-else class="w-4 h-4 text-yellow-300" />
+                <span>{{ isVerifying ? 'กำลังส่งสลิปให้ SlipOK ตรวจสอบ & ต่ออายุ...' : 'ตรวจสอบสลิป & ต่ออายุอัตโนมัติ' }}</span>
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 7. Success Celebration Modal -->
+    <div v-if="showSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+      <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-center p-8 space-y-5 animate-in zoom-in-95 duration-200">
+        
+        <div class="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-4xl mx-auto shadow-inner ring-8 ring-emerald-50">
+          🎉
+        </div>
+
+        <div class="space-y-1.5">
+          <h3 class="text-xl font-black text-foreground">ต่ออายุแพ็กเกจสำเร็จ!</h3>
+          <p class="text-xs text-muted-foreground">ระบบได้ทำการตรวจสอบสลิปและขยายระยะเวลาการใช้งานให้ร้านของคุณเรียบร้อยแล้ว</p>
+        </div>
+
+        <!-- Details Box -->
+        <div class="bg-muted/20 border rounded-2xl p-4 text-xs space-y-2 text-left">
+          <div class="flex justify-between items-center">
+            <span class="text-muted-foreground">เลขที่ใบเสร็จ:</span>
+            <span class="font-mono font-bold text-foreground">{{ successData?.receiptNumber }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-muted-foreground">แพ็กเกจ:</span>
+            <span class="font-bold text-foreground">{{ successData?.packageName }} ({{ successData?.packageDays }} วัน)</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-muted-foreground">ยอดเงินที่ชำระ:</span>
+            <span class="font-black text-emerald-600">฿{{ successData?.amount }}</span>
+          </div>
+          <div class="flex justify-between items-center pt-1 border-t border-dashed">
+            <span class="text-muted-foreground">วันหมดอายุใหม่:</span>
+            <span class="font-bold text-foreground">{{ formatDate(successData?.newExpiryDate) }}</span>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-2">
+          <button 
+            @click="viewNewlyCreatedReceipt" 
+            type="button"
+            class="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <FileText class="w-4 h-4" />
+            <span>ดูและดาวน์โหลดใบเสร็จรับเงิน</span>
+          </button>
+          <button 
+            @click="showSuccessModal = false" 
+            type="button"
+            class="w-full py-2.5 px-4 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+          >
+            ปิดหน้าต่าง
+          </button>
+        </div>
+
       </div>
     </div>
 

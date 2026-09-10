@@ -82,6 +82,7 @@ const cartBouncing = ref(false)
 // === Service Request Modal ===
 const isServiceModalOpen = ref(false)
 const serviceSuccessMsg = ref('')
+const isCallingService = ref(false)
 
 // === Item Customization Bottom Sheet ===
 interface AddonOptionSelection {
@@ -122,9 +123,67 @@ const dynamicThemeStyles = computed(() => {
 // === Fetch Store & Menu Data ===
 onMounted(async () => {
   try {
+    // Check query params for table number e.g. ?table=5 or ?t=5
+    if (route.query.table) {
+      tableNo.value = String(route.query.table)
+      detectedTableFromQr.value = String(route.query.table)
+    } else if (route.query.t) {
+      tableNo.value = String(route.query.t)
+      detectedTableFromQr.value = String(route.query.t)
+    }
+
+    // 1. Primary: Fast server API (BFF pattern - zero RLS permissions failure for tourist clients)
+    try {
+      const res = await $fetch<any>(`/api/menu/${shortCode}`)
+      if (res && res.success && res.store) {
+        store.value = res.store
+        categories.value = res.categories || []
+        menuItems.value = res.menuItems || []
+
+        if (res.qrData) {
+          if (res.qrData.table_identifier) {
+            detectedTableFromQr.value = res.qrData.table_identifier
+            if (!tableNo.value) tableNo.value = res.qrData.table_identifier
+          } else if (res.qrData.label) {
+            scannedQrLabel.value = res.qrData.label
+            if (!tableNo.value) tableNo.value = res.qrData.label
+          }
+        }
+
+        if (res.store.default_language && ['th', 'en', 'zh'].includes(res.store.default_language)) {
+          locale.value = res.store.default_language
+        }
+
+        if (res.isStoreClosed) {
+          isStoreClosed.value = true
+          extractFromImage(res.store.logo_url || res.store.cover_url)
+          loading.value = false
+          return
+        }
+
+        if (res.isStoreLocked) {
+          isStoreLocked.value = true
+          loading.value = false
+          return
+        }
+
+        extractFromImage(res.store.logo_url || res.store.cover_url)
+        initSpeechRecognition()
+        loading.value = false
+        return
+      } else if (res && res.notFound) {
+        isStoreNotFound.value = true
+        loading.value = false
+        return
+      }
+    } catch (apiErr) {
+      console.warn('Server API menu fetch failed, falling back to direct Supabase client...', apiErr)
+    }
+
+    // 2. Fallback: Direct Supabase client fetch
     let targetStoreId: string | null = null
 
-    // 1a. Try to match from qr_codes table (short_code)
+    // 2a. Try to match from qr_codes table (short_code)
     const { data: qrData } = (await (client as any)
       .from('qr_codes')
       .select('store_id, id, table_identifier, label')
@@ -139,12 +198,12 @@ onMounted(async () => {
         tableNo.value = qrData.table_identifier
       } else if (qrData.label) {
         scannedQrLabel.value = qrData.label
-        if (!tableNo.value && qrData.label.toLowerCase().includes('โต๊ะ')) {
+        if (!tableNo.value) {
           tableNo.value = qrData.label
         }
       }
     } else {
-      // 1b. Fallback: Try by store slug
+      // 2b. Fallback: Try by store slug
       const { data: storeBySlug } = (await (client as any)
         .from('stores')
         .select('id, is_active')
@@ -154,7 +213,7 @@ onMounted(async () => {
       if (storeBySlug?.id) {
         targetStoreId = storeBySlug.id
       } else {
-        // 1c. Fallback: Try by store ID directly
+        // 2c. Fallback: Try by store ID directly
         const { data: storeById } = (await (client as any)
           .from('stores')
           .select('id, is_active')
@@ -167,22 +226,13 @@ onMounted(async () => {
       }
     }
 
-    // Check query params for table number e.g. ?table=5 or ?t=5
-    if (route.query.table) {
-      tableNo.value = String(route.query.table)
-      detectedTableFromQr.value = String(route.query.table)
-    } else if (route.query.t) {
-      tableNo.value = String(route.query.t)
-      detectedTableFromQr.value = String(route.query.t)
-    }
-
     if (!targetStoreId) {
       isStoreNotFound.value = true
       loading.value = false
       return
     }
 
-    // 2. Fetch Store, Categories, and Menu Items in parallel
+    // 3. Fetch Store, Categories, and Menu Items in parallel
     const [storeRes, catRes, itemRes] = await Promise.all([
       (client as any)
         .from('stores')
@@ -240,7 +290,7 @@ onMounted(async () => {
         }
       }
 
-      // 3. Extract Dynamic Brand Colors from Logo or Cover (Ultra-fast async)
+      // Extract Dynamic Brand Colors from Logo or Cover (Ultra-fast async)
       extractFromImage(storeData.logo_url || storeData.cover_url)
     } else {
       isStoreNotFound.value = true
@@ -433,6 +483,22 @@ const getItemCartQuantity = (itemId: string) => {
 const addToCart = () => {
   if (!selectedItem.value) return
   
+  // Validate required customization groups
+  const customizations = selectedItem.value.menu_item_customizations
+  if (Array.isArray(customizations)) {
+    for (const mic of customizations) {
+      const group = mic.customization_groups
+      if (group && group.is_required === true) {
+        const groupId = group.id
+        if (!itemAddons.value[groupId]) {
+          const groupName = group[`name_${locale.value}`] || group.name_en || group.name_th || 'ตัวเลือก'
+          alert(`กรุณาเลือก "${groupName}" ก่อนเพิ่มลงตะกร้า`)
+          return
+        }
+      }
+    }
+  }
+  
   const formattedAddons: string[] = []
   for (const k in itemAddons.value) {
     if (itemAddons.value[k]?.name) {
@@ -510,7 +576,8 @@ const submitOrder = async () => {
         storeId: store.value.id,
         tableNo: targetTable,
         cart: cart.value,
-        note: orderNote.value.trim()
+        note: orderNote.value.trim(),
+        orderNote: orderNote.value.trim()
       }
     })
     
@@ -519,11 +586,13 @@ const submitOrder = async () => {
       time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
       items: [...cart.value],
       total: cartTotal.value,
-      table: targetTable
+      table: targetTable,
+      note: orderNote.value.trim()
     }
 
     orderSuccess.value = true
     isCartOpen.value = false
+    orderNote.value = ''
   } catch (e: any) {
     console.error('Order submit error:', e)
     alert(e?.data?.message || 'Failed to submit order. Please try again.')
@@ -533,16 +602,36 @@ const submitOrder = async () => {
 }
 
 // === Quick Service Requests (Call Staff / Bill / Utensils) ===
-const sendServiceRequest = (type: string) => {
-  const targetTable = tableNo.value.trim() || 'ลูกค้าหน้าร้าน'
-  serviceSuccessMsg.value = locale.value === 'zh' 
-    ? `已通知服务员前往: ${targetTable}` 
-    : (locale.value === 'en' ? `Staff alerted for: ${targetTable}` : `แจ้งพนักงานเรียบร้อยแล้ว: ${targetTable}`)
+const sendServiceRequest = async (type: string) => {
+  const targetTable = tableNo.value.trim() || (orderType.value === 'takeaway' ? 'สั่งกลับบ้าน' : 'ลูกค้าหน้าร้าน')
   
-  setTimeout(() => {
-    isServiceModalOpen.value = false
-    serviceSuccessMsg.value = ''
-  }, 2200)
+  isCallingService.value = true
+  serviceSuccessMsg.value = ''
+
+  try {
+    await $fetch('/api/service/call', {
+      method: 'POST',
+      body: {
+        storeId: store.value?.id,
+        tableNo: targetTable,
+        serviceType: type
+      }
+    })
+
+    serviceSuccessMsg.value = locale.value === 'zh' 
+      ? `已通知服务员前往: ${targetTable}` 
+      : (locale.value === 'en' ? `Staff alerted for: ${targetTable}` : `แจ้งพนักงานเรียบร้อยแล้ว: ${targetTable}`)
+    
+    setTimeout(() => {
+      isServiceModalOpen.value = false
+      serviceSuccessMsg.value = ''
+    }, 2500)
+  } catch (err: any) {
+    console.error('Service call error:', err)
+    alert(err?.data?.message || (locale.value === 'zh' ? '呼叫失败，请直接呼叫店员' : (locale.value === 'en' ? 'Failed to call staff. Please alert the staff directly.' : 'ไม่สามารถส่งคำขอได้ กรุณาเรียกพนักงานโดยตรง')))
+  } finally {
+    isCallingService.value = false
+  }
 }
 
 // === Multilingual & Filter Helpers ===
@@ -761,10 +850,9 @@ const getCategoryEmoji = (name: string) => {
             </div>
           </div>
 
-          <!-- Actions: Language Switcher & Call Staff (Highlighted / Commented for Phase 2) -->
+          <!-- Actions: Language Switcher & Call Staff -->
           <div class="flex items-center gap-1.5 shrink-0">
-            <!--
-            === [FEATURE: CALL STAFF BUTTON - HIGHLIGHTED FOR PHASE 2] ===
+            <!-- Call Staff Button -->
             <button 
               @click="isServiceModalOpen = true"
               class="p-1.5 sm:px-2.5 sm:py-1 rounded-xl text-xs font-bold transition-all border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center gap-1 shadow-2xs"
@@ -773,7 +861,6 @@ const getCategoryEmoji = (name: string) => {
               <Bell class="w-3.5 h-3.5" />
               <span class="hidden sm:inline text-[11px]">{{ locale === 'zh' ? '呼叫' : (locale === 'en' ? 'Staff' : 'เรียกพนักงาน') }}</span>
             </button>
-            -->
 
             <!-- Language Pill Switcher (Segmented Control) -->
             <div class="flex items-center bg-muted/80 rounded-xl p-0.5 border border-border/40 text-[11px] font-bold">
@@ -1065,14 +1152,14 @@ const getCategoryEmoji = (name: string) => {
                 </p>
 
                 <!-- Allergen Preview Mini Tags -->
-                <div v-if="item.menu_item_allergens?.length" class="flex flex-wrap gap-1 mt-1">
-                  <span 
-                    v-for="al in item.menu_item_allergens.slice(0, 2)" 
-                    :key="al.allergens.id"
-                    class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                  >
-                    {{ al.allergens.icon || '⚠️' }} {{ al.allergens[`name_${locale}`] || al.allergens.name_th }}
-                  </span>
+                <div v-if="item.menu_item_allergens?.some((al: any) => al.allergens)" class="flex flex-wrap gap-1 mt-1">
+                  <template v-for="al in item.menu_item_allergens.filter((al: any) => al.allergens).slice(0, 2)" :key="al.allergens?.id || al.id">
+                    <span 
+                      class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                    >
+                      {{ al.allergens.icon || '⚠️' }} {{ al.allergens[`name_${locale}`] || al.allergens.name_th }}
+                    </span>
+                  </template>
                 </div>
               </div>
 
@@ -1170,20 +1257,20 @@ const getCategoryEmoji = (name: string) => {
           </div>
 
           <!-- Allergen Information Alert -->
-          <div v-if="selectedItem.menu_item_allergens?.length > 0" class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1.5">
+          <div v-if="selectedItem.menu_item_allergens?.some((al: any) => al.allergens)" class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1.5">
             <p class="text-[11px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
               <ShieldAlert class="w-3.5 h-3.5 text-amber-600 shrink-0" />
               <span>{{ locale === 'zh' ? '过敏原提示 (Allergen Info):' : (locale === 'en' ? 'Allergen Information:' : 'ข้อมูลสำหรับผู้แพ้อาหาร (Allergen Info):') }}</span>
             </p>
             <div class="flex flex-wrap gap-1.5">
-              <span 
-                v-for="al in selectedItem.menu_item_allergens" 
-                :key="al.allergens.id"
-                class="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-800 dark:text-amber-200 text-[10px] font-bold flex items-center gap-1"
-              >
-                <span>{{ al.allergens.icon || '⚠️' }}</span>
-                <span>{{ al.allergens[`name_${locale}`] || al.allergens.name_en || al.allergens.name_th }}</span>
-              </span>
+              <template v-for="al in selectedItem.menu_item_allergens.filter((al: any) => al.allergens)" :key="al.allergens?.id || al.id">
+                <span 
+                  class="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-800 dark:text-amber-200 text-[10px] font-bold flex items-center gap-1"
+                >
+                  <span>{{ al.allergens.icon || '⚠️' }}</span>
+                  <span>{{ al.allergens[`name_${locale}`] || al.allergens.name_en || al.allergens.name_th }}</span>
+                </span>
+              </template>
             </div>
           </div>
 
@@ -1213,37 +1300,39 @@ const getCategoryEmoji = (name: string) => {
           </div>
 
           <!-- Customization Groups (Add-ons & Options) -->
-          <div v-if="selectedItem.menu_item_customizations?.length > 0" class="space-y-3.5 border-t border-border/40 pt-3">
-            <div v-for="cust in selectedItem.menu_item_customizations" :key="cust.customization_groups.id" class="space-y-2">
-              <h4 class="text-xs font-bold text-foreground flex items-center justify-between">
-                <span>{{ cust.customization_groups[`name_${locale}`] || cust.customization_groups.name_en || cust.customization_groups.name_th }}</span>
-                <span class="text-[10px] text-muted-foreground">(เลือกได้ 1 อย่าง)</span>
-              </h4>
+          <div v-if="selectedItem.menu_item_customizations?.some((c: any) => c.customization_groups)" class="space-y-3.5 border-t border-border/40 pt-3">
+            <template v-for="cust in selectedItem.menu_item_customizations.filter((c: any) => c.customization_groups)" :key="cust.customization_groups?.id || cust.id">
+              <div class="space-y-2">
+                <h4 class="text-xs font-bold text-foreground flex items-center justify-between">
+                  <span>{{ cust.customization_groups[`name_${locale}`] || cust.customization_groups.name_en || cust.customization_groups.name_th }}</span>
+                  <span class="text-[10px] text-muted-foreground">(เลือกได้ 1 อย่าง)</span>
+                </h4>
 
-              <div class="space-y-1.5">
-                <div 
-                  v-for="opt in cust.customization_groups.customization_options" 
-                  :key="opt.id"
-                  @click="selectAddonOption(cust.customization_groups.id, opt)"
-                  class="flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all"
-                  :class="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th) ? 'font-bold shadow-2xs' : 'border-border/60 hover:bg-muted/40'"
-                  :style="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th) ? { borderColor: palette.primary, backgroundColor: palette.primarySubtle } : {}"
-                >
-                  <div class="flex items-center gap-2">
-                    <div 
-                      class="w-4 h-4 rounded-full border flex items-center justify-center text-[9px]"
-                      :style="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th) ? { backgroundColor: palette.primary, color: palette.primaryContrast, borderColor: palette.primary } : {}"
-                    >
-                      <Check v-if="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th)" class="w-3 h-3 stroke-[3]" />
+                <div v-if="cust.customization_groups.customization_options?.length" class="space-y-1.5">
+                  <div 
+                    v-for="opt in cust.customization_groups.customization_options" 
+                    :key="opt.id"
+                    @click="selectAddonOption(cust.customization_groups.id, opt)"
+                    class="flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all"
+                    :class="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th) ? 'font-bold shadow-2xs' : 'border-border/60 hover:bg-muted/40'"
+                    :style="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th) ? { borderColor: palette.primary, backgroundColor: palette.primarySubtle } : {}"
+                  >
+                    <div class="flex items-center gap-2">
+                      <div 
+                        class="w-4 h-4 rounded-full border flex items-center justify-center text-[9px]"
+                        :style="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th) ? { backgroundColor: palette.primary, color: palette.primaryContrast, borderColor: palette.primary } : {}"
+                      >
+                        <Check v-if="itemAddons[cust.customization_groups.id]?.name === (opt[`name_${locale}`] || opt.name_en || opt.name_th)" class="w-3 h-3 stroke-[3]" />
+                      </div>
+                      <span class="text-xs">{{ opt[`name_${locale}`] || opt.name_en || opt.name_th }}</span>
                     </div>
-                    <span class="text-xs">{{ opt[`name_${locale}`] || opt.name_en || opt.name_th }}</span>
+                    <span v-if="(opt.extra_price !== undefined ? opt.extra_price : opt.price_delta) > 0" class="text-xs font-bold" :style="{ color: palette.primary }">
+                      +{{ formatPrice(opt.extra_price !== undefined ? opt.extra_price : opt.price_delta) }}
+                    </span>
                   </div>
-                  <span v-if="(opt.extra_price !== undefined ? opt.extra_price : opt.price_delta) > 0" class="text-xs font-bold" :style="{ color: palette.primary }">
-                    +{{ formatPrice(opt.extra_price !== undefined ? opt.extra_price : opt.price_delta) }}
-                  </span>
                 </div>
               </div>
-            </div>
+            </template>
           </div>
 
           <!-- Special Request & Quick Chips -->
@@ -1482,6 +1571,22 @@ const getCategoryEmoji = (name: string) => {
                 :style="{ '--tw-ring-color': palette.primaryLight }"
               />
             </div>
+
+            <!-- Customer Order Note (Instructions to Store) -->
+            <div class="mt-2.5 pt-2 border-t border-border/40">
+              <label class="block text-[11px] font-bold text-foreground mb-1 flex items-center gap-1">
+                <span>📝</span>
+                <span>{{ locale === 'zh' ? '给餐厅的备注 (选填)' : (locale === 'en' ? 'Note to store (Optional)' : 'โน้ตถึงร้านค้า (เช่น ไม่ใส่ผัก, เผ็ดน้อย)') }}</span>
+              </label>
+              <textarea 
+                v-model="orderNote" 
+                rows="2" 
+                maxlength="200" 
+                :placeholder="locale === 'zh' ? '例如：少糖、不放香菜、多给一副餐具...' : (locale === 'en' ? 'e.g. No onions, less spicy, extra napkins...' : 'เช่น ไม่ใส่ผัก, เผ็ดน้อย, ขอช้อนส้อมเพิ่ม, แยกน้ำ...')" 
+                class="w-full px-3 py-1.5 bg-background border border-border/80 rounded-xl text-xs font-normal resize-none focus:ring-2 outline-none placeholder:text-muted-foreground/60 transition-all"
+                :style="{ '--tw-ring-color': palette.primaryLight }"
+              ></textarea>
+            </div>
           </div>
 
           <!-- Total Breakdown -->
@@ -1558,6 +1663,9 @@ const getCategoryEmoji = (name: string) => {
             <span class="font-bold shrink-0" :style="{ color: palette.primary }">{{ formatPrice(item.unitPrice * item.quantity) }}</span>
           </div>
 
+          <div v-if="submittedOrderData?.note" class="pt-2 border-t border-border/40 text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+            <span>📝 โน้ตถึงร้าน: {{ submittedOrderData.note }}</span>
+          </div>
           <div class="pt-2 border-t border-border/60 flex justify-between items-center font-black text-sm text-foreground">
             <span>Total:</span>
             <span class="text-base" :style="{ color: palette.primary }">{{ formatPrice(cartTotal) }}</span>
@@ -1579,9 +1687,8 @@ const getCategoryEmoji = (name: string) => {
     </div>
 
     <!-- ============================================================= -->
-    <!-- 9. CALL SERVICE / STAFF ASSISTANCE MODAL (Hidden for Phase 2) -->
+    <!-- 9. CALL SERVICE / STAFF ASSISTANCE MODAL                      -->
     <!-- ============================================================= -->
-    <!--
     <div 
       v-if="isServiceModalOpen" 
       class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 text-center animate-in zoom-in duration-200"
@@ -1602,34 +1709,43 @@ const getCategoryEmoji = (name: string) => {
           ✅ {{ serviceSuccessMsg }}
         </div>
 
+        <div v-else-if="isCallingService" class="p-6 flex flex-col items-center justify-center gap-2">
+          <span class="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+          <span class="text-xs font-semibold text-muted-foreground">กำลังส่งคำขอถึงพนักงาน...</span>
+        </div>
+
         <div v-else class="grid grid-cols-2 gap-2 pt-1">
           <button 
+            :disabled="isCallingService"
             @click="sendServiceRequest('staff')"
-            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all"
+            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all disabled:opacity-50"
           >
             <span class="text-2xl">🙋‍♂️</span>
             <span class="text-xs font-bold text-foreground">{{ locale === 'zh' ? '呼叫服务员' : (locale === 'en' ? 'Call Staff' : 'เรียกพนักงาน') }}</span>
           </button>
 
           <button 
+            :disabled="isCallingService"
             @click="sendServiceRequest('bill')"
-            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all"
+            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all disabled:opacity-50"
           >
             <span class="text-2xl">🧾</span>
             <span class="text-xs font-bold text-foreground">{{ locale === 'zh' ? '请求结账' : (locale === 'en' ? 'Request Bill' : 'ขอเช็คบิล') }}</span>
           </button>
 
           <button 
+            :disabled="isCallingService"
             @click="sendServiceRequest('utensils')"
-            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all"
+            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all disabled:opacity-50"
           >
             <span class="text-2xl">🥢</span>
             <span class="text-xs font-bold text-foreground">{{ locale === 'zh' ? '加餐具/纸巾' : (locale === 'en' ? 'Utensils/Napkin' : 'ขอช้อนส้อม/ทิชชู่') }}</span>
           </button>
 
           <button 
+            :disabled="isCallingService"
             @click="sendServiceRequest('water')"
-            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all"
+            class="p-3 rounded-2xl border border-border/60 hover:border-primary bg-muted/40 hover:bg-primary/5 flex flex-col items-center gap-1.5 text-center transition-all disabled:opacity-50"
           >
             <span class="text-2xl">🧊</span>
             <span class="text-xs font-bold text-foreground">{{ locale === 'zh' ? '加冰/水' : (locale === 'en' ? 'Ice / Water' : 'ขอน้ำแข็ง/น้ำเปล่า') }}</span>
@@ -1637,7 +1753,6 @@ const getCategoryEmoji = (name: string) => {
         </div>
       </div>
     </div>
-    -->
 
   </div>
 </template>

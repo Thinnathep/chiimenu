@@ -65,14 +65,12 @@ const updateProfile = async () => {
   try {
     const { error } = await (client as any)
       .from('profiles')
-      .upsert({
-        id: user.value.id,
-        email: user.value.email || profileForm.value.login_id,
-        role: 'merchant',
+      .update({
         full_name: profileForm.value.full_name,
         phone: profileForm.value.phone,
         updated_at: new Date().toISOString()
       })
+      .eq('id', user.value.id)
       
     if (error) throw error
     

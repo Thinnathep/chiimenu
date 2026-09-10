@@ -941,14 +941,14 @@ watch(() => store.value?.id, async (newId, oldId) => {
               </span>
               <span 
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                :class="store.line_notify_token ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-muted text-muted-foreground'"
+                :class="store.line_user_id ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-muted text-muted-foreground'"
               >
-                {{ store.line_notify_token ? 'เชื่อมต่อแล้ว' : 'ยังไม่เชื่อม' }}
+                {{ store.line_user_id ? 'เชื่อมต่อแล้ว' : 'ยังไม่เชื่อม' }}
               </span>
             </div>
             
             <p class="text-xs text-muted-foreground font-normal leading-relaxed">
-              {{ store.line_notify_token ? 'ออเดอร์ใหม่จะถูกส่งแจ้งเตือนเข้าห้องแชท LINE อัตโนมัติ' : 'เชื่อมต่อ LINE เพื่อรับแจ้งเตือนเมื่อมีลูกค้าสั่งอาหารทันที' }}
+              {{ store.line_user_id ? 'ออเดอร์ใหม่จะถูกส่งแจ้งเตือนเข้าห้องแชท LINE อัตโนมัติ' : 'เชื่อมต่อ LINE เพื่อรับแจ้งเตือนเมื่อมีลูกค้าสั่งอาหารทันที' }}
             </p>
 
             <NuxtLink 

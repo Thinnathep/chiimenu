@@ -252,6 +252,16 @@ const computeOrderItemsCount = (order: any): number => {
   return order.items.reduce((sum: number, it: any) => sum + Number(it.quantity || 1), 0)
 }
 
+// Extract customer order note
+const getOrderNote = (order: any): string => {
+  if (order?.order_note) return order.order_note
+  if (Array.isArray(order?.items)) {
+    const itemWithNote = order.items.find((it: any) => it.order_note)
+    if (itemWithNote?.order_note) return itemWithNote.order_note
+  }
+  return ''
+}
+
 // Date Range Filtering Helpers
 const isDateInRange = (dateStr: string, preset: typeof activeDatePreset.value): boolean => {
   if (preset === 'all') return true
@@ -325,7 +335,7 @@ const filteredOrders = computed(() => {
     const q = searchQuery.value.trim().toLowerCase()
     list = list.filter(o => {
       const tableMatch = (o.table_no || '').toLowerCase().includes(q)
-      const noteMatch = (o.items || []).some((it: any) => (it.note || '').toLowerCase().includes(q))
+      const noteMatch = (o.items || []).some((it: any) => (it.note || '').toLowerCase().includes(q) || (it.order_note || '').toLowerCase().includes(q)) || (o.order_note || '').toLowerCase().includes(q)
       const idMatch = (o.id || '').toLowerCase().includes(q)
       const priceMatch = computeOrderTotal(o).toString().includes(q)
       const itemMatch = (o.items || []).some((it: any) => {
@@ -801,6 +811,15 @@ const printReceipt = () => {
             </li>
           </ul>
 
+          <!-- Customer Order Note -->
+          <div v-if="getOrderNote(order)" class="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-start gap-2 shadow-2xs">
+            <span class="text-sm shrink-0">📝</span>
+            <div class="min-w-0">
+              <span class="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 block">โน้ตจากลูกค้า:</span>
+              <span class="font-medium text-xs break-words">{{ getOrderNote(order) }}</span>
+            </div>
+          </div>
+
           <!-- Cancellation Reason Note if Cancelled -->
           <div v-if="order.status === 'cancelled' && order.cancel_reason" class="mt-3 p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-[11px]">
             ⚠️ เหตุผล: {{ order.cancel_reason }}
@@ -899,6 +918,9 @@ const printReceipt = () => {
                   <span v-if="(order.items || []).length > 3" class="text-[10px] text-muted-foreground font-normal">
                     + อีก {{ order.items.length - 3 }} รายการ
                   </span>
+                  <div v-if="getOrderNote(order)" class="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate max-w-[200px]" :title="getOrderNote(order)">
+                    📝 {{ getOrderNote(order) }}
+                  </div>
                 </div>
               </td>
 
@@ -1120,7 +1142,7 @@ const printReceipt = () => {
           </div>
 
           <!-- Thermal Receipt Body (Clean Print Preview) -->
-          <div class="p-6 overflow-y-auto space-y-4 bg-background font-sans text-xs">
+          <div id="receipt-print-area" class="p-6 overflow-y-auto space-y-4 bg-background font-sans text-xs">
             <div class="text-center pb-3 border-b border-dashed border-border/80">
               <h2 class="text-lg font-bold text-foreground">{{ store?.name || 'ChiiMenu Store' }}</h2>
               <p class="text-muted-foreground text-[11px] mt-0.5">
@@ -1168,6 +1190,11 @@ const printReceipt = () => {
               </div>
             </div>
 
+            <!-- Customer Order Note on Receipt -->
+            <div v-if="getOrderNote(selectedOrderForReceipt)" class="p-2 bg-amber-50 dark:bg-amber-950/30 border border-dashed border-amber-300 dark:border-amber-800 rounded-lg text-[11px] text-amber-900 dark:text-amber-200">
+              <span class="font-bold">📝 โน้ตจากลูกค้า:</span> {{ getOrderNote(selectedOrderForReceipt) }}
+            </div>
+
             <!-- Receipt Total Summary -->
             <div class="pt-3 border-t border-dashed border-border/80 space-y-1.5 text-xs">
               <div class="flex justify-between text-muted-foreground">
@@ -1209,3 +1236,32 @@ const printReceipt = () => {
 
   </div>
 </template>
+
+<style>
+@media print {
+  /* Hide everything on the page */
+  body * {
+    visibility: hidden;
+  }
+  /* Show only the receipt print area and its children */
+  #receipt-print-area,
+  #receipt-print-area * {
+    visibility: visible;
+  }
+  /* Position the receipt area at the top-left, full receipt width */
+  #receipt-print-area {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 8mm;
+    background: white !important;
+    color: black !important;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  body {
+    background: white !important;
+  }
+}
+</style>

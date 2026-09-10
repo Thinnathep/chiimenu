@@ -334,11 +334,20 @@ export const useOrderNotification = () => {
 
   // ─── Show Notification on incoming order ─────────────────────────────────
   const showOrderNotification = async (order: any) => {
-    const tableLabel = order.table_number
-      ? `โต๊ะ ${order.table_number}`
+    // Use correct DB column names: table_no (not table_number), items (JSONB array)
+    const tableLabel = order.table_no
+      ? `โต๊ะ ${order.table_no}`
       : order.order_type === 'takeaway' ? 'Take Away' : 'ออเดอร์ใหม่'
     const title = `🍜 ${tableLabel} — ออเดอร์ใหม่!`
-    const body = `฿${order.total_price || 0} | ${order.items_count || ''} รายการ`
+    // Compute total and count from the items JSONB array
+    const itemsArr: any[] = Array.isArray(order.items) ? order.items : []
+    const totalPrice = itemsArr.reduce((sum: number, item: any) => {
+      const price = Number(item.unitPrice ?? item.price ?? 0)
+      const qty = Number(item.quantity ?? 1)
+      return sum + price * qty
+    }, 0)
+    const itemsCount = itemsArr.length
+    const body = `฿${totalPrice} | ${itemsCount || ''} รายการ`
 
     // 1. Play sound only if merchant enabled sound
     if (soundEnabled.value) {

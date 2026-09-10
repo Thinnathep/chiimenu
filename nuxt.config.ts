@@ -55,10 +55,16 @@ export default defineNuxtConfig({
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
     vapidEmail: process.env.VAPID_EMAIL || 'mailto:admin@chiimenu.com',
     webhookSecret: process.env.WEBHOOK_SECRET || 'chiimenu_push_webhook_secret_2026',
+    slipokBranchId: process.env.SLIPOK_BRANCH_ID || '75890',
+    slipokApiKey: process.env.SLIPOK_API_KEY || 'SLIPOKAQ7O2X0',
+    promptpayId: process.env.PROMPTPAY_ID || '0962386554',
+    promptpayAccountName: process.env.PROMPTPAY_ACCOUNT_NAME || 'ChiiMenu',
     public: {
       adminEmails: process.env.ADMIN_EMAILS || '',
       vapidPublicKey: process.env.VAPID_PUBLIC_KEY || 'BDWwbOf0y6djUnn7A7jGLx49-2IOpAf0_0xs5afrlWfYdRq3shGhFc4zv8fSJarVr2MR5_3aN03HiunMq_fVadk',
-      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
+      promptpayId: process.env.PROMPTPAY_ID || '0962386554',
+      promptpayAccountName: process.env.PROMPTPAY_ACCOUNT_NAME || 'ChiiMenu'
     }
   },
 
@@ -97,7 +103,22 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/login',
       callback: '/confirm',
-      exclude: ['/', '/login', '/register', '/privacy', '/m/*', '/menu/*', '/api/*'] // Exclude public tourist routes and auth pages
+      exclude: [
+        '/',
+        '/login',
+        '/register',
+        '/forgot-password',
+        '/reset-password',
+        '/privacy',
+        '/m/*',
+        '/menu/*',
+        '/api/*'
+      ] // Exclude public tourist routes and auth pages
+    },
+    cookieOptions: {
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
     },
     clientOptions: {
       auth: {

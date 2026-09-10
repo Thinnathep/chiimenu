@@ -512,7 +512,7 @@ const handleLocaleChange = (e: Event) => {
       leave-from-class="translate-x-0" 
       leave-to-class="-translate-x-full"
     >
-      <div v-if="mobileMenuOpen && !isTrialExpired" class="fixed inset-y-0 left-0 w-[280px] bg-card shadow-2xl z-50 md:hidden flex flex-col h-full overflow-y-auto select-none">
+      <div v-if="mobileMenuOpen" class="fixed inset-y-0 left-0 w-[280px] bg-card shadow-2xl z-50 md:hidden flex flex-col h-full overflow-y-auto select-none">
         
         <!-- Drawer Header -->
         <div class="p-5 border-b border-border flex items-center justify-between bg-muted/30">
