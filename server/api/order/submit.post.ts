@@ -33,7 +33,8 @@ export default defineEventHandler(async (event) => {
 
     // 1. Parse and Validate Body
     const body = await readBody(event);
-    const { storeId, tableNo, cart, note, orderNote } = body || {};
+    const { storeId, tableNo, cart: rawCart, items: rawItems, note, orderNote } = body || {};
+    const cart = rawCart || rawItems;
 
     if (!storeId || !tableNo || !cart || !Array.isArray(cart) || cart.length === 0) {
         throw createError({

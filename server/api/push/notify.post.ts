@@ -5,10 +5,10 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { storeId, title, message, orderId, secret } = body
 
-  const config = useRuntimeConfig()
+  const config = useRuntimeConfig(event)
 
   // Simple secret check to prevent abuse (set WEBHOOK_SECRET in env)
-  const expectedSecret = config.webhookSecret || 'chiimenu_push_webhook_secret_2026'
+  const expectedSecret = config.webhookSecret || process.env.WEBHOOK_SECRET || 'chiimenu_push_webhook_secret_2026'
   if (secret !== expectedSecret) {
     throw createError({ statusCode: 403, message: 'Forbidden' })
   }
@@ -29,10 +29,11 @@ export default defineEventHandler(async (event) => {
   )
 
   const supabaseUrl = (config.public as any)?.supabaseUrl || (config.public as any)?.supabase?.url || process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-  const supabaseKey = (config as any)?.supabaseServiceKey || (config as any)?.supabase?.secretKey || process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_KEY || ''
+  const supabaseKey = (config as any)?.supabaseServiceKey || (config as any)?.supabase?.secretKey || process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || ''
 
   if (!supabaseUrl || !supabaseKey) {
-    throw createError({ statusCode: 500, message: 'Supabase config missing' })
+    console.warn('[push/notify] Supabase service key missing, skipping push notification')
+    return { success: false, skipped: true, message: 'Supabase service key missing' }
   }
 
   const db = createClient(supabaseUrl, supabaseKey, {
@@ -46,8 +47,8 @@ export default defineEventHandler(async (event) => {
     .eq('store_id', storeId)
 
   if (fetchErr) {
-    console.error('[push/notify] fetch subs error:', fetchErr.message)
-    throw createError({ statusCode: 500, message: fetchErr.message })
+    console.warn('[push/notify] fetch subs warning:', fetchErr.message)
+    return { success: false, sent: 0, total: 0, warning: fetchErr.message }
   }
 
   if (!subs || subs.length === 0) {
