@@ -50,7 +50,7 @@ export default defineNuxtConfig({
     cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
     cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
     lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || '',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.NUXT_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET_KEY || '',
     vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
     vapidEmail: process.env.VAPID_EMAIL || 'mailto:admin@chiimenu.com',
