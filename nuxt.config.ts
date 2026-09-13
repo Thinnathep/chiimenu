@@ -55,8 +55,8 @@ export default defineNuxtConfig({
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
     vapidEmail: process.env.VAPID_EMAIL || 'mailto:admin@chiimenu.com',
     webhookSecret: process.env.WEBHOOK_SECRET || 'chiimenu_push_webhook_secret_2026',
-    slipokBranchId: process.env.SLIPOK_BRANCH_ID || '75890',
-    slipokApiKey: process.env.SLIPOK_API_KEY || 'SLIPOKAQ7O2X0',
+    slipokBranchId: process.env.SLIPOK_BRANCH_ID || '76120',
+    slipokApiKey: process.env.SLIPOK_API_KEY || 'SLIPOKOUFVGAA',
     promptpayId: process.env.PROMPTPAY_ID || '0962386554',
     promptpayAccountName: process.env.PROMPTPAY_ACCOUNT_NAME || 'ChiiMenu',
     public: {

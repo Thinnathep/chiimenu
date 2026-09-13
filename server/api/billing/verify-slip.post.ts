@@ -183,8 +183,8 @@ export default defineEventHandler(async (event) => {
   const expectedAmount = isPromo ? pkg.firstTime : pkg.standard
 
   // 4. Call SlipOK Verification Gateway
-  const branchId = String(config.slipokBranchId || process.env.SLIPOK_BRANCH_ID || '75890').trim()
-  const apiKey = String(config.slipokApiKey || process.env.SLIPOK_API_KEY || 'SLIPOKAQ7O2X0').trim()
+  const branchId = String(config.slipokBranchId || process.env.SLIPOK_BRANCH_ID || '76120').trim()
+  const apiKey = String(config.slipokApiKey || process.env.SLIPOK_API_KEY || 'SLIPOKOUFVGAA').trim()
 
   const slipFormData = new FormData()
   const blob = new Blob([fileBuffer], { type: fileType })
@@ -197,7 +197,8 @@ export default defineEventHandler(async (event) => {
     const slipOkResponse = await fetch(`https://api.slipok.com/api/line/apikey/${branchId}`, {
       method: 'POST',
       headers: {
-        'x-authorization': apiKey
+        'x-authorization': apiKey,
+        'User-Agent': 'ChiiMenu-Server/1.0'
       },
       body: slipFormData
     })
