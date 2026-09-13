@@ -93,7 +93,22 @@ const openPaymentModal = async (pkg: any) => {
       }
     })
     qrData.value = res
+
+    // Client-side fallback: if qrDataUrl is empty, render with browser Canvas QRCode
+    if (res?.payload && !res?.qrDataUrl) {
+      try {
+        const qrModule = await import('qrcode')
+        qrData.value.qrDataUrl = await qrModule.default.toDataURL(res.payload, {
+          width: 300,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' }
+        })
+      } catch (clientQrErr) {
+        console.warn('[billing] Client QR fallback render failed:', clientQrErr)
+      }
+    }
   } catch (err: any) {
+    console.error('[billing] create-qr error:', err)
     verifyError.value = err?.data?.message || err?.message || 'ไม่สามารถสร้าง QR Code สำหรับชำระเงินได้'
   } finally {
     isGeneratingQr.value = false

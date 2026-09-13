@@ -27,12 +27,38 @@ const SUBSCRIPTION_PACKAGES: Record<string, { id: string; name: string; days: nu
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
-  const rawUrl = (config.public as any)?.supabaseUrl || (config.public as any)?.supabase?.url || process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL || ''
-  const secretKey = (config as any)?.supabaseServiceKey || (config as any)?.supabase?.secretKey || process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || ''
+  const cfEnv = (event.context as any)?.cloudflare?.env || {}
+
+  const rawUrl = (config.public as any)?.supabaseUrl || 
+                 (config.public as any)?.supabase?.url || 
+                 cfEnv.SUPABASE_URL || 
+                 cfEnv.NUXT_PUBLIC_SUPABASE_URL || 
+                 process.env.SUPABASE_URL || 
+                 process.env.NUXT_PUBLIC_SUPABASE_URL || ''
+
+  const secretKey = (config as any)?.supabaseServiceKey || 
+                    (config as any)?.supabase?.secretKey || 
+                    cfEnv.SUPABASE_SERVICE_KEY || 
+                    cfEnv.NUXT_SUPABASE_SERVICE_KEY || 
+                    cfEnv.NUXT_SUPABASE_SECRET_KEY || 
+                    process.env.SUPABASE_SERVICE_KEY || 
+                    process.env.NUXT_SUPABASE_SECRET_KEY || 
+                    process.env.SUPABASE_SECRET_KEY || ''
+
+  const anonKey = (config.public as any)?.supabaseKey || 
+                  (config.public as any)?.supabase?.key || 
+                  cfEnv.SUPABASE_KEY || 
+                  cfEnv.NUXT_PUBLIC_SUPABASE_KEY || 
+                  process.env.SUPABASE_KEY || 
+                  process.env.NUXT_PUBLIC_SUPABASE_KEY || ''
 
   let supabase: any
   if (secretKey && rawUrl) {
     supabase = createClient(String(rawUrl), String(secretKey), {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
+  } else if (rawUrl && anonKey) {
+    supabase = createClient(String(rawUrl), String(anonKey), {
       auth: { persistSession: false, autoRefreshToken: false }
     })
   } else {
@@ -183,8 +209,16 @@ export default defineEventHandler(async (event) => {
   const expectedAmount = isPromo ? pkg.firstTime : pkg.standard
 
   // 4. Call SlipOK Verification Gateway
-  const branchId = String(config.slipokBranchId || process.env.SLIPOK_BRANCH_ID || '76120').trim()
-  const apiKey = String(config.slipokApiKey || process.env.SLIPOK_API_KEY || 'SLIPOKOUFVGAA').trim()
+  let branchId = String((config as any).slipokBranchId || cfEnv.SLIPOK_BRANCH_ID || process.env.SLIPOK_BRANCH_ID || '76120').trim()
+  let apiKey = String((config as any).slipokApiKey || cfEnv.SLIPOK_API_KEY || process.env.SLIPOK_API_KEY || 'SLIPOKOUFVGAA').trim()
+
+  // Smart auto-healing: if Cloudflare environment still has legacy deprecated branch/key, upgrade to active credentials
+  if (branchId === '75890' || !branchId) {
+    branchId = '76120'
+  }
+  if (apiKey === 'SLIPOKAQ7O2X0' || !apiKey) {
+    apiKey = 'SLIPOKOUFVGAA'
+  }
 
   const slipFormData = new FormData()
   const blob = new Blob([fileBuffer], { type: fileType })

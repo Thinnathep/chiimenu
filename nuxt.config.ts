@@ -51,6 +51,9 @@ export default defineNuxtConfig({
     cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
     lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.NUXT_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET_KEY || '',
+    supabase: {
+      serviceKey: process.env.SUPABASE_SERVICE_KEY || process.env.NUXT_SUPABASE_SECRET_KEY || process.env.NUXT_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET_KEY || ''
+    },
     vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
     vapidEmail: process.env.VAPID_EMAIL || 'mailto:admin@chiimenu.com',
@@ -63,6 +66,7 @@ export default defineNuxtConfig({
       adminEmails: process.env.ADMIN_EMAILS || '',
       vapidPublicKey: process.env.VAPID_PUBLIC_KEY || 'BDWwbOf0y6djUnn7A7jGLx49-2IOpAf0_0xs5afrlWfYdRq3shGhFc4zv8fSJarVr2MR5_3aN03HiunMq_fVadk',
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY || '',
       promptpayId: process.env.PROMPTPAY_ID || '0962386554',
       promptpayAccountName: process.env.PROMPTPAY_ACCOUNT_NAME || 'ChiiMenu'
     }
