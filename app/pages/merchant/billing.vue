@@ -94,12 +94,12 @@ const openPaymentModal = async (pkg: any) => {
     })
     qrData.value = res
 
-    // Client-side fallback: if qrDataUrl is empty, render with browser Canvas QRCode
-    if (res?.payload && !res?.qrDataUrl) {
+    // Client-side render: generate crisp QR Code DataURL using browser Canvas
+    if (res?.payload) {
       try {
         const qrModule = await import('qrcode')
         qrData.value.qrDataUrl = await qrModule.default.toDataURL(res.payload, {
-          width: 300,
+          width: 320,
           margin: 2,
           color: { dark: '#000000', light: '#ffffff' }
         })
@@ -794,7 +794,7 @@ const packages = computed(() => {
     </div>
 
     <!-- Receipt Print Modal -->
-    <div v-if="showReceiptModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm print:hidden">
+    <div v-if="showReceiptModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xl print:hidden" style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
       <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         <div class="p-5 border-b border-border flex justify-between items-center bg-muted/30">
           <div class="flex items-center gap-2">
@@ -899,7 +899,7 @@ const packages = computed(() => {
     </div>
 
     <!-- 6. Payment & Slip Verification Modal (SlipOK PromptPay Auto) -->
-    <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto">
+    <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xl overflow-y-auto" style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
       <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in-95 duration-200">
         
         <!-- Modal Header -->
@@ -946,8 +946,16 @@ const packages = computed(() => {
                   alt="PromptPay QR Code" 
                   class="w-52 h-52 object-contain rounded-lg"
                 />
-                <div v-else class="w-52 h-52 flex items-center justify-center bg-muted/40 rounded-lg text-xs text-muted-foreground">
-                  ไม่สามารถโหลด QR Code
+                <div v-else class="w-52 h-52 flex flex-col items-center justify-center bg-muted/40 rounded-lg p-3 text-center space-y-2.5">
+                  <span class="text-xs text-muted-foreground font-medium">ไม่สามารถโหลด QR Code</span>
+                  <button 
+                    @click="openPaymentModal(selectedPackage)" 
+                    type="button" 
+                    class="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-lg shadow-xs hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  >
+                    <RefreshCw class="w-3.5 h-3.5" />
+                    <span>ลองใหม่อีกครั้ง</span>
+                  </button>
                 </div>
               </div>
 
