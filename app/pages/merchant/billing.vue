@@ -794,370 +794,376 @@ const packages = computed(() => {
     </div>
 
     <!-- Receipt Print Modal -->
-    <div v-if="showReceiptModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xl print:hidden" style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
-      <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-        <div class="p-5 border-b border-border flex justify-between items-center bg-muted/30">
-          <div class="flex items-center gap-2">
-            <FileText class="w-5 h-5 text-primary" />
-            <h3 class="font-bold text-base text-foreground">{{ $t('billing_history_title') }}</h3>
+    <Teleport to="body">
+      <div v-if="showReceiptModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xl overflow-y-auto print:hidden" style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+        <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col my-auto max-h-[92dvh] sm:max-h-[90vh]">
+          <div class="p-4 sm:p-5 border-b border-border flex justify-between items-center bg-muted/30">
+            <div class="flex items-center gap-2">
+              <FileText class="w-5 h-5 text-primary" />
+              <h3 class="font-bold text-base text-foreground">{{ $t('billing_history_title') }}</h3>
+            </div>
+            <button @click="showReceiptModal = false" class="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-muted transition-colors cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
           </div>
-          <button @click="showReceiptModal = false" class="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-muted transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-          </button>
-        </div>
-        
-        <!-- Receipt Preview Area -->
-        <div class="p-6 overflow-y-auto flex-1 bg-muted/10">
-          <div id="receipt-content" ref="receiptContentRef" class="bg-white text-black p-8 mx-auto shadow-sm border border-gray-200 rounded-2xl" style="width: 100%; max-width: 400px; font-family: monospace, sans-serif;">
-            <!-- Receipt Header -->
-            <div class="text-center mb-6 flex flex-col items-center">
-              <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-xl object-contain mb-2 shadow-xs" crossorigin="anonymous">
-              <h2 class="text-xl font-bold mb-0.5">ChiiMenu</h2>
-              <p class="text-xs text-gray-500">Official Receipt</p>
-            </div>
-            
-            <div class="text-xs mb-6 space-y-1">
-              <div class="flex justify-between">
-                <span class="text-gray-500">{{ $t('billing_receipt_col_date') }}:</span>
-                <span class="font-medium">{{ selectedReceipt?.receipt_number }}</span>
+          
+          <!-- Receipt Preview Area -->
+          <div class="p-4 sm:p-6 overflow-y-auto flex-1 bg-muted/10">
+            <div id="receipt-content" ref="receiptContentRef" class="bg-white text-black p-6 sm:p-8 mx-auto shadow-sm border border-gray-200 rounded-2xl" style="width: 100%; max-width: 400px; font-family: monospace, sans-serif;">
+              <!-- Receipt Header -->
+              <div class="text-center mb-6 flex flex-col items-center">
+                <img src="/logo-icon.png" alt="ChiiMenu" class="w-10 h-10 rounded-xl object-contain mb-2 shadow-xs" crossorigin="anonymous">
+                <h2 class="text-xl font-bold mb-0.5">ChiiMenu</h2>
+                <p class="text-xs text-gray-500">Official Receipt</p>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">Paid at:</span>
-                <span>{{ formatDateTime(selectedReceipt?.paid_at) }}</span>
+              
+              <div class="text-xs mb-6 space-y-1">
+                <div class="flex justify-between">
+                  <span class="text-gray-500">{{ $t('billing_receipt_col_date') }}:</span>
+                  <span class="font-medium">{{ selectedReceipt?.receipt_number }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500">Paid at:</span>
+                  <span>{{ formatDateTime(selectedReceipt?.paid_at) }}</span>
+                </div>
               </div>
-            </div>
-            
-            <!-- Customer Info -->
-            <div class="text-xs mb-6 space-y-1 pb-4 border-b border-gray-200 border-dashed">
-              <div class="flex flex-col">
-                <span class="text-gray-500 mb-1">Issued to:</span>
-                <span class="font-bold text-sm">{{ store?.name }}</span>
-                <span>{{ store?.address || '-' }}</span>
+              
+              <!-- Customer Info -->
+              <div class="text-xs mb-6 space-y-1 pb-4 border-b border-gray-200 border-dashed">
+                <div class="flex flex-col">
+                  <span class="text-gray-500 mb-1">Issued to:</span>
+                  <span class="font-bold text-sm">{{ store?.name }}</span>
+                  <span>{{ store?.address || '-' }}</span>
+                </div>
               </div>
-            </div>
-            
-            <!-- Items -->
-            <div class="mb-6 pb-4 border-b border-gray-200 border-dashed">
-              <table class="w-full text-xs">
-                <thead>
-                  <tr class="text-gray-500">
-                    <th class="text-left font-normal pb-2">Item</th>
-                    <th class="text-right font-normal pb-2">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="py-1">
-                      <div class="font-medium">{{ selectedReceipt?.package_name }}</div>
-                      <div class="text-[10px] text-gray-500">{{ formatDate(selectedReceipt?.plan_start_at) }} - {{ formatDate(selectedReceipt?.plan_end_at) }}</div>
-                    </td>
-                    <td class="text-right align-top py-1">
-                      <div v-if="selectedReceipt?.original_amount" class="text-gray-400 line-through text-[10px]">{{ formatCurrency(selectedReceipt.original_amount) }}</div>
-                      <div>{{ formatCurrency(selectedReceipt?.amount || 0) }}</div>
-                    </td>
-                  </tr>
-                  <tr v-if="selectedReceipt?.discount_amount">
-                    <td class="py-1 text-rose-500 font-medium text-xs">
-                      Promotion ({{ selectedReceipt?.promotion_code }})
-                    </td>
-                    <td class="text-right align-top py-1 text-rose-500">
-                      -{{ formatCurrency(selectedReceipt.discount_amount) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            
-            <!-- Total -->
-            <div class="flex justify-between items-center mb-8 font-bold">
-              <span>Total</span>
-              <span class="text-lg">{{ formatCurrency(selectedReceipt?.amount || 0) }}</span>
-            </div>
-            
-            <!-- Footer -->
-            <div class="text-center text-[10px] text-gray-500 space-y-1">
-              <p>Payment: {{ selectedReceipt?.payment_method === 'promptpay_slipok' ? 'PromptPay (SlipOK Auto)' : 'PromptPay / Bank Transfer' }}</p>
-              <p v-if="selectedReceipt?.slip_trans_ref">Slip Ref: {{ selectedReceipt.slip_trans_ref }}</p>
-              <p v-else-if="selectedReceipt?.note">Ref: {{ selectedReceipt.note }}</p>
-              <p class="mt-4 pt-4 border-t border-gray-200">Thank you for choosing ChiiMenu</p>
-              <p>LINE: @819wgrsj</p>
+              
+              <!-- Items -->
+              <div class="mb-6 pb-4 border-b border-gray-200 border-dashed">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="text-gray-500">
+                      <th class="text-left font-normal pb-2">Item</th>
+                      <th class="text-right font-normal pb-2">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="py-1">
+                        <div class="font-medium">{{ selectedReceipt?.package_name }}</div>
+                        <div class="text-[10px] text-gray-500">{{ formatDate(selectedReceipt?.plan_start_at) }} - {{ formatDate(selectedReceipt?.plan_end_at) }}</div>
+                      </td>
+                      <td class="text-right align-top py-1">
+                        <div v-if="selectedReceipt?.original_amount" class="text-gray-400 line-through text-[10px]">{{ formatCurrency(selectedReceipt.original_amount) }}</div>
+                        <div>{{ formatCurrency(selectedReceipt?.amount || 0) }}</div>
+                      </td>
+                    </tr>
+                    <tr v-if="selectedReceipt?.discount_amount">
+                      <td class="py-1 text-rose-500 font-medium text-xs">
+                        Promotion ({{ selectedReceipt?.promotion_code }})
+                      </td>
+                      <td class="text-right align-top py-1 text-rose-500">
+                        -{{ formatCurrency(selectedReceipt.discount_amount) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <!-- Total -->
+              <div class="flex justify-between items-center mb-8 font-bold">
+                <span>Total</span>
+                <span class="text-lg">{{ formatCurrency(selectedReceipt?.amount || 0) }}</span>
+              </div>
+              
+              <!-- Footer -->
+              <div class="text-center text-[10px] text-gray-500 space-y-1">
+                <p>Payment: {{ selectedReceipt?.payment_method === 'promptpay_slipok' ? 'PromptPay (SlipOK Auto)' : 'PromptPay / Bank Transfer' }}</p>
+                <p v-if="selectedReceipt?.slip_trans_ref">Slip Ref: {{ selectedReceipt.slip_trans_ref }}</p>
+                <p v-else-if="selectedReceipt?.note">Ref: {{ selectedReceipt.note }}</p>
+                <p class="mt-4 pt-4 border-t border-gray-200">Thank you for choosing ChiiMenu</p>
+                <p>LINE: @819wgrsj</p>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div class="p-4 border-t border-border bg-muted/30 flex justify-end gap-3">
-          <button @click="showReceiptModal = false" class="px-5 py-2.5 text-muted-foreground font-medium hover:bg-muted rounded-xl transition-colors text-xs">
-            {{ $t('btn_cancel') }}
-          </button>
-          <button @click="downloadReceiptImage" :disabled="downloading" class="px-5 py-2.5 bg-primary text-primary-foreground font-bold hover:bg-primary/90 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 text-xs">
-            <svg v-if="downloading" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-            <Download v-else class="w-4 h-4" />
-            <span>Download</span>
-          </button>
+          
+          <div class="p-4 border-t border-border bg-muted/30 flex justify-end gap-3">
+            <button @click="showReceiptModal = false" class="px-5 py-2.5 text-muted-foreground font-medium hover:bg-muted rounded-xl transition-colors text-xs cursor-pointer">
+              {{ $t('btn_cancel') }}
+            </button>
+            <button @click="downloadReceiptImage" :disabled="downloading" class="px-5 py-2.5 bg-primary text-primary-foreground font-bold hover:bg-primary/90 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 text-xs cursor-pointer">
+              <svg v-if="downloading" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              <Download v-else class="w-4 h-4" />
+              <span>Download</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 6. Payment & Slip Verification Modal (SlipOK PromptPay Auto) -->
-    <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xl overflow-y-auto" style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
-      <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col my-8 animate-in fade-in zoom-in-95 duration-200">
-        
-        <!-- Modal Header -->
-        <div class="p-5 border-b border-border flex justify-between items-center bg-muted/30">
-          <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-              <QrCode class="w-5 h-5" />
-            </div>
-            <div>
-              <h3 class="font-black text-base text-foreground flex items-center gap-2">
-                ชำระเงินอัตโนมัติด้วย PromptPay
-                <span v-if="qrData?.isPromo" class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold border border-rose-200">
-                  ลด 50%
-                </span>
-              </h3>
-              <p class="text-xs text-muted-foreground">สแกน QR Code โอนเงิน และแนบสลิปเพื่อเปิดใช้งานทันที 24 ชม.</p>
-            </div>
-          </div>
-          <button 
-            @click="closePaymentModal" 
-            class="text-muted-foreground hover:text-foreground p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer"
-          >
-            <X class="w-5 h-5" />
-          </button>
-        </div>
-
-        <!-- Modal Body -->
-        <div class="p-6 overflow-y-auto max-h-[calc(85vh-130px)] space-y-6">
+    <Teleport to="body">
+      <div v-if="showPaymentModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xl overflow-y-auto" style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+        <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col my-auto max-h-[92dvh] sm:max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
           
-          <!-- Loading State for QR generation -->
-          <div v-if="isGeneratingQr" class="py-16 text-center space-y-3">
-            <div class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p class="text-xs font-medium text-muted-foreground">กำลังสร้าง QR Code พร้อมเพย์ตามยอดเงินของคุณ...</p>
+          <!-- Modal Header -->
+          <div class="p-4 sm:p-5 border-b border-border flex justify-between items-center bg-muted/30 shrink-0">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                <QrCode class="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div>
+                <h3 class="font-black text-sm sm:text-base text-foreground flex items-center gap-2">
+                  ชำระเงินอัตโนมัติด้วย PromptPay
+                  <span v-if="qrData?.isPromo" class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold border border-rose-200">
+                    ลด 50%
+                  </span>
+                </h3>
+                <p class="text-[11px] sm:text-xs text-muted-foreground">สแกน QR Code โอนเงิน และแนบสลิปเพื่อเปิดใช้งานทันที 24 ชม.</p>
+              </div>
+            </div>
+            <button 
+              @click="closePaymentModal" 
+              class="text-muted-foreground hover:text-foreground p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer shrink-0"
+            >
+              <X class="w-5 h-5" />
+            </button>
           </div>
 
-          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <!-- Modal Body -->
+          <div class="p-4 sm:p-6 overflow-y-auto space-y-5">
             
-            <!-- Left: QR Code Display & Payment Details -->
-            <div class="bg-muted/20 border rounded-2xl p-5 flex flex-col items-center text-center space-y-4">
-              <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 inline-block relative">
-                <img 
-                  v-if="qrData?.qrDataUrl" 
-                  :src="qrData.qrDataUrl" 
-                  alt="PromptPay QR Code" 
-                  class="w-52 h-52 object-contain rounded-lg"
-                />
-                <div v-else class="w-52 h-52 flex flex-col items-center justify-center bg-muted/40 rounded-lg p-3 text-center space-y-2.5">
-                  <span class="text-xs text-muted-foreground font-medium">ไม่สามารถโหลด QR Code</span>
-                  <button 
-                    @click="openPaymentModal(selectedPackage)" 
-                    type="button" 
-                    class="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-lg shadow-xs hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-                  >
-                    <RefreshCw class="w-3.5 h-3.5" />
-                    <span>ลองใหม่อีกครั้ง</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Package & Price Summary -->
-              <div class="w-full bg-card border rounded-xl p-3.5 space-y-1.5 text-left text-xs">
-                <div class="flex justify-between items-center text-muted-foreground">
-                  <span>แพ็กเกจที่เลือก:</span>
-                  <span class="font-bold text-foreground">{{ qrData?.package?.name }} ({{ qrData?.package?.days }} วัน)</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-muted-foreground">ยอดเงินที่ต้องโอน:</span>
-                  <div class="flex items-center gap-1.5">
-                    <span v-if="qrData?.isPromo" class="line-through text-muted-foreground text-[11px]">฿{{ qrData?.standardAmount }}</span>
-                    <strong class="text-base text-rose-600 font-black">฿{{ qrData?.amount }}</strong>
-                    <button 
-                      @click="copyToClipboard(String(qrData?.amount), 'amount')" 
-                      type="button"
-                      class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted cursor-pointer"
-                      title="คัดลอกยอดเงิน"
-                    >
-                      <Check v-if="copiedAmount" class="w-3.5 h-3.5 text-emerald-600" />
-                      <Copy v-else class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div class="flex justify-between items-center text-muted-foreground pt-1 border-t border-dashed">
-                  <span>บัญชีรับเงิน (PromptPay):</span>
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-mono font-bold text-foreground">{{ qrData?.promptpayId }}</span>
-                    <button 
-                      @click="copyToClipboard(qrData?.promptpayId, 'id')" 
-                      type="button"
-                      class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted cursor-pointer"
-                      title="คัดลอกเลขพร้อมเพย์"
-                    >
-                      <Check v-if="copiedPromptpay" class="w-3.5 h-3.5 text-emerald-600" />
-                      <Copy v-else class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div v-if="qrData?.accountName" class="flex justify-between items-center text-muted-foreground text-[11px]">
-                  <span>ชื่อบัญชี:</span>
-                  <span class="font-medium text-foreground">{{ qrData.accountName }}</span>
-                </div>
-              </div>
-
-              <p class="text-[11px] text-muted-foreground leading-relaxed">
-                💡 สแกนผ่านแอปธนาคารใดก็ได้ ยอดเงินจะถูกระบุให้อัตโนมัติ จากนั้นบันทึกรูปสลิปและแนบในช่องขวามือ
-              </p>
+            <!-- Loading State for QR generation -->
+            <div v-if="isGeneratingQr" class="py-16 text-center space-y-3">
+              <div class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p class="text-xs font-medium text-muted-foreground">กำลังสร้าง QR Code พร้อมเพย์ตามยอดเงินของคุณ...</p>
             </div>
 
-            <!-- Right: Slip Upload & AI Verification -->
-            <div class="space-y-4">
-              <div>
-                <label class="block text-xs font-bold text-foreground mb-1.5">
-                  แนบรูปภาพสลิปการโอนเงิน <span class="text-rose-500">*</span>
-                </label>
-
-                <!-- Drag & Drop / File Input Box -->
-                <div 
-                  @dragover.prevent 
-                  @dragenter.prevent 
-                  @drop="onFileDrop"
-                  class="border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all hover:bg-muted/30 relative"
-                  :class="slipFile ? 'border-emerald-400 bg-emerald-50/20' : 'border-border hover:border-primary/50'"
-                  @click="triggerFileInput"
-                >
-                  <input 
-                    ref="fileInputRef" 
-                    type="file" 
-                    accept="image/*" 
-                    class="hidden" 
-                    @change="onFileSelected"
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 items-start">
+              
+              <!-- Left: QR Code Display & Payment Details -->
+              <div class="bg-muted/20 border rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center space-y-3.5 sm:space-y-4">
+                <div class="bg-white p-2.5 sm:p-3 rounded-2xl shadow-sm border border-slate-200 inline-block relative">
+                  <img 
+                    v-if="qrData?.qrDataUrl" 
+                    :src="qrData.qrDataUrl" 
+                    alt="PromptPay QR Code" 
+                    class="w-44 h-44 sm:w-52 sm:h-52 object-contain rounded-lg"
                   />
+                  <div v-else class="w-44 h-44 sm:w-52 sm:h-52 flex flex-col items-center justify-center bg-muted/40 rounded-lg p-3 text-center space-y-2.5">
+                    <span class="text-xs text-muted-foreground font-medium">ไม่สามารถโหลด QR Code</span>
+                    <button 
+                      @click="openPaymentModal(selectedPackage)" 
+                      type="button" 
+                      class="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-lg shadow-xs hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                    >
+                      <RefreshCw class="w-3.5 h-3.5" />
+                      <span>ลองใหม่อีกครั้ง</span>
+                    </button>
+                  </div>
+                </div>
 
-                  <!-- Preview when file selected -->
-                  <div v-if="slipPreviewUrl" class="space-y-3">
-                    <div class="relative inline-block mx-auto">
-                      <img 
-                        :src="slipPreviewUrl" 
-                        alt="Slip Preview" 
-                        class="max-h-48 max-w-full rounded-xl object-contain shadow-xs border"
-                      />
+                <!-- Package & Price Summary -->
+                <div class="w-full bg-card border rounded-xl p-3 sm:p-3.5 space-y-1.5 text-left text-xs">
+                  <div class="flex justify-between items-center text-muted-foreground">
+                    <span>แพ็กเกจที่เลือก:</span>
+                    <span class="font-bold text-foreground">{{ qrData?.package?.name }} ({{ qrData?.package?.days }} วัน)</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-muted-foreground">ยอดเงินที่ต้องโอน:</span>
+                    <div class="flex items-center gap-1.5">
+                      <span v-if="qrData?.isPromo" class="line-through text-muted-foreground text-[11px]">฿{{ qrData?.standardAmount }}</span>
+                      <strong class="text-base text-rose-600 font-black">฿{{ qrData?.amount }}</strong>
                       <button 
-                        @click.stop="removeSlipFile" 
+                        @click="copyToClipboard(String(qrData?.amount), 'amount')" 
                         type="button"
-                        class="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 shadow-sm cursor-pointer"
-                        title="ลบรูป"
+                        class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted cursor-pointer"
+                        title="คัดลอกยอดเงิน"
                       >
-                        <X class="w-3.5 h-3.5" />
+                        <Check v-if="copiedAmount" class="w-3.5 h-3.5 text-emerald-600" />
+                        <Copy v-else class="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <p class="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
-                      <CheckCircle2 class="w-4 h-4 text-emerald-600" />
-                      {{ slipFile?.name }} ({{ (slipFile?.size ? (slipFile.size / 1024).toFixed(0) : 0) }} KB)
-                    </p>
-                    <p class="text-[11px] text-muted-foreground">คลิกหรือลากรูปใหม่มาวางหากต้องการเปลี่ยนรูปสลิป</p>
                   </div>
-
-                  <!-- Empty Placeholder -->
-                  <div v-else class="py-6 space-y-2">
-                    <div class="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                      <UploadCloud class="w-6 h-6" />
+                  <div class="flex justify-between items-center text-muted-foreground pt-1 border-t border-dashed">
+                    <span>บัญชีรับเงิน (PromptPay):</span>
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-mono font-bold text-foreground">{{ qrData?.promptpayId }}</span>
+                      <button 
+                        @click="copyToClipboard(qrData?.promptpayId, 'id')" 
+                        type="button"
+                        class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted cursor-pointer"
+                        title="คัดลอกเลขพร้อมเพย์"
+                      >
+                        <Check v-if="copiedPromptpay" class="w-3.5 h-3.5 text-emerald-600" />
+                        <Copy v-else class="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <p class="text-xs font-bold text-foreground">คลิกเพื่อเลือกสลิป หรือลากไฟล์มาวางที่นี่</p>
-                    <p class="text-[11px] text-muted-foreground">รองรับ JPG, PNG, WEBP หรือถ่ายรูปสลิป (สูงสุด 10MB)</p>
+                  </div>
+                  <div v-if="qrData?.accountName" class="flex justify-between items-center text-muted-foreground text-[11px]">
+                    <span>ชื่อบัญชี:</span>
+                    <span class="font-medium text-foreground">{{ qrData.accountName }}</span>
                   </div>
                 </div>
+
+                <p class="text-[11px] text-muted-foreground leading-relaxed">
+                  💡 สแกนผ่านแอปธนาคารใดก็ได้ ยอดเงินจะถูกระบุให้อัตโนมัติ จากนั้นบันทึกรูปสลิปและแนบในช่องขวามือ
+                </p>
               </div>
 
-              <!-- Error Alert Banner -->
-              <div v-if="verifyError" class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
-                <AlertCircle class="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                <div class="flex-1">
-                  <strong class="font-bold block mb-0.5">การตรวจสอบไม่สำเร็จ:</strong>
-                  <p class="leading-relaxed">{{ verifyError }}</p>
+              <!-- Right: Slip Upload & AI Verification -->
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs font-bold text-foreground mb-1.5">
+                    แนบรูปภาพสลิปการโอนเงิน <span class="text-rose-500">*</span>
+                  </label>
+
+                  <!-- Drag & Drop / File Input Box -->
+                  <div 
+                    @dragover.prevent 
+                    @dragenter.prevent 
+                    @drop="onFileDrop"
+                    class="border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all hover:bg-muted/30 relative"
+                    :class="slipFile ? 'border-emerald-400 bg-emerald-50/20' : 'border-border hover:border-primary/50'"
+                    @click="triggerFileInput"
+                  >
+                    <input 
+                      ref="fileInputRef" 
+                      type="file" 
+                      accept="image/*" 
+                      class="hidden" 
+                      @change="onFileSelected"
+                    />
+
+                    <!-- Preview when file selected -->
+                    <div v-if="slipPreviewUrl" class="space-y-3">
+                      <div class="relative inline-block mx-auto">
+                        <img 
+                          :src="slipPreviewUrl" 
+                          alt="Slip Preview" 
+                          class="max-h-44 max-w-full rounded-xl object-contain shadow-xs border"
+                        />
+                        <button 
+                          @click.stop="removeSlipFile" 
+                          type="button"
+                          class="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 shadow-sm cursor-pointer"
+                          title="ลบรูป"
+                        >
+                          <X class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <p class="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
+                        <CheckCircle2 class="w-4 h-4 text-emerald-600" />
+                        {{ slipFile?.name }} ({{ (slipFile?.size ? (slipFile.size / 1024).toFixed(0) : 0) }} KB)
+                      </p>
+                      <p class="text-[11px] text-muted-foreground">คลิกหรือลากรูปใหม่มาวางหากต้องการเปลี่ยนรูปสลิป</p>
+                    </div>
+
+                    <!-- Empty Placeholder -->
+                    <div v-else class="py-5 sm:py-6 space-y-2">
+                      <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                        <UploadCloud class="w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                      <p class="text-xs font-bold text-foreground">คลิกเพื่อเลือกสลิป หรือลากไฟล์มาวางที่นี่</p>
+                      <p class="text-[11px] text-muted-foreground">รองรับ JPG, PNG, WEBP หรือถ่ายรูปสลิป (สูงสุด 10MB)</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Security Badges -->
-              <div class="p-3 bg-muted/30 rounded-xl text-[11px] text-muted-foreground space-y-1">
-                <div class="flex items-center gap-1.5 font-bold text-foreground">
-                  <ShieldCheck class="w-4 h-4 text-emerald-600" />
-                  <span>ระบบตรวจสลิปอัตโนมัติ SlipOK Real-time 24 ชม.</span>
+                <!-- Error Alert Banner -->
+                <div v-if="verifyError" class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+                  <AlertCircle class="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div class="flex-1">
+                    <strong class="font-bold block mb-0.5">การตรวจสอบไม่สำเร็จ:</strong>
+                    <p class="leading-relaxed">{{ verifyError }}</p>
+                  </div>
                 </div>
-                <p>ระบบจะอ่าน QR Code บนสลิป ตรวจสอบยอดเงิน และขยายวันหมดอายุของร้านค้าให้ทันทีแบบเรียลไทม์</p>
-              </div>
 
-              <!-- Verification Action Button -->
-              <button 
-                @click="submitSlipVerification" 
-                :disabled="!slipFile || isVerifying" 
-                type="button"
-                class="w-full py-3.5 px-5 rounded-xl font-black text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <RefreshCw v-if="isVerifying" class="w-4 h-4 animate-spin" />
-                <Sparkles v-else class="w-4 h-4 text-yellow-300" />
-                <span>{{ isVerifying ? 'กำลังส่งสลิปให้ SlipOK ตรวจสอบ & ต่ออายุ...' : 'ตรวจสอบสลิป & ต่ออายุอัตโนมัติ' }}</span>
-              </button>
+                <!-- Security Badges -->
+                <div class="p-3 bg-muted/30 rounded-xl text-[11px] text-muted-foreground space-y-1">
+                  <div class="flex items-center gap-1.5 font-bold text-foreground">
+                    <ShieldCheck class="w-4 h-4 text-emerald-600" />
+                    <span>ระบบตรวจสลิปอัตโนมัติ SlipOK Real-time 24 ชม.</span>
+                  </div>
+                  <p>ระบบจะอ่าน QR Code บนสลิป ตรวจสอบยอดเงิน และขยายวันหมดอายุของร้านค้าให้ทันทีแบบเรียลไทม์</p>
+                </div>
+
+                <!-- Verification Action Button -->
+                <button 
+                  @click="submitSlipVerification" 
+                  :disabled="!slipFile || isVerifying" 
+                  type="button"
+                  class="w-full py-3.5 px-5 rounded-xl font-black text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
+                >
+                  <RefreshCw v-if="isVerifying" class="w-4 h-4 animate-spin" />
+                  <Sparkles v-else class="w-4 h-4 text-yellow-300" />
+                  <span>{{ isVerifying ? 'กำลังส่งสลิปให้ SlipOK ตรวจสอบ & ต่ออายุ...' : 'ตรวจสอบสลิป & ต่ออายุอัตโนมัติ' }}</span>
+                </button>
+
+              </div>
 
             </div>
 
           </div>
 
         </div>
-
       </div>
-    </div>
+    </Teleport>
 
     <!-- 7. Success Celebration Modal -->
-    <div v-if="showSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-      <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-center p-8 space-y-5 animate-in zoom-in-95 duration-200">
-        
-        <div class="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-4xl mx-auto shadow-inner ring-8 ring-emerald-50">
-          🎉
-        </div>
-
-        <div class="space-y-1.5">
-          <h3 class="text-xl font-black text-foreground">ต่ออายุแพ็กเกจสำเร็จ!</h3>
-          <p class="text-xs text-muted-foreground">ระบบได้ทำการตรวจสอบสลิปและขยายระยะเวลาการใช้งานให้ร้านของคุณเรียบร้อยแล้ว</p>
-        </div>
-
-        <!-- Details Box -->
-        <div class="bg-muted/20 border rounded-2xl p-4 text-xs space-y-2 text-left">
-          <div class="flex justify-between items-center">
-            <span class="text-muted-foreground">เลขที่ใบเสร็จ:</span>
-            <span class="font-mono font-bold text-foreground">{{ successData?.receiptNumber }}</span>
+    <Teleport to="body">
+      <div v-if="showSuccessModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xl overflow-y-auto" style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+        <div class="bg-card border rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-center p-6 sm:p-8 space-y-5 my-auto animate-in zoom-in-95 duration-200">
+          
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl sm:text-4xl mx-auto shadow-inner ring-8 ring-emerald-50">
+            🎉
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-muted-foreground">แพ็กเกจ:</span>
-            <span class="font-bold text-foreground">{{ successData?.packageName }} ({{ successData?.packageDays }} วัน)</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-muted-foreground">ยอดเงินที่ชำระ:</span>
-            <span class="font-black text-emerald-600">฿{{ successData?.amount }}</span>
-          </div>
-          <div class="flex justify-between items-center pt-1 border-t border-dashed">
-            <span class="text-muted-foreground">วันหมดอายุใหม่:</span>
-            <span class="font-bold text-foreground">{{ formatDate(successData?.newExpiryDate) }}</span>
-          </div>
-        </div>
 
-        <div class="space-y-2 pt-2">
-          <button 
-            @click="viewNewlyCreatedReceipt" 
-            type="button"
-            class="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <FileText class="w-4 h-4" />
-            <span>ดูและดาวน์โหลดใบเสร็จรับเงิน</span>
-          </button>
-          <button 
-            @click="showSuccessModal = false" 
-            type="button"
-            class="w-full py-2.5 px-4 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-          >
-            ปิดหน้าต่าง
-          </button>
-        </div>
+          <div class="space-y-1.5">
+            <h3 class="text-lg sm:text-xl font-black text-foreground">ต่ออายุแพ็กเกจสำเร็จ!</h3>
+            <p class="text-xs text-muted-foreground">ระบบได้ทำการตรวจสอบสลิปและขยายระยะเวลาการใช้งานให้ร้านของคุณเรียบร้อยแล้ว</p>
+          </div>
 
+          <!-- Details Box -->
+          <div class="bg-muted/20 border rounded-2xl p-4 text-xs space-y-2 text-left">
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">เลขที่ใบเสร็จ:</span>
+              <span class="font-mono font-bold text-foreground">{{ successData?.receiptNumber }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">แพ็กเกจ:</span>
+              <span class="font-bold text-foreground">{{ successData?.packageName }} ({{ successData?.packageDays }} วัน)</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-muted-foreground">ยอดเงินที่ชำระ:</span>
+              <span class="font-black text-emerald-600">฿{{ successData?.amount }}</span>
+            </div>
+            <div class="flex justify-between items-center pt-1 border-t border-dashed">
+              <span class="text-muted-foreground">วันหมดอายุใหม่:</span>
+              <span class="font-bold text-foreground">{{ formatDate(successData?.newExpiryDate) }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-2">
+            <button 
+              @click="viewNewlyCreatedReceipt" 
+              type="button"
+              class="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/90 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <FileText class="w-4 h-4" />
+              <span>ดูและดาวน์โหลดใบเสร็จรับเงิน</span>
+            </button>
+            <button 
+              @click="showSuccessModal = false" 
+              type="button"
+              class="w-full py-2.5 px-4 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              ปิดหน้าต่าง
+            </button>
+          </div>
+
+        </div>
       </div>
-    </div>
+    </Teleport>
 
   </div>
 </template>
